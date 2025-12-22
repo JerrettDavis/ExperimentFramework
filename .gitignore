@@ -1,0 +1,8 @@
+bin/
+obj/
+*.user
+docs/api
+docs/_site
+BenchmarkDotNet.Artifacts/
+coverage.cobertura.xml
+TestResults/

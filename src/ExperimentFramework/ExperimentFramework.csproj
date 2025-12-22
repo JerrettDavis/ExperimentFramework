@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ExperimentFramework</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>JD</Authors>
+    <Description>A .NET framework for runtime-switchable A/B testing, feature flags, trial fallback, and comprehensive observability. Supports multiple selection modes (boolean flags, configuration values, variant flags, sticky routing), error policies with automatic fallback, decorator pipelines, and OpenTelemetry integration. BETA: API may change in future releases.</Description>
+    <PackageTags>experiments;ab-testing;feature-flags;observability;telemetry;opentelemetry;dependency-injection;aspnetcore;beta</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExperimentFramework.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.FeatureManagement" Version="4.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference to source generator project (runs at compile-time) -->
+    <ProjectReference Include="..\ExperimentFramework.Generators\ExperimentFramework.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=netstandard2.0" />
+  </ItemGroup>
+
+  <!-- Explicitly add generator as analyzer after build -->
+  <Target Name="AddGeneratorAnalyzer" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Include="..\ExperimentFramework.Generators\bin\$(Configuration)\netstandard2.0\ExperimentFramework.Generators.dll" />
+    </ItemGroup>
+    <Message Text="Adding generator analyzer: @(Analyzer)" Importance="high" />
+  </Target>
+
+</Project>
