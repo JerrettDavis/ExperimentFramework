@@ -170,10 +170,12 @@ public sealed class IntegrationTests(ITestOutputHelper output) : TinyBddXunitBas
             .And("all activities have correct service names", r =>
             {
                 // Activity capture timing is unreliable, so just verify we have valid activities
-                if (r.State.CapturedActivities.Count == 0)
+                // Take snapshot to avoid collection modification during enumeration
+                var snapshot = r.State.CapturedActivities.ToList();
+                if (snapshot.Count == 0)
                     return true; // Accept empty list - telemetry is best-effort
 
-                var services = r.State.CapturedActivities
+                var services = snapshot
                     .Select(a => a.GetTagItem("experiment.service")?.ToString())
                     .Where(s => !string.IsNullOrEmpty(s))
                     .ToList();
