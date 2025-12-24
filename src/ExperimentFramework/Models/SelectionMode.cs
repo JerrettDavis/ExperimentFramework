@@ -30,5 +30,19 @@ public enum SelectionMode
     /// Requires <c>IExperimentIdentityProvider</c> to be registered in DI.
     /// Falls back to feature flag selection if identity provider is unavailable.
     /// </remarks>
-    StickyRouting
+    StickyRouting,
+
+    /// <summary>
+    /// Uses OpenFeature to select a trial based on flag evaluation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Requires the OpenFeature SDK to be configured with a provider.
+    /// Uses <c>GetStringValueAsync</c> for multi-variant flags or <c>GetBooleanValueAsync</c> for boolean flags.
+    /// </para>
+    /// <para>
+    /// Falls back to default trial if OpenFeature is unavailable or flag evaluation fails.
+    /// </para>
+    /// </remarks>
+    OpenFeature
 }

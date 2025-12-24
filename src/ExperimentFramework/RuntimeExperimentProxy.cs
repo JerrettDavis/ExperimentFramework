@@ -277,25 +277,15 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
     }
 
     private string SelectTrialKey(IServiceProvider sp)
-    {
-        switch (_registration!.Mode)
+        => _registration!.Mode switch
         {
-            case SelectionMode.BooleanFeatureFlag:
-                return SelectBooleanFeatureFlag(sp);
-
-            case SelectionMode.ConfigurationValue:
-                return SelectConfigurationValue(sp);
-
-            case SelectionMode.VariantFeatureFlag:
-                return SelectVariantFeatureFlag(sp);
-
-            case SelectionMode.StickyRouting:
-                return SelectStickyRouting(sp);
-
-            default:
-                return _registration.DefaultKey;
-        }
-    }
+            SelectionMode.BooleanFeatureFlag => SelectBooleanFeatureFlag(sp),
+            SelectionMode.ConfigurationValue => SelectConfigurationValue(sp),
+            SelectionMode.VariantFeatureFlag => SelectVariantFeatureFlag(sp),
+            SelectionMode.StickyRouting => SelectStickyRouting(sp),
+            SelectionMode.OpenFeature => SelectOpenFeature(sp),
+            _ => _registration.DefaultKey
+        };
 
     private string SelectBooleanFeatureFlag(IServiceProvider sp)
     {
@@ -399,6 +389,94 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
 
         // Fall back to boolean feature flag
         return SelectBooleanFeatureFlag(sp);
+    }
+
+    private string SelectOpenFeature(IServiceProvider sp)
+    {
+        // Use reflection to access OpenFeature API (soft dependency)
+        var apiType = Type.GetType("OpenFeature.Api, OpenFeature");
+        if (apiType == null)
+            return _registration!.DefaultKey;
+
+        // Get Api.Instance property
+        var instanceProperty = apiType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+        if (instanceProperty == null)
+            return _registration!.DefaultKey;
+
+        var api = instanceProperty.GetValue(null);
+        if (api == null)
+            return _registration!.DefaultKey;
+
+        // Get client via GetClient()
+        var getClientMethod = apiType.GetMethod("GetClient", Type.EmptyTypes);
+        if (getClientMethod == null)
+            return _registration!.DefaultKey;
+
+        var client = getClientMethod.Invoke(api, null);
+        if (client == null)
+            return _registration!.DefaultKey;
+
+        var clientType = client.GetType();
+
+        // Determine if we should use boolean or string evaluation based on trial keys
+        var trialKeys = _registration!.Trials.Keys.ToList();
+        var isBooleanFlag = trialKeys.Count == 2 &&
+                            trialKeys.Contains("true") &&
+                            trialKeys.Contains("false");
+
+        if (isBooleanFlag)
+        {
+            // Use GetBooleanValueAsync for boolean flags
+            var getBoolMethod = clientType.GetMethod("GetBooleanValueAsync",
+                new[] { typeof(string), typeof(bool), typeof(CancellationToken) });
+
+            if (getBoolMethod != null)
+            {
+                try
+                {
+                    var task = (Task<bool>?)getBoolMethod.Invoke(client,
+                        new object[] { _registration.SelectorName, false, CancellationToken.None });
+
+                    if (task != null)
+                    {
+                        var result = task.GetAwaiter().GetResult();
+                        return result ? "true" : "false";
+                    }
+                }
+                catch
+                {
+                    // Fall through to default
+                }
+            }
+        }
+        else
+        {
+            // Use GetStringValueAsync for multi-variant flags
+            var getStringMethod = clientType.GetMethod("GetStringValueAsync",
+                new[] { typeof(string), typeof(string), typeof(CancellationToken) });
+
+            if (getStringMethod != null)
+            {
+                try
+                {
+                    var task = (Task<string>?)getStringMethod.Invoke(client,
+                        new object[] { _registration.SelectorName, _registration.DefaultKey, CancellationToken.None });
+
+                    if (task != null)
+                    {
+                        var result = task.GetAwaiter().GetResult();
+                        if (!string.IsNullOrEmpty(result))
+                            return result;
+                    }
+                }
+                catch
+                {
+                    // Fall through to default
+                }
+            }
+        }
+
+        return _registration.DefaultKey;
     }
 
     private List<string> BuildCandidateKeys(string preferredKey)

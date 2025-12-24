@@ -125,6 +125,11 @@ internal static class DefineCallParser
                     selectorName = ExtractStringArgument(invocation, 0);
                     break;
 
+                case "UsingOpenFeature":
+                    selectionMode = SelectionModeModel.OpenFeature;
+                    selectorName = ExtractStringArgument(invocation, 0);
+                    break;
+
                 case "AddDefaultTrial":
                     var defaultTrialType = ExtractGenericTypeArgument(invocation, semanticModel);
                     var defaultTrialKey = ExtractStringArgument(invocation, 0);

@@ -60,11 +60,12 @@ ExperimentFramework uses several .NET features to enable runtime experimentation
 
 **Trial Key**: A string identifier for a trial. For boolean feature flags, these are typically "true" and "false". For other modes, they can be any string value.
 
-**Selection Mode**: The strategy used to choose which trial to execute. The framework supports four modes:
-- Boolean Feature Flag
-- Configuration Value
-- Variant Feature Flag
-- Sticky Routing
+**Selection Mode**: The strategy used to choose which trial to execute. The framework supports five modes:
+- Boolean Feature Flag (Microsoft Feature Management)
+- Configuration Value (IConfiguration)
+- Variant Feature Flag (Microsoft Feature Management variants)
+- Sticky Routing (deterministic user-based routing)
+- OpenFeature (open standard for feature flags)
 
 **Proxy**: A dynamically generated type that implements your service interface and delegates calls to the selected trial.
 
@@ -128,4 +129,5 @@ The framework follows these design principles:
 
 - [Getting Started](getting-started.md) - Install the framework and create your first experiment
 - [Core Concepts](core-concepts.md) - Detailed explanation of trials, proxies, and decorators
-- [Selection Modes](selection-modes.md) - Learn about the four ways to select trials
+- [Selection Modes](selection-modes.md) - Learn about the different ways to select trials
+- [OpenFeature Integration](openfeature.md) - Use OpenFeature providers for flag management

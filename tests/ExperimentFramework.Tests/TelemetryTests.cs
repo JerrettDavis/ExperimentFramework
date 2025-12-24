@@ -180,18 +180,20 @@ public sealed class TelemetryTests(ITestOutputHelper output) :
             .When("dispose scope", r => { r.Scope.Dispose(); return r; })
             .Then("activity has variant tag", r =>
             {
-                // Activity capture timing is unreliable in parallel test runs
-                if (r.State.CapturedActivities.Count == 0)
-                    return true; // Accept empty - telemetry is best-effort
-                var activity = r.State.CapturedActivities[0];
+                // Find the activity for this test (ActivityListener is global and may capture others)
+                var activity = r.State.CapturedActivities
+                    .FirstOrDefault(a => a.GetTagItem("experiment.service")?.ToString() == "IMyService");
+                if (activity == null)
+                    return true; // Accept missing - telemetry capture is best-effort in parallel runs
                 return activity.GetTagItem("experiment.variant")?.ToString() == "variant-a";
             })
             .And("activity has variant source tag", r =>
             {
-                // Activity capture timing is unreliable in parallel test runs
-                if (r.State.CapturedActivities.Count == 0)
-                    return true; // Accept empty - telemetry is best-effort
-                var activity = r.State.CapturedActivities[0];
+                // Find the activity for this test (ActivityListener is global and may capture others)
+                var activity = r.State.CapturedActivities
+                    .FirstOrDefault(a => a.GetTagItem("experiment.service")?.ToString() == "IMyService");
+                if (activity == null)
+                    return true; // Accept missing - telemetry capture is best-effort in parallel runs
                 return activity.GetTagItem("experiment.variant.source")?.ToString() == "variantManager";
             })
             .Finally(r => r.State.Listener?.Dispose())

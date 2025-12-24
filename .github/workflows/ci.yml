@@ -9,6 +9,7 @@ on:
 env:
   DOTNET_NOLOGO: true
   INCLUDE_SYMBOLS: true
+  MSBUILDDISABLENODEREUSE: 1
 
 jobs:
   pr-checks:

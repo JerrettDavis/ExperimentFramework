@@ -365,4 +365,5 @@ internal class CustomTestNamingConvention : IExperimentNamingConvention
     public string FeatureFlagNameFor(Type serviceType) => $"CustomFeatures:{serviceType.Name}";
     public string VariantFlagNameFor(Type serviceType) => $"CustomVariants:{serviceType.Name}";
     public string ConfigurationKeyFor(Type serviceType) => $"CustomConfig:{serviceType.Name}";
+    public string OpenFeatureFlagNameFor(Type serviceType) => $"custom-{serviceType.Name.ToLowerInvariant()}";
 }

@@ -23,4 +23,31 @@ internal sealed class DefaultExperimentNamingConvention : IExperimentNamingConve
     /// <inheritdoc/>
     public string ConfigurationKeyFor(Type serviceType)
         => $"Experiments:{serviceType.Name}";
+
+    /// <inheritdoc/>
+    public string OpenFeatureFlagNameFor(Type serviceType)
+        => ToKebabCase(serviceType.Name);
+
+    private static string ToKebabCase(string name)
+    {
+        // Remove leading 'I' if it's an interface name (IMyService -> my-service)
+        if (name.Length > 1 && name[0] == 'I' && char.IsUpper(name[1]))
+            name = name[1..];
+
+        var builder = new System.Text.StringBuilder();
+        foreach (var c in name)
+        {
+            if (char.IsUpper(c))
+            {
+                if (builder.Length > 0)
+                    builder.Append('-');
+                builder.Append(char.ToLowerInvariant(c));
+            }
+            else
+            {
+                builder.Append(c);
+            }
+        }
+        return builder.ToString();
+    }
 }

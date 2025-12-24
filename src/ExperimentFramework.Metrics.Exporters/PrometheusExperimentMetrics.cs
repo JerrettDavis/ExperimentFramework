@@ -15,6 +15,7 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
     private readonly ConcurrentDictionary<string, HistogramMetric> _histograms = new();
     private readonly ConcurrentDictionary<string, SummaryMetric> _summaries = new();
 
+    /// <inheritdoc/>
     public void IncrementCounter(string name, long value = 1, params KeyValuePair<string, object>[] tags)
     {
         var key = BuildKey(name, tags);
@@ -27,6 +28,7 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
             });
     }
 
+    /// <inheritdoc/>
     public void RecordHistogram(string name, double value, params KeyValuePair<string, object>[] tags)
     {
         var key = BuildKey(name, tags);
@@ -39,6 +41,7 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
             });
     }
 
+    /// <inheritdoc/>
     public void SetGauge(string name, double value, params KeyValuePair<string, object>[] tags)
     {
         var key = BuildKey(name, tags);
@@ -51,6 +54,7 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
             });
     }
 
+    /// <inheritdoc/>
     public void RecordSummary(string name, double value, params KeyValuePair<string, object>[] tags)
     {
         var key = BuildKey(name, tags);

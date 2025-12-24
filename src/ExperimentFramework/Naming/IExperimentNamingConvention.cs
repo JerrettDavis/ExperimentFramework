@@ -29,4 +29,14 @@ public interface IExperimentNamingConvention
     /// <param name="serviceType">The service interface type (e.g., <c>typeof(IMyTaxProvider)</c>).</param>
     /// <returns>The configuration key (e.g., <c>"Experiments:IMyTaxProvider"</c>).</returns>
     string ConfigurationKeyFor(Type serviceType);
+
+    /// <summary>
+    /// Returns the OpenFeature flag key to use for OpenFeature-based selection.
+    /// </summary>
+    /// <param name="serviceType">The service interface type (e.g., <c>typeof(IMyDatabase)</c>).</param>
+    /// <returns>The OpenFeature flag key (e.g., <c>"my-database"</c>).</returns>
+    /// <remarks>
+    /// OpenFeature flag keys typically use kebab-case naming conventions.
+    /// </remarks>
+    string OpenFeatureFlagNameFor(Type serviceType);
 }

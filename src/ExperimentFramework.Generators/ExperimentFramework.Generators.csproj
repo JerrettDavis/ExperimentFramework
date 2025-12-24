@@ -6,6 +6,9 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IsRoslynComponent>true</IsRoslynComponent>
 
+    <!-- Disable shared compilation to prevent file locking issues with the generator DLL -->
+    <UseSharedCompilation>false</UseSharedCompilation>
+
     <!-- NuGet Package Metadata -->
     <PackageId>ExperimentFramework.Generators</PackageId>
     <Version>0.1.0</Version>

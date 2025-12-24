@@ -1,6 +1,6 @@
 # Selection Modes
 
-Selection modes determine how the framework chooses which trial to execute for each method call. The framework supports four selection modes, each suited to different use cases.
+Selection modes determine how the framework chooses which trial to execute for each method call. The framework supports five selection modes, each suited to different use cases.
 
 ## Overview
 
@@ -10,6 +10,7 @@ Selection modes determine how the framework chooses which trial to execute for e
 | Configuration Value | Multi-variant selection | IConfiguration key value |
 | Variant Feature Flag | Targeted rollouts | IVariantFeatureManager variant name |
 | Sticky Routing | A/B testing by user | Hash of user identity |
+| OpenFeature | External flag management | OpenFeature provider evaluation |
 
 ## Boolean Feature Flag
 
@@ -519,6 +520,66 @@ public class TenantUserIdentityProvider : IExperimentIdentityProvider
 
 This ensures users in different tenants can be assigned to different trials.
 
+## OpenFeature
+
+OpenFeature integration allows routing based on any OpenFeature-compatible feature flag provider.
+
+### When to Use
+
+- Using external feature flag services (LaunchDarkly, Flagsmith, CloudBees, etc.)
+- Standardized feature flag management across multiple platforms
+- Vendor-agnostic feature flag evaluation
+- Existing OpenFeature infrastructure
+
+### Configuration
+
+Define the experiment using `UsingOpenFeature()`:
+
+```csharp
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Define<IPaymentProcessor>(c => c
+        .UsingOpenFeature("payment-processor")
+        .AddDefaultTrial<StripeProcessor>("stripe")
+        .AddTrial<PayPalProcessor>("paypal")
+        .AddTrial<SquareProcessor>("square"));
+
+services.AddExperimentFramework(experiments);
+```
+
+### Provider Setup
+
+Configure your OpenFeature provider before using the framework:
+
+```csharp
+// Configure provider at startup
+await Api.Instance.SetProviderAsync(new YourOpenFeatureProvider());
+```
+
+### Flag Key Naming
+
+When no flag key is specified, the framework generates a kebab-case name:
+
+| Service Type | Generated Flag Key |
+|--------------|-------------------|
+| `IPaymentProcessor` | `payment-processor` |
+| `IUserService` | `user-service` |
+
+### Boolean vs String Flags
+
+The framework automatically detects the flag type:
+
+**Boolean flags** (trials are "true" and "false"):
+- Uses `GetBooleanValueAsync()`
+
+**String flags** (multi-variant):
+- Uses `GetStringValueAsync()`
+
+### Fallback Behavior
+
+If OpenFeature is not configured or evaluation fails, the default trial is used.
+
+For detailed configuration and provider examples, see the [OpenFeature Integration Guide](openfeature.md).
+
 ## Choosing a Selection Mode
 
 Use this decision tree to choose the right selection mode:
@@ -527,12 +588,15 @@ Use this decision tree to choose the right selection mode:
 Do you need user-specific consistency?
 ├─ Yes: Use Sticky Routing
 └─ No:
-    └─ How many variants?
-        ├─ Two: Use Boolean Feature Flag
-        └─ More than two:
-            └─ Need advanced targeting (user segments, groups, etc.)?
-                ├─ Yes: Use Variant Feature Flag
-                └─ No: Use Configuration Value
+    └─ Using external feature flag service (LaunchDarkly, Flagsmith, etc.)?
+        ├─ Yes: Use OpenFeature
+        └─ No:
+            └─ How many variants?
+                ├─ Two: Use Boolean Feature Flag
+                └─ More than two:
+                    └─ Need advanced targeting (user segments, groups, etc.)?
+                        ├─ Yes: Use Variant Feature Flag
+                        └─ No: Use Configuration Value
 ```
 
 ## Combining Multiple Experiments

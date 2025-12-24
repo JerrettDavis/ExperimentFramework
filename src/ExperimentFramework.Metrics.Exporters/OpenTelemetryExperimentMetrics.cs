@@ -25,30 +25,37 @@ public sealed class OpenTelemetryExperimentMetrics : IExperimentMetrics
         _histogram = _meter.CreateHistogram<double>("experiment_histogram", description: "Experiment histogram metrics");
     }
 
+    /// <inheritdoc/>
     public void IncrementCounter(string name, long value = 1, params KeyValuePair<string, object>[] tags)
     {
-        _counter.Add(value, tags);
+        _counter.Add(value, tags!);
     }
 
+    /// <inheritdoc/>
     public void RecordHistogram(string name, double value, params KeyValuePair<string, object>[] tags)
     {
-        _histogram.Record(value, tags);
+        _histogram.Record(value, tags!);
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Gauge functionality is not fully supported in this implementation.
+    /// OpenTelemetry gauges require observable callbacks that capture point-in-time values.
+    /// This records values into a histogram as a fallback, which accumulates values
+    /// rather than replacing them. For true gauge behavior, register an ObservableGauge directly on the Meter.
+    /// </remarks>
     public void SetGauge(string name, double value, params KeyValuePair<string, object>[] tags)
     {
-        // Note: Gauge functionality is not fully supported in this implementation.
-        // OpenTelemetry gauges require observable callbacks that capture point-in-time values.
-        // Recording gauge values into a histogram is a fallback that accumulates values
-        // rather than replacing them, which differs from true gauge semantics.
-        // For true gauge behavior, register an ObservableGauge directly on the Meter.
-        _histogram.Record(value, tags);
+        _histogram.Record(value, tags!);
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Summaries are represented as histograms in OpenTelemetry.
+    /// </remarks>
     public void RecordSummary(string name, double value, params KeyValuePair<string, object>[] tags)
     {
-        // Summaries are represented as histograms in OpenTelemetry
-        _histogram.Record(value, tags);
+        _histogram.Record(value, tags!);
     }
 
     /// <summary>

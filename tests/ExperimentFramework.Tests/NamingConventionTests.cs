@@ -16,7 +16,8 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
         TestState State,
         string FeatureFlagName,
         string VariantFlagName,
-        string ConfigurationKey);
+        string ConfigurationKey,
+        string OpenFeatureFlagName);
 
     private static TestState CreateState(IExperimentNamingConvention convention)
         => new(typeof(IMyTestService), convention);
@@ -26,7 +27,8 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             state,
             state.Convention.FeatureFlagNameFor(state.ServiceType),
             state.Convention.VariantFlagNameFor(state.ServiceType),
-            state.Convention.ConfigurationKeyFor(state.ServiceType));
+            state.Convention.ConfigurationKeyFor(state.ServiceType),
+            state.Convention.OpenFeatureFlagNameFor(state.ServiceType));
 
     [Scenario("Default naming convention matches service type name for feature flags")]
     [Fact]
@@ -36,6 +38,7 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             .Then("feature flag name is service type name", r => r.FeatureFlagName == "IMyTestService")
             .And("variant flag name is service type name", r => r.VariantFlagName == "IMyTestService")
             .And("configuration key includes Experiments prefix", r => r.ConfigurationKey == "Experiments:IMyTestService")
+            .And("OpenFeature flag uses kebab-case", r => r.OpenFeatureFlagName == "my-test-service")
             .AssertPassed();
 
     [Scenario("Custom naming convention can override all name patterns")]
@@ -71,5 +74,8 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
 
         public string ConfigurationKeyFor(Type serviceType)
             => $"CustomExperiments:{serviceType.Name}";
+
+        public string OpenFeatureFlagNameFor(Type serviceType)
+            => $"openfeature-{serviceType.Name.ToLowerInvariant()}";
     }
 }
