@@ -580,7 +580,7 @@ public sealed class ComprehensiveSampleIntegrationTests(ITestOutputHelper output
             var results = new List<string>();
 
             // Create 3 independent scopes
-            for (int i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
                 using var scope = ctx.ServiceProvider.CreateScope();
                 var service = scope.ServiceProvider.GetRequiredService<IDataService>();

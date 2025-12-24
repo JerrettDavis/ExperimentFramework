@@ -259,7 +259,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _directCacheProvider.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<ICache>();
         var results = new string[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = cache.ComputeHash($"test-data-{i}");
         }
@@ -272,7 +272,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _proxiedCacheProvider.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<ICache>();
         var results = new string[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = cache.ComputeHash($"test-data-{i}");
         }
@@ -285,7 +285,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _directCacheProvider.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<ICache>();
         var results = new string[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = cache.ComputeHash($"test-data-{i}");
         }
@@ -298,7 +298,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _proxiedCacheProvider.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<ICache>();
         var results = new string[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = cache.ComputeHash($"test-data-{i}");
         }
@@ -311,7 +311,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _directDatabaseProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
         var results = new Customer?[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = await db.GetCustomerByIdAsync(1);
         }
@@ -324,7 +324,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _proxiedDatabaseProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
         var results = new Customer?[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = await db.GetCustomerByIdAsync(1);
         }
@@ -337,7 +337,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _directDatabaseProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
         var results = new Customer?[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = await db.GetCustomerByIdAsync(1);
         }
@@ -350,7 +350,7 @@ public class RealWorldScenarioBenchmarks
         using var scope = _proxiedDatabaseProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
         var results = new Customer?[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = await db.GetCustomerByIdAsync(1);
         }

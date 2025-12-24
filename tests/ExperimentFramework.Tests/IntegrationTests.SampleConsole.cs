@@ -428,7 +428,7 @@ public sealed class SampleConsoleIntegrationTests(ITestOutputHelper output) : Ti
             var tasks = new List<Task<(string, decimal)>>();
 
             // Simulate 10 concurrent requests
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 tasks.Add(Task.Run(async () =>
                 {

@@ -1,31 +1,30 @@
 # ExperimentFramework
 
-A .NET framework for runtime-switchable A/B testing, feature flags, trial fallback, and comprehensive observability.
+A .NET library for routing service calls through configurable trials based on feature flags, configuration values, or custom routing logic.
 
-**Version 0.1.0** - Production-ready with source-generated zero-overhead proxies
+## Features
 
-## Key Features
-
-**Multiple Selection Modes**
+**Selection Modes**
 - Boolean feature flags (`true`/`false` keys)
 - Configuration values (string variants)
 - Variant feature flags (IVariantFeatureManager integration)
-- Sticky routing (deterministic user/session-based A/B testing)
+- Sticky routing (deterministic user/session-based routing)
 
-**Enterprise Observability**
-- OpenTelemetry distributed tracing support
+**Resilience**
+- Timeout enforcement with fallback
+- Circuit breaker (Polly integration)
+- Kill switch for disabling experiments at runtime
+
+**Observability**
+- OpenTelemetry tracing
+- Metrics collection (Prometheus, OpenTelemetry)
 - Built-in benchmarking and error logging
-- Zero overhead when telemetry disabled
 
-**Flexible Configuration**
-- Custom naming conventions
+**Configuration**
 - Error policies with fallback strategies
+- Custom naming conventions
 - Decorator pipeline for cross-cutting concerns
-
-**Type-Safe & DI-Friendly**
-- Composition-root driven registration
-- Full dependency injection integration
-- Strongly-typed builder API
+- Dependency injection integration
 
 ## Quick Start
 
@@ -229,6 +228,98 @@ Tries ordered list of fallback trials:
 // Tries: [preferred, cache, memory, static] in exact order
 // Fine-grained control over fallback strategy
 ```
+
+## Timeout Enforcement
+
+Prevent slow trials from degrading system performance:
+
+```csharp
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Define<IMyDatabase>(c => c
+        .UsingFeatureFlag("UseCloudDb")
+        .AddDefaultTrial<LocalDb>("false")
+        .AddTrial<CloudDb>("true")
+        .OnErrorRedirectAndReplayDefault())
+    .WithTimeout(TimeSpan.FromSeconds(5), TimeoutAction.FallbackToDefault)
+    .UseDispatchProxy();
+```
+
+**Actions:**
+- `TimeoutAction.ThrowException` - Throw `TimeoutException` when trial exceeds timeout
+- `TimeoutAction.FallbackToDefault` - Automatically fallback to default trial on timeout
+
+See [Timeout Enforcement Guide](docs/user-guide/timeout-enforcement.md) for detailed examples.
+
+## Circuit Breaker
+
+Automatically disable failing trials using Polly:
+
+```bash
+dotnet add package ExperimentFramework.Resilience
+```
+
+```csharp
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Define<IMyService>(c => c
+        .UsingFeatureFlag("UseNewService")
+        .AddDefaultTrial<StableService>("false")
+        .AddTrial<NewService>("true")
+        .OnErrorRedirectAndReplayDefault())
+    .WithCircuitBreaker(options =>
+    {
+        options.FailureRatioThreshold = 0.5;      // Open after 50% failure rate
+        options.MinimumThroughput = 10;            // Need 10 calls to assess
+        options.SamplingDuration = TimeSpan.FromSeconds(30);
+        options.BreakDuration = TimeSpan.FromSeconds(60);
+        options.OnCircuitOpen = CircuitBreakerAction.FallbackToDefault;
+    })
+    .UseDispatchProxy();
+```
+
+See [Circuit Breaker Guide](docs/user-guide/circuit-breaker.md) for advanced configuration.
+
+## Metrics Collection
+
+Track experiment performance with Prometheus or OpenTelemetry:
+
+```bash
+dotnet add package ExperimentFramework.Metrics.Exporters
+```
+
+```csharp
+var prometheusMetrics = new PrometheusExperimentMetrics();
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Define<IMyService>(c => c.UsingFeatureFlag("MyFeature")...)
+    .WithMetrics(prometheusMetrics)
+    .UseDispatchProxy();
+
+app.MapGet("/metrics", () => prometheusMetrics.GeneratePrometheusOutput());
+```
+
+**Collected Metrics:**
+- `experiment_invocations_total` (counter) - Total invocations per experiment/trial
+- `experiment_duration_seconds` (histogram) - Duration of each invocation
+
+See [Metrics Guide](docs/user-guide/metrics.md) for OpenTelemetry integration and Grafana dashboards.
+
+## Kill Switch
+
+Emergency shutdown for problematic experiments:
+
+```csharp
+var killSwitch = new InMemoryKillSwitchProvider();
+
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Define<IMyDatabase>(c => c.UsingFeatureFlag("UseCloudDb")...)
+    .WithKillSwitch(killSwitch)
+    .UseDispatchProxy();
+
+// Emergency disable
+killSwitch.DisableExperiment(typeof(IMyDatabase));
+killSwitch.DisableTrial(typeof(IMyDatabase), "cloud");
+```
+
+See [Kill Switch Guide](docs/user-guide/kill-switch.md) for distributed scenarios with Redis.
 
 ## Custom Naming Conventions
 

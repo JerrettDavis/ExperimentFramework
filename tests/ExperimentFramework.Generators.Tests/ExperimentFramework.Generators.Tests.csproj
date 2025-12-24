@@ -21,5 +21,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExperimentFramework.Generators\ExperimentFramework.Generators.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
   </ItemGroup>
 </Project>

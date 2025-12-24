@@ -91,11 +91,11 @@ internal static class DefineCallParser
         var invocations = CollectInvocationChain(bodyExpression);
 
         // Parse each invocation
-        SelectionModeModel selectionMode = SelectionModeModel.BooleanFeatureFlag;
+        var selectionMode = SelectionModeModel.BooleanFeatureFlag;
         string? selectorName = null;
         string? defaultKey = null;
         var trials = new Dictionary<string, INamedTypeSymbol>();
-        ErrorPolicyModel errorPolicy = ErrorPolicyModel.Throw;
+        var errorPolicy = ErrorPolicyModel.Throw;
         string? fallbackTrialKey = null;
         List<string>? orderedFallbackKeys = null;
 

@@ -26,7 +26,7 @@ public class OpenTelemetryDemo(INotificationService notificationService)
         using var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "ExperimentFramework",
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStarted = activity =>
             {
                 Console.WriteLine($"\n  [OpenTelemetry] Activity Started:");

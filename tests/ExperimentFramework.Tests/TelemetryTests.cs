@@ -6,8 +6,9 @@ using Xunit.Abstractions;
 
 namespace ExperimentFramework.Tests;
 
+[Collection("TelemetryTests")]
 [Feature("Telemetry tracks experiment invocations with zero overhead when disabled")]
-public sealed class TelemetryTests(ITestOutputHelper output) : 
+public sealed class TelemetryTests(ITestOutputHelper output) :
     TinyBddXunitBase(output)
 {
     private sealed record TelemetryState(

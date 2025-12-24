@@ -247,7 +247,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _directServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = service.GetValue();
         }
@@ -260,7 +260,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _proxiedConfigurationServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = service.GetValue();
         }
@@ -273,7 +273,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _directServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = service.GetValue();
         }
@@ -286,7 +286,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _proxiedConfigurationServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = service.GetValue();
         }
@@ -299,7 +299,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _directServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = await service.GetValueAsync();
         }
@@ -312,7 +312,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _proxiedConfigurationServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[10];
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             results[i] = await service.GetValueAsync();
         }
@@ -325,7 +325,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _directServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = await service.GetValueAsync();
         }
@@ -338,7 +338,7 @@ public class ProxyOverheadBenchmarks
         using var scope = _proxiedConfigurationServiceProvider.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ISimpleService>();
         var results = new string[100];
-        for (int i = 0; i < 100; i++)
+        for (var i = 0; i < 100; i++)
         {
             results[i] = await service.GetValueAsync();
         }

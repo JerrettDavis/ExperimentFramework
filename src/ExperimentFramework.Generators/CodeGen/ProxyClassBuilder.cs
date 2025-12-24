@@ -1,8 +1,8 @@
-using ExperimentFramework.Generators.Models;
-using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ExperimentFramework.Generators.Models;
+using Microsoft.CodeAnalysis;
 
 namespace ExperimentFramework.Generators.CodeGen;
 
@@ -17,7 +17,7 @@ internal static class ProxyClassBuilder
     public static string GenerateProxyClass(ExperimentDefinitionModel experiment)
     {
         var serviceType = experiment.ServiceType;
-        var proxyClassName = GetProxyClassName(serviceType);
+        GetProxyClassName(serviceType);
         var proxyClassDeclaration = GetProxyClassDeclaration(serviceType);
         var serviceTypeName = serviceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -202,6 +202,7 @@ internal static class ProxyClassBuilder
             {
                 sb.AppendLine();
             }
+
             isFirst = false;
 
             MethodGenerator.GenerateMethod(sb, method, experiment);
@@ -209,48 +210,26 @@ internal static class ProxyClassBuilder
     }
 
     private static void AppendSelectionHelper(StringBuilder sb, ExperimentDefinitionModel experiment)
-    {
-        SelectionModeGenerator.GenerateSelectionHelper(sb, experiment);
-    }
+        => SelectionModeGenerator.GenerateSelectionHelper(sb, experiment);
 
     private static void AppendErrorPolicyHelper(StringBuilder sb, ExperimentDefinitionModel experiment)
-    {
-        ErrorPolicyGenerator.GenerateErrorPolicyHelper(sb, experiment);
-    }
+        => ErrorPolicyGenerator.GenerateErrorPolicyHelper(sb, experiment);
 
     /// <summary>
     /// Gets all methods from an interface, including inherited interface methods.
     /// Excludes property accessors, event accessors, and other special methods.
     /// </summary>
     private static IEnumerable<IMethodSymbol> GetAllInterfaceMethods(INamedTypeSymbol interfaceType)
-    {
-        var methods = new List<IMethodSymbol>();
-
-        // Get methods from this interface
-        foreach (var member in interfaceType.GetMembers())
-        {
-            if (member is IMethodSymbol method &&
-                method.MethodKind == MethodKind.Ordinary &&
-                !method.IsStatic)
-            {
-                methods.Add(method);
-            }
-        }
-
-        // Get methods from base interfaces
-        foreach (var baseInterface in interfaceType.AllInterfaces)
-        {
-            foreach (var member in baseInterface.GetMembers())
-            {
-                if (member is IMethodSymbol method &&
-                    method.MethodKind == MethodKind.Ordinary &&
-                    !method.IsStatic)
-                {
-                    methods.Add(method);
-                }
-            }
-        }
-
-        return methods;
-    }
+        => interfaceType.GetMembers()
+            .Cast<object>()
+            .Where(m => m is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsStatic: false })
+            .Select(m => m as IMethodSymbol)
+            .Cast<IMethodSymbol>()
+            .Union(
+                interfaceType.AllInterfaces
+                    .SelectMany(i => i.GetMembers())
+                    .Where(m => m is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsStatic: false })
+                    .Cast<IMethodSymbol>(),
+                SymbolEqualityComparer.Default)
+            .Cast<IMethodSymbol>();
 }

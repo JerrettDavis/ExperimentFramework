@@ -8,28 +8,25 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="coverlet.collector" Version="6.0.4"/>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
+        <PackageReference Include="coverlet.collector" Version="6.0.4" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
         <PackageReference Include="TinyBDD.Xunit" Version="0.13.0" />
-        <PackageReference Include="xunit" Version="2.9.3"/>
-        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4"/>
+        <PackageReference Include="xunit" Version="2.9.3" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     </ItemGroup>
 
     <ItemGroup>
-        <Using Include="Xunit"/>
+        <Using Include="Xunit" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
-        <ProjectReference Include="..\..\src\ExperimentFramework.Generators\ExperimentFramework.Generators.csproj"
-                          OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false" />
-        <ProjectReference Include="..\..\samples\ExperimentFramework.SampleConsole\ExperimentFramework.SampleConsole.csproj"
-                          Aliases="SampleConsole" />
-        <ProjectReference Include="..\..\samples\ExperimentFramework.ComprehensiveSample\ExperimentFramework.ComprehensiveSample.csproj"
-                          Aliases="ComprehensiveSample" />
-        <ProjectReference Include="..\..\samples\ExperimentFramework.SampleWebApp\ExperimentFramework.SampleWebApp.csproj"
-                          Aliases="SampleWebApp" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Generators\ExperimentFramework.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="..\..\samples\ExperimentFramework.SampleConsole\ExperimentFramework.SampleConsole.csproj" Aliases="SampleConsole" />
+        <ProjectReference Include="..\..\samples\ExperimentFramework.ComprehensiveSample\ExperimentFramework.ComprehensiveSample.csproj" Aliases="ComprehensiveSample" />
+        <ProjectReference Include="..\..\samples\ExperimentFramework.SampleWebApp\ExperimentFramework.SampleWebApp.csproj" Aliases="SampleWebApp" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Resilience\ExperimentFramework.Resilience.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Metrics.Exporters\ExperimentFramework.Metrics.Exporters.csproj" />
     </ItemGroup>
 
     <ItemGroup>

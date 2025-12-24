@@ -490,6 +490,19 @@
           "OpenTelemetry": "1.12.0"
         }
       },
+      "Polly": {
+        "type": "Transitive",
+        "resolved": "8.5.0",
+        "contentHash": "GBNZPy7i7OpkaIruWPRJ0+AWzdGDQDnKY91b7Ic2aAch4lKhPjUc5KSffpH9krIWe0MoyghqaRxwRC0Uwz2PkA==",
+        "dependencies": {
+          "Polly.Core": "8.5.0"
+        }
+      },
+      "Polly.Core": {
+        "type": "Transitive",
+        "resolved": "8.5.0",
+        "contentHash": "VYYMZNitZ85UEhwOKkTQI63WEMvzUqwQc74I2mm8h/DBVAMcBBxqYPni4DmuRtbCwngmuONuK2yBJfWNRKzI+A=="
+      },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
         "resolved": "10.0.1",
@@ -559,6 +572,21 @@
           "OpenTelemetry": "[1.12.0, )",
           "OpenTelemetry.Exporter.Console": "[1.12.0, )",
           "OpenTelemetry.Extensions.Hosting": "[1.12.0, )"
+        }
+      },
+      "experimentframework.metrics.exporters": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[0.1.0, )"
+        }
+      },
+      "experimentframework.resilience": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[0.1.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
+          "Polly": "[8.5.0, )"
         }
       },
       "experimentframework.sampleconsole": {

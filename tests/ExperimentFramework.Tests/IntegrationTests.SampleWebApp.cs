@@ -116,7 +116,7 @@ public sealed class SampleWebAppIntegrationTests(ITestOutputHelper output) : Tin
             var factory = new WebApplicationFactory<SampleWebApp::Program>()
                 .WithWebHostBuilder(builder =>
                 {
-                    builder.ConfigureAppConfiguration((context, config) =>
+                    builder.ConfigureAppConfiguration((_, config) =>
                     {
                         config.AddInMemoryCollection(new Dictionary<string, string?>
                         {
@@ -153,7 +153,7 @@ public sealed class SampleWebAppIntegrationTests(ITestOutputHelper output) : Tin
             var factory = new WebApplicationFactory<SampleWebApp::Program>()
                 .WithWebHostBuilder(builder =>
                 {
-                    builder.ConfigureAppConfiguration((context, config) =>
+                    builder.ConfigureAppConfiguration((_, config) =>
                     {
                         config.AddInMemoryCollection(new Dictionary<string, string?>
                         {
@@ -229,7 +229,7 @@ public sealed class SampleWebAppIntegrationTests(ITestOutputHelper output) : Tin
             var algorithms = new HashSet<string>();
 
             // Create multiple independent clients (different sessions)
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
                 {

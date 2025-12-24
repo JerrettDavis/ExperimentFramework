@@ -235,9 +235,30 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
             else if (targetMethod.ReturnType.IsGenericType &&
                      targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
-                var taskResultType = typeof(Task<>).MakeGenericType(targetMethod.ReturnType.GetGenericArguments()[0]);
-                var fromResultMethod = taskResultType.GetMethod("FromResult", BindingFlags.Public | BindingFlags.Static);
-                return fromResultMethod!.Invoke(null, new[] { boxedResult });
+                var resultType = targetMethod.ReturnType.GetGenericArguments()[0];
+                var fromResultMethod = typeof(Task).GetMethod("FromResult", BindingFlags.Public | BindingFlags.Static);
+                if (fromResultMethod == null)
+                {
+                    throw new InvalidOperationException("Could not find Task.FromResult method");
+                }
+
+                try
+                {
+                    var genericFromResult = fromResultMethod.MakeGenericMethod(resultType);
+                    return genericFromResult.Invoke(null, new[] { boxedResult });
+                }
+                catch (TargetInvocationException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"Error invoking Task.FromResult<{resultType.Name}>. See inner exception for details.",
+                        ex.InnerException ?? ex);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"Error creating Task.FromResult<{resultType.Name}>: incompatible type arguments.",
+                        ex);
+                }
             }
             else if (targetMethod.ReturnType == typeof(ValueTask))
             {
@@ -246,8 +267,9 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
             else if (targetMethod.ReturnType.IsGenericType &&
                      targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
             {
-                var valueTaskResultType = typeof(ValueTask<>).MakeGenericType(targetMethod.ReturnType.GetGenericArguments()[0]);
-                return Activator.CreateInstance(valueTaskResultType, boxedResult);
+                var resultType = targetMethod.ReturnType.GetGenericArguments()[0];
+                var valueTaskType = typeof(ValueTask<>).MakeGenericType(resultType);
+                return Activator.CreateInstance(valueTaskType, boxedResult);
             }
         }
 

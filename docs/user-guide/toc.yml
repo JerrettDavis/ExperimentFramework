@@ -10,6 +10,14 @@
   href: error-handling.md
 - name: Telemetry
   href: telemetry.md
+- name: Timeout Enforcement
+  href: timeout-enforcement.md
+- name: Circuit Breaker
+  href: circuit-breaker.md
+- name: Metrics
+  href: metrics.md
+- name: Kill Switch
+  href: kill-switch.md
 - name: Naming Conventions
   href: naming-conventions.md
 - name: Advanced Topics

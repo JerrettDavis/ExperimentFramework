@@ -192,7 +192,7 @@ public sealed class VariantFeatureManagerTests(ITestOutputHelper output) : TinyB
             {
                 var results = new List<string>();
 
-                for (int i = 0; i < 3; i++)
+                for (var i = 0; i < 3; i++)
                 {
                     using var scope = state.ServiceProvider.CreateScope();
                     var service = scope.ServiceProvider.GetRequiredService<IVariantTestService>();

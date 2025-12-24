@@ -7,6 +7,8 @@
   <Folder Name="/src/">
     <Project Path="benchmarks/ExperimentFramework.Benchmarks/ExperimentFramework.Benchmarks.csproj" />
     <Project Path="src/ExperimentFramework.Generators/ExperimentFramework.Generators.csproj" />
+    <Project Path="src/ExperimentFramework.Metrics.Exporters/ExperimentFramework.Metrics.Exporters.csproj" />
+    <Project Path="src/ExperimentFramework.Resilience/ExperimentFramework.Resilience.csproj" />
     <Project Path="src/ExperimentFramework/ExperimentFramework.csproj" />
   </Folder>
   <Folder Name="/tests/">

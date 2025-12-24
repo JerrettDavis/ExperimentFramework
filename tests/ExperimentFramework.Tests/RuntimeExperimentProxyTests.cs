@@ -586,7 +586,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
         {
             var tasks = new List<Task<string>>();
 
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 tasks.Add(Task.Run(async () => await ctx.Proxy.GetValueAsync()));
             }

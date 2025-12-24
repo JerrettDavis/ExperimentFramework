@@ -96,7 +96,7 @@ public sealed class ExperimentProxyGenerator : IIncrementalGenerator
 
         // Debug: Show details about what was found
         diagSummary.AppendLine("// Debug - Fluent collections:");
-        for (int i = 0; i < definitions.fluent.Length; i++)
+        for (var i = 0; i < definitions.fluent.Length; i++)
         {
             var fc = definitions.fluent[i];
             if (fc != null)

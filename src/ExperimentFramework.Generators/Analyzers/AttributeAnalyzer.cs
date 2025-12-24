@@ -62,47 +62,34 @@ internal static class AttributeAnalyzer
     private static bool HasCompositionRootAttribute(
         MethodDeclarationSyntax method,
         SemanticModel semanticModel)
-    {
-        foreach (var attributeList in method.AttributeLists)
-        {
-            foreach (var attribute in attributeList.Attributes)
+        => method.AttributeLists
+            .SelectMany(
+                attributeList => attributeList.Attributes, 
+                (_, attribute) => semanticModel.GetSymbolInfo(attribute))
+            .Select(symbolInfo => symbolInfo.Symbol).OfType<IMethodSymbol>()
+            .Select(attributeSymbol => attributeSymbol.ContainingType)
+            .Select(attributeType => new { attributeType, attributeName = attributeType.Name })
+            .Select(t => new
             {
-                var symbolInfo = semanticModel.GetSymbolInfo(attribute);
-                var attributeSymbol = symbolInfo.Symbol as IMethodSymbol;
-
-                if (attributeSymbol == null)
-                    continue;
-
-                var attributeType = attributeSymbol.ContainingType;
-                var attributeName = attributeType.Name;
-                var attributeNamespace = attributeType.ContainingNamespace.ToDisplayString();
-
-                // Check if this is ExperimentCompositionRootAttribute
-                // Also check without "Attribute" suffix since C# allows omitting it
-                if ((attributeName == "ExperimentCompositionRootAttribute" ||
-                     attributeName == "ExperimentCompositionRoot") &&
-                    attributeNamespace == "ExperimentFramework")
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
+                t.attributeType, 
+                t.attributeName, 
+                attributeNamespace = t.attributeType.ContainingNamespace.ToDisplayString()
+            })
+            .Where(t => t.attributeName is "ExperimentCompositionRootAttribute" or "ExperimentCompositionRoot" && 
+                        t.attributeNamespace == "ExperimentFramework")
+            .Select(t => t.attributeName)
+            .Any();
 
     /// <summary>
     /// Checks if an invocation is a Define&lt;T&gt; call syntactically.
     /// </summary>
     private static bool IsDefineCall(InvocationExpressionSyntax invocation)
-    {
-        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-            memberAccess.Name is GenericNameSyntax genericName)
+        => invocation.Expression is MemberAccessExpressionSyntax
         {
-            return genericName.Identifier.Text == "Define" &&
-                   genericName.TypeArgumentList.Arguments.Count == 1;
-        }
-
-        return false;
-    }
+            Name: GenericNameSyntax
+            {
+                Identifier.Text: "Define", 
+                TypeArgumentList.Arguments.Count: 1
+            }
+        };
 }
