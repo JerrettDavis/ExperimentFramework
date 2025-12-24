@@ -16,7 +16,8 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
         TestState State,
         string FeatureFlagName,
         string VariantFlagName,
-        string ConfigurationKey);
+        string ConfigurationKey,
+        string OpenFeatureFlagName);
 
     private static TestState CreateState(IExperimentNamingConvention convention)
         => new(typeof(IMyTestService), convention);
@@ -26,7 +27,8 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             state,
             state.Convention.FeatureFlagNameFor(state.ServiceType),
             state.Convention.VariantFlagNameFor(state.ServiceType),
-            state.Convention.ConfigurationKeyFor(state.ServiceType));
+            state.Convention.ConfigurationKeyFor(state.ServiceType),
+            state.Convention.OpenFeatureFlagNameFor(state.ServiceType));
 
     [Scenario("Default naming convention matches service type name for feature flags")]
     [Fact]
@@ -36,6 +38,7 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             .Then("feature flag name is service type name", r => r.FeatureFlagName == "IMyTestService")
             .And("variant flag name is service type name", r => r.VariantFlagName == "IMyTestService")
             .And("configuration key includes Experiments prefix", r => r.ConfigurationKey == "Experiments:IMyTestService")
+            .And("OpenFeature flag uses kebab-case", r => r.OpenFeatureFlagName == "my-test-service")
             .AssertPassed();
 
     [Scenario("Custom naming convention can override all name patterns")]
@@ -57,8 +60,27 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             .And("configuration key is valid", r => !string.IsNullOrWhiteSpace(r.ConfigurationKey))
             .AssertPassed();
 
+    [Scenario("OpenFeature kebab-case handles acronyms correctly")]
+    [Fact]
+    public Task OpenFeature_kebab_case_handles_acronyms()
+    {
+        var convention = new DefaultExperimentNamingConvention();
+        return Given("default convention with acronym types", () => convention)
+            .Then("IHTTPService becomes http-service", c => c.OpenFeatureFlagNameFor(typeof(IHTTPService)) == "http-service")
+            .And("IXMLParser becomes xml-parser", c => c.OpenFeatureFlagNameFor(typeof(IXMLParser)) == "xml-parser")
+            .And("IMyHTTPClient becomes my-http-client", c => c.OpenFeatureFlagNameFor(typeof(IMyHTTPClient)) == "my-http-client")
+            .And("IParseXML becomes parse-xml", c => c.OpenFeatureFlagNameFor(typeof(IParseXML)) == "parse-xml")
+            .And("IAWSService becomes aws-service", c => c.OpenFeatureFlagNameFor(typeof(IAWSService)) == "aws-service")
+            .AssertPassed();
+    }
+
     // Test interfaces and classes
     private interface IMyTestService { }
+    private interface IHTTPService { }
+    private interface IXMLParser { }
+    private interface IMyHTTPClient { }
+    private interface IParseXML { }
+    private interface IAWSService { }
     private interface IGenericService<T> { }
 
     private sealed class CustomTestNamingConvention : IExperimentNamingConvention
@@ -71,5 +93,8 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
 
         public string ConfigurationKeyFor(Type serviceType)
             => $"CustomExperiments:{serviceType.Name}";
+
+        public string OpenFeatureFlagNameFor(Type serviceType)
+            => $"openfeature-{serviceType.Name.ToLowerInvariant()}";
     }
 }

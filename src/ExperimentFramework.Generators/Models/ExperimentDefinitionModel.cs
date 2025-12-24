@@ -78,7 +78,8 @@ internal enum SelectionModeModel
     BooleanFeatureFlag,
     ConfigurationValue,
     VariantFeatureFlag,
-    StickyRouting
+    StickyRouting,
+    OpenFeature
 }
 
 /// <summary>

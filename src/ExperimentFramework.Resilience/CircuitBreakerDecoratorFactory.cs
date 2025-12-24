@@ -13,6 +13,12 @@ public sealed class CircuitBreakerDecoratorFactory : IExperimentDecoratorFactory
 {
     private readonly CircuitBreakerDecorator _decorator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerDecoratorFactory"/> class.
+    /// </summary>
+    /// <param name="options">The circuit breaker configuration options.</param>
+    /// <param name="loggerFactory">Optional logger factory for logging circuit state changes.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
     public CircuitBreakerDecoratorFactory(CircuitBreakerOptions options, ILoggerFactory? loggerFactory = null)
     {
         if (options is null) throw new ArgumentNullException(nameof(options));
@@ -20,6 +26,7 @@ public sealed class CircuitBreakerDecoratorFactory : IExperimentDecoratorFactory
         _decorator = new CircuitBreakerDecorator(options, logger);
     }
 
+    /// <inheritdoc/>
     public IExperimentDecorator Create(IServiceProvider serviceProvider)
     {
         // Return singleton instance to share circuit breaker state across all invocations
@@ -107,6 +114,11 @@ public sealed class CircuitBreakerDecoratorFactory : IExperimentDecoratorFactory
 /// </summary>
 public sealed class CircuitBreakerOpenException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class.
+    /// </summary>
+    /// <param name="message">The error message describing the circuit breaker state.</param>
+    /// <param name="innerException">The exception that caused the circuit to open, if any.</param>
     public CircuitBreakerOpenException(string message, Exception? innerException = null)
         : base(message, innerException) { }
 }

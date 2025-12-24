@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Disable shared compilation to prevent file locking issues with source generators -->
+    <UseSharedCompilation>false</UseSharedCompilation>
+  </PropertyGroup>
+</Project>

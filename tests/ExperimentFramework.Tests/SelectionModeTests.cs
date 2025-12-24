@@ -277,6 +277,33 @@ public sealed class SelectionModeTests(ITestOutputHelper output) : TinyBddXunitB
             })
             .AssertPassed();
 
+    [Scenario("OpenFeature selection falls back to default when not configured")]
+    [Fact]
+    public Task OpenFeature_falls_back_to_default()
+        => Given("OpenFeature selection without provider", SetupOpenFeatureWithoutProvider)
+            .When("invoke database service", InvokeDatabase)
+            .Then("default database is used", r => r.Result == "LocalDatabase")
+            .Finally(r => r.State.ServiceProvider.Dispose())
+            .AssertPassed();
+
+    private TestState SetupOpenFeatureWithoutProvider()
+    {
+        var services = new ServiceCollection();
+        RegisterAllTestServices(services);
+
+        var experiments = ExperimentFrameworkBuilder.Create()
+            .Define<IDatabase>(c => c
+                .UsingOpenFeature("database-experiment")
+                .AddDefaultTrial<LocalDatabase>("local")
+                .AddTrial<CloudDatabase>("cloud")
+                .OnErrorRedirectAndReplayDefault())
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(experiments);
+
+        return new TestState(services.BuildServiceProvider());
+    }
+
     // Test identity provider for sticky routing tests
     private sealed class TestIdentityProvider(string userId) : IExperimentIdentityProvider
     {

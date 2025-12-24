@@ -347,5 +347,6 @@ public sealed class VariantFeatureManagerTests(ITestOutputHelper output) : TinyB
         public string FeatureFlagNameFor(Type serviceType) => $"CustomFlags:{serviceType.Name}";
         public string VariantFlagNameFor(Type serviceType) => $"CustomVariants:{serviceType.Name}";
         public string ConfigurationKeyFor(Type serviceType) => $"CustomConfig:{serviceType.Name}";
+        public string OpenFeatureFlagNameFor(Type serviceType) => $"custom-of-{serviceType.Name.ToLowerInvariant()}";
     }
 }

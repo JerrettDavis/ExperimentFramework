@@ -6,6 +6,8 @@
   href: core-concepts.md
 - name: Selection Modes
   href: selection-modes.md
+- name: OpenFeature Integration
+  href: openfeature.md
 - name: Error Handling
   href: error-handling.md
 - name: Telemetry

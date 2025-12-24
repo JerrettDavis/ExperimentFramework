@@ -418,5 +418,6 @@ public sealed class ExperimentFrameworkBuilderTests(ITestOutputHelper output) : 
         public string FeatureFlagNameFor(Type serviceType) => $"Custom.{serviceType.Name}";
         public string VariantFlagNameFor(Type serviceType) => $"Variant.{serviceType.Name}";
         public string ConfigurationKeyFor(Type serviceType) => $"Config:{serviceType.Name}";
+        public string OpenFeatureFlagNameFor(Type serviceType) => $"of-{serviceType.Name.ToLowerInvariant()}";
     }
 }

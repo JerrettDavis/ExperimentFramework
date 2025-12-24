@@ -12,7 +12,7 @@ ExperimentFramework allows you to run experiments by routing service calls to di
 
 ## Key Capabilities
 
-- **Multiple Selection Modes**: Route traffic using boolean feature flags, configuration values, variant flags, or deterministic user hashing
+- **Multiple Selection Modes**: Route traffic using boolean feature flags, configuration values, variant flags, deterministic user hashing, or OpenFeature providers
 - **Error Handling**: Built-in fallback strategies when experimental implementations fail
 - **Observability**: Integrated telemetry with OpenTelemetry support for tracking experiment execution
 - **Type-Safe**: Strongly-typed fluent API with compile-time validation

@@ -9,6 +9,7 @@ A .NET library for routing service calls through configurable trials based on fe
 - Configuration values (string variants)
 - Variant feature flags (IVariantFeatureManager integration)
 - Sticky routing (deterministic user/session-based routing)
+- OpenFeature (open standard for feature flag management)
 
 **Resilience**
 - Timeout enforcement with fallback
@@ -163,6 +164,24 @@ c.UsingStickyRouting()
  .AddTrial<VariantA>("a")
  .AddTrial<VariantB>("b")
 ```
+
+### OpenFeature
+Routes based on OpenFeature flag evaluation (works with any OpenFeature-compatible provider):
+```csharp
+// Install OpenFeature SDK and your preferred provider
+// dotnet add package OpenFeature
+
+// Configure provider
+await Api.Instance.SetProviderAsync(new YourProvider());
+
+// Configure experiment
+c.UsingOpenFeature("payment-processor")
+ .AddDefaultTrial<StripeProcessor>("stripe")
+ .AddTrial<PayPalProcessor>("paypal")
+ .AddTrial<SquareProcessor>("square")
+```
+
+See [OpenFeature Integration Guide](docs/user-guide/openfeature.md) for provider setup examples.
 
 ## Error Policies
 
@@ -500,6 +519,7 @@ IMyDatabase (Proxy)
 │  - Configuration             │
 │  - Variant                   │
 │  - Sticky Routing            │
+│  - OpenFeature               │
 ├─────────────────────────────┤
 │  Decorator Pipeline          │
 │  - Benchmarks                │
@@ -653,6 +673,7 @@ All async and generic scenarios validated with comprehensive tests:
 | `UsingConfigurationKey(string?)` | Configuration value selection |
 | `UsingVariantFeatureFlag(string?)` | Variant feature manager selection |
 | `UsingStickyRouting(string?)` | Sticky routing selection |
+| `UsingOpenFeature(string?)` | OpenFeature flag selection |
 | `AddDefaultTrial<TImpl>(string)` | Registers default trial |
 | `AddTrial<TImpl>(string)` | Registers additional trial |
 | `OnErrorRedirectAndReplayDefault()` | Falls back to default on error |

@@ -136,6 +136,35 @@ public sealed class ServiceExperimentBuilder<TService>
     }
 
     /// <summary>
+    /// Configures trial selection to use OpenFeature for flag evaluation.
+    /// </summary>
+    /// <param name="flagKey">
+    /// The OpenFeature flag key to evaluate. If <see langword="null"/>, a default name
+    /// will be derived from <typeparamref name="TService"/> using the configured naming convention.
+    /// </param>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// OpenFeature is an open standard for feature flag management. This mode allows
+    /// integration with any OpenFeature-compatible provider (LaunchDarkly, Flagsmith, etc.).
+    /// </para>
+    /// <para>
+    /// The framework resolves <c>IFeatureClient</c> from OpenFeature's API and uses
+    /// <c>GetStringValueAsync</c> to retrieve the trial key. For boolean flags, trial
+    /// keys "true" and "false" are used.
+    /// </para>
+    /// <para>
+    /// Falls back to the default trial if OpenFeature is not configured or flag evaluation fails.
+    /// </para>
+    /// </remarks>
+    public ServiceExperimentBuilder<TService> UsingOpenFeature(string? flagKey = null)
+    {
+        _mode = SelectionMode.OpenFeature;
+        _selectorName = flagKey;
+        return this;
+    }
+
+    /// <summary>
     /// Registers the default trial implementation for the experiment.
     /// </summary>
     /// <typeparam name="TImpl">
@@ -320,6 +349,7 @@ public sealed class ServiceExperimentBuilder<TService>
             SelectionMode.VariantFeatureFlag => convention.VariantFlagNameFor(typeof(TService)),
             SelectionMode.StickyRouting => convention.FeatureFlagNameFor(typeof(TService)),
             SelectionMode.ConfigurationValue => convention.ConfigurationKeyFor(typeof(TService)),
+            SelectionMode.OpenFeature => convention.OpenFeatureFlagNameFor(typeof(TService)),
             _ => convention.FeatureFlagNameFor(typeof(TService))
         };
 
