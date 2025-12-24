@@ -60,8 +60,27 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             .And("configuration key is valid", r => !string.IsNullOrWhiteSpace(r.ConfigurationKey))
             .AssertPassed();
 
+    [Scenario("OpenFeature kebab-case handles acronyms correctly")]
+    [Fact]
+    public Task OpenFeature_kebab_case_handles_acronyms()
+    {
+        var convention = new DefaultExperimentNamingConvention();
+        return Given("default convention with acronym types", () => convention)
+            .Then("IHTTPService becomes http-service", c => c.OpenFeatureFlagNameFor(typeof(IHTTPService)) == "http-service")
+            .And("IXMLParser becomes xml-parser", c => c.OpenFeatureFlagNameFor(typeof(IXMLParser)) == "xml-parser")
+            .And("IMyHTTPClient becomes my-http-client", c => c.OpenFeatureFlagNameFor(typeof(IMyHTTPClient)) == "my-http-client")
+            .And("IParseXML becomes parse-xml", c => c.OpenFeatureFlagNameFor(typeof(IParseXML)) == "parse-xml")
+            .And("IAWSService becomes aws-service", c => c.OpenFeatureFlagNameFor(typeof(IAWSService)) == "aws-service")
+            .AssertPassed();
+    }
+
     // Test interfaces and classes
     private interface IMyTestService { }
+    private interface IHTTPService { }
+    private interface IXMLParser { }
+    private interface IMyHTTPClient { }
+    private interface IParseXML { }
+    private interface IAWSService { }
     private interface IGenericService<T> { }
 
     private sealed class CustomTestNamingConvention : IExperimentNamingConvention

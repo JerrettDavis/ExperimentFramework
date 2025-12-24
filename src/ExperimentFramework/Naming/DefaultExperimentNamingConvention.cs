@@ -35,12 +35,21 @@ internal sealed class DefaultExperimentNamingConvention : IExperimentNamingConve
             name = name[1..];
 
         var builder = new System.Text.StringBuilder();
-        foreach (var c in name)
+        for (var i = 0; i < name.Length; i++)
         {
+            var c = name[i];
             if (char.IsUpper(c))
             {
+                // Insert hyphen before uppercase if:
+                // 1. Not at start, AND
+                // 2. Either previous char is lowercase, OR next char is lowercase (end of acronym)
                 if (builder.Length > 0)
-                    builder.Append('-');
+                {
+                    var prevIsLower = i > 0 && char.IsLower(name[i - 1]);
+                    var nextIsLower = i + 1 < name.Length && char.IsLower(name[i + 1]);
+                    if (prevIsLower || nextIsLower)
+                        builder.Append('-');
+                }
                 builder.Append(char.ToLowerInvariant(c));
             }
             else
