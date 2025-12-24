@@ -336,9 +336,9 @@ app.MapGet("/metrics", () => metrics.GeneratePrometheusOutput());
 
 ```promql
 # Timeout rate per trial
-sum(rate(experiment_invocations_total{outcome="failure",error="TimeoutException"}[5m])) by (trial)
+sum(rate(experiment_errors_total{error="TimeoutException"}[5m])) by (service, trial_key)
 /
-sum(rate(experiment_invocations_total[5m])) by (trial)
+sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ```
 
 ## Troubleshooting

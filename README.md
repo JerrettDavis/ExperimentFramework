@@ -1,35 +1,30 @@
 # ExperimentFramework
 
-A .NET framework for runtime-switchable A/B testing, feature flags, trial fallback, and comprehensive observability.
+A .NET library for routing service calls through configurable trials based on feature flags, configuration values, or custom routing logic.
 
-**Version 0.1.0** - Production-ready with source-generated zero-overhead proxies
+## Features
 
-## Key Features
-
-**Multiple Selection Modes**
+**Selection Modes**
 - Boolean feature flags (`true`/`false` keys)
 - Configuration values (string variants)
 - Variant feature flags (IVariantFeatureManager integration)
-- Sticky routing (deterministic user/session-based A/B testing)
+- Sticky routing (deterministic user/session-based routing)
 
-**Enterprise Observability & Resilience**
-- OpenTelemetry distributed tracing support
-- Built-in benchmarking and error logging
-- Zero overhead when telemetry disabled
-- Timeout enforcement with fallback strategies
-- Circuit breaker with Polly integration
+**Resilience**
+- Timeout enforcement with fallback
+- Circuit breaker (Polly integration)
+- Kill switch for disabling experiments at runtime
+
+**Observability**
+- OpenTelemetry tracing
 - Metrics collection (Prometheus, OpenTelemetry)
-- Kill switch for emergency experiment shutdown
+- Built-in benchmarking and error logging
 
-**Flexible Configuration**
-- Custom naming conventions
+**Configuration**
 - Error policies with fallback strategies
+- Custom naming conventions
 - Decorator pipeline for cross-cutting concerns
-
-**Type-Safe & DI-Friendly**
-- Composition-root driven registration
-- Full dependency injection integration
-- Strongly-typed builder API
+- Dependency injection integration
 
 ## Quick Start
 

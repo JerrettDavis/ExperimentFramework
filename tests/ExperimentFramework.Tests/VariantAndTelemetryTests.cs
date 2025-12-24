@@ -180,24 +180,18 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             new[] { "control", "variant-a" });
 
         scope.RecordVariant("variant-a", "variantManager");
+
+        // Verify tags before dispose - Activity may clear state after disposal
+        Assert.NotNull(capturedActivity);
+
+        var variantTag = capturedActivity.Tags.FirstOrDefault(t => t.Key == "experiment.variant");
+        var sourceTag = capturedActivity.Tags.FirstOrDefault(t => t.Key == "experiment.variant.source");
+
+        // Tags should be present after RecordVariant call
+        Assert.Equal("variant-a", variantTag.Value);
+        Assert.Equal("variantManager", sourceTag.Value);
+
         scope.Dispose();
-
-        // Activity capture timing can be unreliable in parallel test runs
-        if (capturedActivity != null)
-        {
-            var variantTag = capturedActivity.Tags.FirstOrDefault(t => t.Key == "experiment.variant");
-            if (variantTag.Value != null)
-            {
-                Assert.Equal("variant-a", variantTag.Value);
-            }
-
-            var sourceTag = capturedActivity.Tags.FirstOrDefault(t => t.Key == "experiment.variant.source");
-            if (sourceTag.Value != null)
-            {
-                Assert.Equal("variantManager", sourceTag.Value);
-            }
-        }
-        // If activity wasn't captured or tags not set, that's acceptable - telemetry is best-effort
     }
 
     [Scenario("OpenTelemetry scope can be disposed multiple times")]

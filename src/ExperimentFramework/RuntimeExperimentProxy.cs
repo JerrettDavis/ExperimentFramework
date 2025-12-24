@@ -239,10 +239,26 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                 var fromResultMethod = typeof(Task).GetMethod("FromResult", BindingFlags.Public | BindingFlags.Static);
                 if (fromResultMethod == null)
                 {
-                    throw new InvalidOperationException($"Could not find Task.FromResult method");
+                    throw new InvalidOperationException("Could not find Task.FromResult method");
                 }
-                var genericFromResult = fromResultMethod.MakeGenericMethod(resultType);
-                return genericFromResult.Invoke(null, new[] { boxedResult });
+
+                try
+                {
+                    var genericFromResult = fromResultMethod.MakeGenericMethod(resultType);
+                    return genericFromResult.Invoke(null, new[] { boxedResult });
+                }
+                catch (TargetInvocationException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"Error invoking Task.FromResult<{resultType.Name}>. See inner exception for details.",
+                        ex.InnerException ?? ex);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidOperationException(
+                        $"Error creating Task.FromResult<{resultType.Name}>: incompatible type arguments.",
+                        ex);
+                }
             }
             else if (targetMethod.ReturnType == typeof(ValueTask))
             {

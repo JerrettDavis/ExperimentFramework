@@ -155,18 +155,18 @@ builder.Services.AddOpenTelemetry()
 
 ```promql
 # Overall success rate per trial
-sum(rate(experiment_invocations_total{outcome="success"}[5m])) by (trial)
+sum(rate(experiment_success_total[5m])) by (service, trial_key)
 /
-sum(rate(experiment_invocations_total[5m])) by (trial)
+sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ```
 
 ### Average Latency
 
 ```promql
 # Average latency per trial
-rate(experiment_duration_seconds_sum[5m])
+sum(rate(experiment_duration_seconds_sum[5m])) by (service, trial_key)
 /
-rate(experiment_duration_seconds_count[5m])
+sum(rate(experiment_duration_seconds_count[5m])) by (service, trial_key)
 ```
 
 ### P95 Latency
@@ -174,7 +174,7 @@ rate(experiment_duration_seconds_count[5m])
 ```promql
 # P95 latency (requires histogram buckets)
 histogram_quantile(0.95,
-  sum(rate(experiment_duration_seconds_bucket[5m])) by (trial, le)
+  sum(rate(experiment_duration_seconds_bucket[5m])) by (service, trial_key, le)
 )
 ```
 
@@ -182,31 +182,31 @@ histogram_quantile(0.95,
 
 ```promql
 # Requests per second per trial
-sum(rate(experiment_invocations_total[5m])) by (trial)
+sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ```
 
 ### Error Rate
 
 ```promql
 # Error rate per trial
-sum(rate(experiment_invocations_total{outcome="failure"}[5m])) by (trial)
+sum(rate(experiment_errors_total[5m])) by (service, trial_key)
 /
-sum(rate(experiment_invocations_total[5m])) by (trial)
+sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ```
 
 ### Comparison Dashboard
 
 ```promql
 # Side-by-side latency comparison
-sum(rate(experiment_duration_seconds_sum{trial="cloud"}[5m]))
+sum(rate(experiment_duration_seconds_sum{trial_key="cloud"}[5m]))
 /
-sum(rate(experiment_duration_seconds_count{trial="cloud"}[5m]))
+sum(rate(experiment_duration_seconds_count{trial_key="cloud"}[5m]))
 
 vs
 
-sum(rate(experiment_duration_seconds_sum{trial="local"}[5m]))
+sum(rate(experiment_duration_seconds_sum{trial_key="local"}[5m]))
 /
-sum(rate(experiment_duration_seconds_count{trial="local"}[5m]))
+sum(rate(experiment_duration_seconds_count{trial_key="local"}[5m]))
 ```
 
 ## Real-World Example
@@ -273,15 +273,15 @@ groups:
     rules:
       - alert: ExperimentHighErrorRate
         expr: |
-          sum(rate(experiment_invocations_total{outcome="failure"}[5m])) by (trial)
+          sum(rate(experiment_errors_total[5m])) by (service, trial_key)
           /
-          sum(rate(experiment_invocations_total[5m])) by (trial)
+          sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
           > 0.05
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Experiment {{ $labels.trial }} has high error rate"
+          summary: "Experiment {{ $labels.service }} trial {{ $labels.trial_key }} has high error rate"
           description: "Error rate is {{ $value | humanizePercentage }}"
 ```
 
@@ -290,15 +290,15 @@ groups:
 ```yaml
 - alert: ExperimentHighLatency
   expr: |
-    rate(experiment_duration_seconds_sum[5m])
+    sum(rate(experiment_duration_seconds_sum[5m])) by (service, trial_key)
     /
-    rate(experiment_duration_seconds_count[5m])
+    sum(rate(experiment_duration_seconds_count[5m])) by (service, trial_key)
     > 5
   for: 5m
   labels:
     severity: warning
   annotations:
-    summary: "Experiment {{ $labels.trial }} has high latency"
+    summary: "Experiment {{ $labels.service }} trial {{ $labels.trial_key }} has high latency"
     description: "Average latency is {{ $value }}s"
 ```
 
@@ -307,12 +307,12 @@ groups:
 ```yaml
 - alert: ExperimentLowTraffic
   expr: |
-    sum(rate(experiment_invocations_total[10m])) by (experiment) < 1
+    sum(rate(experiment_invocations_total[10m])) by (service) < 1
   for: 10m
   labels:
     severity: info
   annotations:
-    summary: "Experiment {{ $labels.experiment }} has low traffic"
+    summary: "Experiment {{ $labels.service }} has low traffic"
     description: "May not have enough data for statistical significance"
 ```
 
@@ -359,13 +359,13 @@ Monitor for 24-48 hours. If metrics look good, increase to 25%, then 50%, then 1
 
 ```promql
 # Too short - noisy
-sum(rate(experiment_invocations_total[30s])) by (trial)
+sum(rate(experiment_invocations_total[30s])) by (service, trial_key)
 
 # Good - balanced
-sum(rate(experiment_invocations_total[5m])) by (trial)
+sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 
 # Long-term trends
-sum(rate(experiment_invocations_total[1h])) by (trial)
+sum(rate(experiment_invocations_total[1h])) by (service, trial_key)
 ```
 
 ### 4. Set Up Alerts
@@ -382,9 +382,9 @@ Combine experiment metrics with business metrics:
 
 ```promql
 # Conversion rate by trial
-sum(rate(business_conversions_total[5m])) by (experiment_trial)
+sum(rate(business_conversions_total[5m])) by (service, trial_key)
 /
-sum(rate(business_pageviews_total[5m])) by (experiment_trial)
+sum(rate(business_pageviews_total[5m])) by (service, trial_key)
 ```
 
 ## Troubleshooting

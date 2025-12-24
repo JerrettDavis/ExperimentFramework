@@ -1,5 +1,4 @@
 using ExperimentFramework.Models;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework.Decorators;
@@ -45,44 +44,22 @@ public sealed class TimeoutDecoratorFactory : IExperimentDecoratorFactory
             InvocationContext context,
             Func<ValueTask<object?>> next)
         {
-            using var cts = new CancellationTokenSource(_policy.Timeout);
-
             try
             {
+                // Use Task.WaitAsync to enforce timeout without race conditions
                 var task = next().AsTask();
-                var completedTask = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cts.Token));
-
-                if (completedTask == task)
-                {
-                    // Trial completed within timeout
-                    return await task;
-                }
-                else
-                {
-                    // Timeout occurred
-                    var timeoutEx = new TimeoutException(
-                        $"Trial '{context.TrialKey}' for {context.ServiceType.Name}.{context.MethodName} " +
-                        $"exceeded timeout of {_policy.Timeout.TotalMilliseconds}ms");
-
-                    _logger?.LogWarning(timeoutEx,
-                        "Trial timeout: {ServiceType}.{MethodName} trial={TrialKey} timeout={TimeoutMs}ms",
-                        context.ServiceType.Name,
-                        context.MethodName,
-                        context.TrialKey,
-                        _policy.Timeout.TotalMilliseconds);
-
-                    throw timeoutEx;
-                }
+                return await task.WaitAsync(_policy.Timeout);
             }
-            catch (OperationCanceledException) when (cts.Token.IsCancellationRequested)
+            catch (TimeoutException ex)
             {
-                // Convert to TimeoutException
+                // Wrap with detailed context information
                 var timeoutEx = new TimeoutException(
                     $"Trial '{context.TrialKey}' for {context.ServiceType.Name}.{context.MethodName} " +
-                    $"exceeded timeout of {_policy.Timeout.TotalMilliseconds}ms");
+                    $"exceeded timeout of {_policy.Timeout.TotalMilliseconds}ms",
+                    ex);
 
                 _logger?.LogWarning(timeoutEx,
-                    "Trial timeout (cancellation): {ServiceType}.{MethodName} trial={TrialKey} timeout={TimeoutMs}ms",
+                    "Trial timeout: {ServiceType}.{MethodName} trial={TrialKey} timeout={TimeoutMs}ms",
                     context.ServiceType.Name,
                     context.MethodName,
                     context.TrialKey,

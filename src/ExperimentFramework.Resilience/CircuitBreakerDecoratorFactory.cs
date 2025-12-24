@@ -40,7 +40,7 @@ public sealed class CircuitBreakerDecoratorFactory : IExperimentDecoratorFactory
             // Build Polly resilience pipeline with circuit breaker
             var pipelineBuilder = new ResiliencePipelineBuilder();
 
-            // Use failure ratio if specified, otherwise use default 50%
+            // Use configured failure ratio, defaulting to 50% if not specified
             var failureRatio = options.FailureRatioThreshold ?? 0.5;
 
             pipelineBuilder.AddCircuitBreaker(new CircuitBreakerStrategyOptions

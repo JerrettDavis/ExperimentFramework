@@ -11,7 +11,7 @@ The circuit breaker pattern protects your system by:
 3. **Half-open state**: Periodically tests if service recovered
 4. **Closing the circuit**: Resumes normal operation when service healthy
 
-ExperimentFramework integrates with [Polly v8](https://www.pollydocs.org/) for battle-tested circuit breaker implementation.
+ExperimentFramework integrates with [Polly](https://www.pollydocs.org/) for circuit breaker implementation.
 
 ## Installation
 
@@ -19,7 +19,7 @@ ExperimentFramework integrates with [Polly v8](https://www.pollydocs.org/) for b
 dotnet add package ExperimentFramework.Resilience
 ```
 
-This package includes Polly v8 and circuit breaker integration.
+This package includes Polly and circuit breaker integration.
 
 ## Basic Configuration
 
@@ -433,12 +433,12 @@ app.MapGet("/metrics", () => metrics.GeneratePrometheusOutput());
 
 ```promql
 # Circuit breaker open rate
-sum(rate(experiment_invocations_total{error="CircuitBreakerOpenException"}[5m])) by (experiment)
+sum(rate(experiment_errors_total{error="CircuitBreakerOpenException"}[5m])) by (service)
 
 # Failure rate by trial
-sum(rate(experiment_invocations_total{outcome="failure"}[5m])) by (trial)
+sum(rate(experiment_errors_total[5m])) by (service, trial_key)
 /
-sum(rate(experiment_invocations_total[5m])) by (trial)
+sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ```
 
 ## Troubleshooting

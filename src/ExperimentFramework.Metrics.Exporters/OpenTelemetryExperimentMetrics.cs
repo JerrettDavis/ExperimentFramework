@@ -37,9 +37,11 @@ public sealed class OpenTelemetryExperimentMetrics : IExperimentMetrics
 
     public void SetGauge(string name, double value, params KeyValuePair<string, object>[] tags)
     {
-        // OpenTelemetry gauges are created with observable callbacks
-        // For dynamic gauge values, we use histogram as an approximation
-        // Users should register ObservableGauge directly if they need true gauges
+        // Note: Gauge functionality is not fully supported in this implementation.
+        // OpenTelemetry gauges require observable callbacks that capture point-in-time values.
+        // Recording gauge values into a histogram is a fallback that accumulates values
+        // rather than replacing them, which differs from true gauge semantics.
+        // For true gauge behavior, register an ObservableGauge directly on the Meter.
         _histogram.Record(value, tags);
     }
 
