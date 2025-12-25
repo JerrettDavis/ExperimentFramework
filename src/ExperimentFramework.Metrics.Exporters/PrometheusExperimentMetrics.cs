@@ -165,20 +165,13 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
             .Replace("\"", "\\\"")
             .Replace("\n", "\\n");
 
-    private sealed class CounterMetric
+    private sealed class CounterMetric(string name, KeyValuePair<string, object>[] tags, long initialValue)
     {
-        private long _value;
+        private long _value = initialValue;
 
-        public string Name { get; }
-        public KeyValuePair<string, object>[] Tags { get; }
+        public string Name { get; } = name;
+        public KeyValuePair<string, object>[] Tags { get; } = tags;
         public long Value => Interlocked.Read(ref _value);
-
-        public CounterMetric(string name, KeyValuePair<string, object>[] tags, long initialValue)
-        {
-            Name = name;
-            Tags = tags;
-            _value = initialValue;
-        }
 
         public void Add(long value)
         {
@@ -186,20 +179,13 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
         }
     }
 
-    private sealed class GaugeMetric
+    private sealed class GaugeMetric(string name, KeyValuePair<string, object>[] tags, double initialValue)
     {
-        private long _value;
+        private long _value = BitConverter.DoubleToInt64Bits(initialValue);
 
-        public string Name { get; }
-        public KeyValuePair<string, object>[] Tags { get; }
+        public string Name { get; } = name;
+        public KeyValuePair<string, object>[] Tags { get; } = tags;
         public double Value => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _value));
-
-        public GaugeMetric(string name, KeyValuePair<string, object>[] tags, double initialValue)
-        {
-            Name = name;
-            Tags = tags;
-            _value = BitConverter.DoubleToInt64Bits(initialValue);
-        }
 
         public void Set(double value)
         {
@@ -207,23 +193,15 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
         }
     }
 
-    private sealed class HistogramMetric
+    private sealed class HistogramMetric(string name, KeyValuePair<string, object>[] tags, double initialValue)
     {
-        private long _sum;
-        private long _count;
+        private long _sum = BitConverter.DoubleToInt64Bits(initialValue);
+        private long _count = 1;
 
-        public string Name { get; }
-        public KeyValuePair<string, object>[] Tags { get; }
+        public string Name { get; } = name;
+        public KeyValuePair<string, object>[] Tags { get; } = tags;
         public double Sum => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _sum));
         public long Count => Interlocked.Read(ref _count);
-
-        public HistogramMetric(string name, KeyValuePair<string, object>[] tags, double initialValue)
-        {
-            Name = name;
-            Tags = tags;
-            _sum = BitConverter.DoubleToInt64Bits(initialValue);
-            _count = 1;
-        }
 
         public void Record(double value)
         {
@@ -240,23 +218,15 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
         }
     }
 
-    private sealed class SummaryMetric
+    private sealed class SummaryMetric(string name, KeyValuePair<string, object>[] tags, double initialValue)
     {
-        private long _sum;
-        private long _count;
+        private long _sum = BitConverter.DoubleToInt64Bits(initialValue);
+        private long _count = 1;
 
-        public string Name { get; }
-        public KeyValuePair<string, object>[] Tags { get; }
+        public string Name { get; } = name;
+        public KeyValuePair<string, object>[] Tags { get; } = tags;
         public double Sum => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _sum));
         public long Count => Interlocked.Read(ref _count);
-
-        public SummaryMetric(string name, KeyValuePair<string, object>[] tags, double initialValue)
-        {
-            Name = name;
-            Tags = tags;
-            _sum = BitConverter.DoubleToInt64Bits(initialValue);
-            _count = 1;
-        }
 
         public void Record(double value)
         {

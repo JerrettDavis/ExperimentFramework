@@ -1,4 +1,3 @@
-using ExperimentFramework;
 using ExperimentFramework.SampleWebApp.Services;
 
 namespace ExperimentFramework.SampleWebApp;
@@ -17,8 +16,10 @@ public static class ExperimentConfiguration
     {
         return ExperimentFrameworkBuilder.Create()
             // Experiment 1: Recommendation algorithms (sticky routing for consistent UX)
+            // Note: In a real app, you would use ExperimentFramework.StickyRouting package
+            // which provides .UsingStickyRouting() extension method
             .Trial<IRecommendationEngine>(t => t
-                .UsingStickyRouting() // Same user always sees same algorithm
+                .UsingCustomMode("StickyRouting") // Same user always sees same algorithm
                 .AddControl<PopularityRecommendationEngine>()
                 .AddCondition<MLRecommendationEngine>("ml")
                 .AddCondition<CollaborativeRecommendationEngine>("collaborative")

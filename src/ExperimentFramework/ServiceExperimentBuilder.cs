@@ -1,5 +1,6 @@
 using ExperimentFramework.Models;
 using ExperimentFramework.Naming;
+using ExperimentFramework.Selection;
 
 namespace ExperimentFramework;
 
@@ -39,6 +40,7 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
     private Type? _controlType;
     private bool _hasExplicitControl;
     private SelectionMode _mode = SelectionMode.BooleanFeatureFlag;
+    private string? _modeIdentifier;
     private string? _selectorName;
     private OnErrorPolicy _onErrorPolicy = OnErrorPolicy.Throw;
     private string? _fallbackTrialKey;
@@ -105,81 +107,47 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
     }
 
     /// <summary>
-    /// Configures trial selection to use IVariantFeatureManager for variant-based selection.
+    /// Configures trial selection to use a custom selection mode provider.
     /// </summary>
-    /// <param name="featureName">
-    /// The feature flag name to evaluate for variant selection.
-    /// If <see langword="null"/>, a default name will be derived from the service type.
+    /// <param name="modeIdentifier">
+    /// The identifier of the custom selection mode provider. This must match the
+    /// <see cref="ISelectionModeProvider.ModeIdentifier"/> of a registered provider.
     /// </param>
-    /// <returns>The current builder instance.</returns>
-    /// <remarks>
-    /// <para>
-    /// This mode requires the <c>Microsoft.FeatureManagement</c> package with variant support.
-    /// If the variant feature manager is not available, the framework will fall back to the default trial.
-    /// </para>
-    /// <para>
-    /// The variant name returned by the feature manager is used as the trial key.
-    /// </para>
-    /// </remarks>
-    public ServiceExperimentBuilder<TService> UsingVariantFeatureFlag(string? featureName = null)
-    {
-        _mode = SelectionMode.VariantFeatureFlag;
-        _selectorName = featureName;
-        return this;
-    }
-
-    /// <summary>
-    /// Configures trial selection to use sticky routing based on user/session identity hashing.
-    /// </summary>
     /// <param name="selectorName">
-    /// The selector name used as a salt for hashing (typically a feature flag name).
-    /// If <see langword="null"/>, a default name will be derived from the service type.
+    /// The selector name passed to the provider (e.g., flag key, configuration key).
+    /// If <see langword="null"/>, the provider's default naming convention is used.
     /// </param>
     /// <returns>The current builder instance.</returns>
     /// <remarks>
     /// <para>
-    /// Sticky routing provides deterministic trial selection based on user/session identity.
-    /// The same identity will always be routed to the same trial for true A/B testing.
+    /// Custom modes allow external packages to extend the framework with new selection
+    /// strategies without modifying the core library.
     /// </para>
     /// <para>
-    /// Requires <c>IExperimentIdentityProvider</c> to be registered in DI.
-    /// If the identity provider is not available or returns no identity, the framework
-    /// will fall back to boolean feature flag selection.
+    /// Example usage:
+    /// <code>
+    /// .Trial&lt;IPayment&gt;(t => t
+    ///     .UsingCustomMode("OpenFeature", "payment-provider")
+    ///     .AddControl&lt;Stripe&gt;()
+    ///     .AddCondition&lt;PayPal&gt;("paypal"))
+    /// </code>
+    /// </para>
+    /// <para>
+    /// The provider must be registered in the <see cref="SelectionModeRegistry"/> before
+    /// the experiment is invoked.
     /// </para>
     /// </remarks>
-    public ServiceExperimentBuilder<TService> UsingStickyRouting(string? selectorName = null)
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="modeIdentifier"/> is null or empty.
+    /// </exception>
+    public ServiceExperimentBuilder<TService> UsingCustomMode(string modeIdentifier, string? selectorName = null)
     {
-        _mode = SelectionMode.StickyRouting;
-        _selectorName = selectorName;
-        return this;
-    }
+        if (string.IsNullOrEmpty(modeIdentifier))
+            throw new ArgumentNullException(nameof(modeIdentifier));
 
-    /// <summary>
-    /// Configures trial selection to use OpenFeature for flag evaluation.
-    /// </summary>
-    /// <param name="flagKey">
-    /// The OpenFeature flag key to evaluate. If <see langword="null"/>, a default name
-    /// will be derived from <typeparamref name="TService"/> using the configured naming convention.
-    /// </param>
-    /// <returns>The current builder instance.</returns>
-    /// <remarks>
-    /// <para>
-    /// OpenFeature is an open standard for feature flag management. This mode allows
-    /// integration with any OpenFeature-compatible provider (LaunchDarkly, Flagsmith, etc.).
-    /// </para>
-    /// <para>
-    /// The framework resolves <c>IFeatureClient</c> from OpenFeature's API and uses
-    /// <c>GetStringValueAsync</c> to retrieve the trial key. For boolean flags, trial
-    /// keys "true" and "false" are used.
-    /// </para>
-    /// <para>
-    /// Falls back to the default trial if OpenFeature is not configured or flag evaluation fails.
-    /// </para>
-    /// </remarks>
-    public ServiceExperimentBuilder<TService> UsingOpenFeature(string? flagKey = null)
-    {
-        _mode = SelectionMode.OpenFeature;
-        _selectorName = flagKey;
+        _mode = SelectionMode.Custom;
+        _modeIdentifier = modeIdentifier;
+        _selectorName = selectorName;
         return this;
     }
 
@@ -616,19 +584,20 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
 
         _defaultKey ??= _trials.Keys.First();
 
+        // For custom modes, use a placeholder if no selector name is provided.
+        // The provider will use its own default naming convention at runtime.
         var selectorName = _selectorName ?? _mode switch
         {
             SelectionMode.BooleanFeatureFlag => convention.FeatureFlagNameFor(typeof(TService)),
-            SelectionMode.VariantFeatureFlag => convention.VariantFlagNameFor(typeof(TService)),
-            SelectionMode.StickyRouting => convention.FeatureFlagNameFor(typeof(TService)),
             SelectionMode.ConfigurationValue => convention.ConfigurationKeyFor(typeof(TService)),
-            SelectionMode.OpenFeature => convention.OpenFeatureFlagNameFor(typeof(TService)),
+            SelectionMode.Custom => string.Empty, // Provider will derive at runtime
             _ => convention.FeatureFlagNameFor(typeof(TService))
         };
 
         return new ServiceExperimentDefinition<TService>
         {
             Mode = _mode,
+            ModeIdentifier = _modeIdentifier, // Will be derived from Mode if null
             SelectorName = selectorName,
             DefaultKey = _defaultKey,
             Trials = new Dictionary<string, Type>(_trials, StringComparer.Ordinal),

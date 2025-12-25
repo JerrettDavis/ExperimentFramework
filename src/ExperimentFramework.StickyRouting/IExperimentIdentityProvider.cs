@@ -1,4 +1,4 @@
-namespace ExperimentFramework.Routing;
+namespace ExperimentFramework.StickyRouting;
 
 /// <summary>
 /// Provides the current user or session identity for sticky routing.
@@ -27,7 +27,7 @@ public interface IExperimentIdentityProvider
     /// <remarks>
     /// <para>
     /// If this method returns <see langword="false"/> or throws an exception, the framework will
-    /// fall back to boolean feature flag selection.
+    /// fall back to default trial selection.
     /// </para>
     /// <para>
     /// Implementations must be thread-safe if registered as singleton. Consider using scoped lifetime

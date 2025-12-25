@@ -27,6 +27,9 @@
         <ProjectReference Include="..\..\samples\ExperimentFramework.SampleWebApp\ExperimentFramework.SampleWebApp.csproj" Aliases="SampleWebApp" />
         <ProjectReference Include="..\..\src\ExperimentFramework.Resilience\ExperimentFramework.Resilience.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.Metrics.Exporters\ExperimentFramework.Metrics.Exporters.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.FeatureManagement\ExperimentFramework.FeatureManagement.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.StickyRouting\ExperimentFramework.StickyRouting.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.OpenFeature\ExperimentFramework.OpenFeature.csproj" />
     </ItemGroup>
 
     <ItemGroup>

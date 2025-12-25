@@ -5,7 +5,7 @@ namespace ExperimentFramework.Tests.TestInterfaces;
 public class GenericRepositoryV2<T> : IGenericRepository<T> where T : class
 {
     // Shared data store across all instances to support scope-per-invocation pattern
-    private static readonly ConcurrentBag<T> _sharedData = new();
+    private static readonly ConcurrentBag<T> _sharedData = [];
 
     public Task<T?> GetByIdAsync(int id) => Task.FromResult<T?>(default);
     public Task<List<T>> GetAllAsync() => Task.FromResult(_sharedData.ToList());

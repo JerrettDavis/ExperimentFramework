@@ -22,7 +22,7 @@ public class FailingService : ITestService
 
 public class UnstableService : ITestService
 {
-    private int _callCount = 0;
+    private int _callCount;
 
     public string Execute()
     {

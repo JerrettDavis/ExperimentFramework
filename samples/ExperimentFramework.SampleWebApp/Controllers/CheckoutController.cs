@@ -9,15 +9,8 @@ namespace ExperimentFramework.SampleWebApp.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class CheckoutController : ControllerBase
+public class CheckoutController(ICheckoutFlow checkoutFlow) : ControllerBase
 {
-    private readonly ICheckoutFlow _checkoutFlow;
-
-    public CheckoutController(ICheckoutFlow checkoutFlow)
-    {
-        _checkoutFlow = checkoutFlow;
-    }
-
     /// <summary>
     /// Gets the checkout flow information.
     /// The flow is selected based on the EnableExpressCheckout feature flag.
@@ -25,12 +18,12 @@ public class CheckoutController : ControllerBase
     [HttpGet("flow")]
     public IActionResult GetCheckoutFlow()
     {
-        var flowInfo = _checkoutFlow.GetCheckoutInfo();
+        var flowInfo = checkoutFlow.GetCheckoutInfo();
 
         return Ok(new
         {
-            FlowName = flowInfo.FlowName,
-            Steps = flowInfo.Steps,
+            flowInfo.FlowName,
+            flowInfo.Steps,
             EstimatedSeconds = flowInfo.EstimatedTimeSeconds,
             Message = $"Using {flowInfo.FlowName} with {flowInfo.Steps.Length} steps. " +
                       "Toggle the 'EnableExpressCheckout' feature flag in appsettings.json to see different flows."
@@ -43,7 +36,7 @@ public class CheckoutController : ControllerBase
     [HttpPost("complete")]
     public IActionResult CompleteCheckout([FromBody] CheckoutRequest request)
     {
-        var flowInfo = _checkoutFlow.GetCheckoutInfo();
+        var flowInfo = checkoutFlow.GetCheckoutInfo();
 
         return Ok(new
         {

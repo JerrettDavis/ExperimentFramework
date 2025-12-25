@@ -1,12 +1,10 @@
-using ExperimentFramework.Decorators;
 using ExperimentFramework.KillSwitch;
 using ExperimentFramework.Metrics;
+using ExperimentFramework.Metrics.Exporters;
 using ExperimentFramework.Models;
 using ExperimentFramework.Resilience;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Xunit.Abstractions;
 
 namespace ExperimentFramework.Tests;
 
@@ -51,7 +49,7 @@ public sealed class EnterpriseFeatureTests
 
     private sealed class ReliableService : IFailingService
     {
-        private int _callCount = 0;
+        private int _callCount;
 
         public Task<string> MayFailAsync(bool shouldFail)
         {
@@ -73,10 +71,10 @@ public sealed class EnterpriseFeatureTests
 
     private sealed class TestMetrics : IExperimentMetrics
     {
-        public List<(string name, long value, KeyValuePair<string, object>[] tags)> Counters { get; } = new();
-        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Histograms { get; } = new();
-        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Gauges { get; } = new();
-        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Summaries { get; } = new();
+        public List<(string name, long value, KeyValuePair<string, object>[] tags)> Counters { get; } = [];
+        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Histograms { get; } = [];
+        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Gauges { get; } = [];
+        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Summaries { get; } = [];
 
         public void IncrementCounter(string name, long value = 1, params KeyValuePair<string, object>[] tags)
         {
@@ -160,7 +158,7 @@ public sealed class EnterpriseFeatureTests
                 .AddDefaultTrial<FastService>("fast")
                 .AddTrial<SlowService>("slow")
                 .OnErrorRedirectAndReplayDefault())
-            .WithTimeout(TimeSpan.FromMilliseconds(100), TimeoutAction.FallbackToDefault)
+            .WithTimeout(TimeSpan.FromMilliseconds(100))
             .UseDispatchProxy();
 
         services.AddExperimentFramework(experiments);
@@ -378,7 +376,7 @@ public sealed class EnterpriseFeatureTests
     public void Prometheus_metrics_exports_in_correct_format()
     {
         // Arrange
-        var metrics = new ExperimentFramework.Metrics.Exporters.PrometheusExperimentMetrics();
+        var metrics = new PrometheusExperimentMetrics();
 
         // Act
         metrics.IncrementCounter("test_counter", 5,
@@ -403,7 +401,7 @@ public sealed class EnterpriseFeatureTests
     public void OpenTelemetry_metrics_creates_meter_with_correct_name()
     {
         // Arrange & Act
-        var metrics = new ExperimentFramework.Metrics.Exporters.OpenTelemetryExperimentMetrics("TestMeter", "1.0.0");
+        var metrics = new OpenTelemetryExperimentMetrics("TestMeter");
         metrics.IncrementCounter("test_counter", 1,
             new KeyValuePair<string, object>("experiment", "test"));
         metrics.RecordHistogram("test_duration", 0.123,

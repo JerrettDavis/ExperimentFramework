@@ -29,7 +29,7 @@ namespace ExperimentFramework;
 public sealed class ExperimentBuilder
 {
     private readonly string _name;
-    private readonly List<IExperimentDefinition> _trialDefinitions = new();
+    private readonly List<IExperimentDefinition> _trialDefinitions = [];
     private DateTimeOffset? _startTime;
     private DateTimeOffset? _endTime;
     private Func<IServiceProvider, bool>? _activationPredicate;

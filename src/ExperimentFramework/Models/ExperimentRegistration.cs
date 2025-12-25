@@ -1,3 +1,5 @@
+using ExperimentFramework.Selection;
+
 namespace ExperimentFramework.Models;
 
 /// <summary>
@@ -30,6 +32,17 @@ public sealed class ExperimentRegistration
     /// Gets the selection mode used to choose which condition key to run.
     /// </summary>
     public required SelectionMode Mode { get; init; }
+
+    /// <summary>
+    /// Gets the mode identifier string for provider-based selection.
+    /// </summary>
+    /// <remarks>
+    /// This string identifier is used to look up the appropriate
+    /// <see cref="ISelectionModeProvider"/> from the <see cref="SelectionModeRegistry"/>.
+    /// For built-in modes, this is derived from <see cref="Mode"/>. For custom modes,
+    /// this is set directly via <c>UsingCustomMode()</c>.
+    /// </remarks>
+    public required string ModeIdentifier { get; init; }
 
     /// <summary>
     /// Gets the selector name used by the chosen <see cref="Mode"/> (feature flag name or configuration key).

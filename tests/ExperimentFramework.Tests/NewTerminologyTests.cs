@@ -1,5 +1,6 @@
 using ExperimentFramework.Activation;
 using ExperimentFramework.Models;
+using ExperimentFramework.Selection;
 using ExperimentFramework.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -238,6 +239,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -262,6 +264,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -287,6 +290,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -313,6 +317,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -338,6 +343,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -362,6 +368,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -386,6 +393,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -416,6 +424,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -431,16 +440,9 @@ public class NewTerminologyTests
         Assert.True(result);
     }
 
-    private class FakeTimeProvider : IExperimentTimeProvider
+    private class FakeTimeProvider(DateTimeOffset fixedTime) : IExperimentTimeProvider
     {
-        private readonly DateTimeOffset _fixedTime;
-
-        public FakeTimeProvider(DateTimeOffset fixedTime)
-        {
-            _fixedTime = fixedTime;
-        }
-
-        public DateTimeOffset UtcNow => _fixedTime;
+        public DateTimeOffset UtcNow => fixedTime;
     }
 
     #endregion
@@ -458,6 +460,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type>
@@ -489,6 +492,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type>
@@ -497,7 +501,7 @@ public class NewTerminologyTests
                     ["a"] = typeof(ConditionAImplementation)
                 },
                 OnErrorPolicy = OnErrorPolicy.RedirectAndReplayOrdered,
-                OrderedFallbackKeys = new[] { "a", "invalid" } // "invalid" doesn't exist
+                OrderedFallbackKeys = ["a", "invalid"] // "invalid" doesn't exist
             }
         };
 
@@ -520,6 +524,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test1",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -529,6 +534,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService), // Same service type
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test2",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -555,6 +561,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test1",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -566,6 +573,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService), // Same service type
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test2",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -594,6 +602,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test1",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -605,6 +614,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService), // Same service type
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test2",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -632,6 +642,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -655,6 +666,7 @@ public class NewTerminologyTests
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "test",
                 DefaultKey = "control",
                 Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },
@@ -755,7 +767,7 @@ public class NewTerminologyTests
             EndTime = DateTimeOffset.UtcNow.AddDays(30),
             ActivationPredicate = _ => true,
             PercentageAllocation = 50.0,
-            UserSegments = new[] { "beta-users" }
+            UserSegments = ["beta-users"]
         };
 
         // Assert
@@ -789,7 +801,7 @@ public class NewTerminologyTests
         var rule = BehaviorRule.FromRegistration(
             OnErrorPolicy.RedirectAndReplayOrdered,
             "fallback",
-            new[] { "a", "b", "c" });
+            ["a", "b", "c"]);
 
         // Assert
         Assert.Equal(OnErrorPolicy.RedirectAndReplayOrdered, rule.OnErrorPolicy);
@@ -809,6 +821,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "my-control",
             Trials = new Dictionary<string, Type> { ["my-control"] = typeof(ControlImplementation) },
@@ -834,6 +847,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = trials,
@@ -853,6 +867,7 @@ public class NewTerminologyTests
         {
             ServiceType = typeof(ITestService),
             Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
             SelectorName = "test",
             DefaultKey = "control",
             Trials = new Dictionary<string, Type> { ["control"] = typeof(ControlImplementation) },

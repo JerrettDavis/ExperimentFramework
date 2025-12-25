@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using ExperimentFramework.Decorators;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ExperimentFramework.Metrics;
 
@@ -26,15 +25,8 @@ public sealed class MetricsDecoratorFactory : IExperimentDecoratorFactory
         return new MetricsDecorator(_metrics);
     }
 
-    private sealed class MetricsDecorator : IExperimentDecorator
+    private sealed class MetricsDecorator(IExperimentMetrics metrics) : IExperimentDecorator
     {
-        private readonly IExperimentMetrics _metrics;
-
-        public MetricsDecorator(IExperimentMetrics metrics)
-        {
-            _metrics = metrics;
-        }
-
         public async ValueTask<object?> InvokeAsync(
             InvocationContext context,
             Func<ValueTask<object?>> next)
@@ -47,7 +39,7 @@ public sealed class MetricsDecoratorFactory : IExperimentDecoratorFactory
             };
 
             // Increment invocation counter
-            _metrics.IncrementCounter("experiment_invocations_total", 1, tags);
+            metrics.IncrementCounter("experiment_invocations_total", 1, tags);
 
             var sw = Stopwatch.StartNew();
             try
@@ -57,8 +49,8 @@ public sealed class MetricsDecoratorFactory : IExperimentDecoratorFactory
                 sw.Stop();
 
                 // Record success metrics
-                _metrics.RecordHistogram("experiment_duration_seconds", sw.Elapsed.TotalSeconds, tags);
-                _metrics.IncrementCounter("experiment_success_total", 1, tags);
+                metrics.RecordHistogram("experiment_duration_seconds", sw.Elapsed.TotalSeconds, tags);
+                metrics.IncrementCounter("experiment_success_total", 1, tags);
 
                 return result;
             }
@@ -67,8 +59,8 @@ public sealed class MetricsDecoratorFactory : IExperimentDecoratorFactory
                 sw.Stop();
 
                 // Record failure metrics
-                _metrics.RecordHistogram("experiment_duration_seconds", sw.Elapsed.TotalSeconds, tags);
-                _metrics.IncrementCounter("experiment_errors_total", 1, tags);
+                metrics.RecordHistogram("experiment_duration_seconds", sw.Elapsed.TotalSeconds, tags);
+                metrics.IncrementCounter("experiment_errors_total", 1, tags);
 
                 throw;
             }

@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using ExperimentFramework;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
@@ -32,22 +31,18 @@ public class SimpleServiceV2 : ISimpleService
     public Task<string> GetValueAsync() => Task.FromResult("v2");
 }
 
-public class GenericServiceV1<T> : IGenericService<T>
+public class GenericServiceV1<T>(T value) : IGenericService<T>
 {
-    private readonly T _value;
     public GenericServiceV1() : this(default!) { }
-    public GenericServiceV1(T value) => _value = value;
-    public T GetItem() => _value;
-    public Task<T> GetItemAsync() => Task.FromResult(_value);
+    public T GetItem() => value;
+    public Task<T> GetItemAsync() => Task.FromResult(value);
 }
 
-public class GenericServiceV2<T> : IGenericService<T>
+public class GenericServiceV2<T>(T value) : IGenericService<T>
 {
-    private readonly T _value;
     public GenericServiceV2() : this(default!) { }
-    public GenericServiceV2(T value) => _value = value;
-    public T GetItem() => _value;
-    public Task<T> GetItemAsync() => Task.FromResult(_value);
+    public T GetItem() => value;
+    public Task<T> GetItemAsync() => Task.FromResult(value);
 }
 
 [MemoryDiagnoser]

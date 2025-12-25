@@ -1,7 +1,7 @@
-using Microsoft.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using ExperimentFramework.Generators.Models;
+using Microsoft.CodeAnalysis;
 
 namespace ExperimentFramework.Generators.CodeGen;
 

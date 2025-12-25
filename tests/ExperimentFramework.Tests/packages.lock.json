@@ -449,6 +449,14 @@
         "resolved": "13.0.3",
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
+      "OpenFeature": {
+        "type": "Transitive",
+        "resolved": "2.2.0",
+        "contentHash": "GgWi2+kUl6oU6zNr7E59T5J8+XUm04Rg0duD24fzNA/IWtM1qRBygdDNEN0dglVijb3oK9oOrNDxh+uGZN3o3w==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        }
+      },
       "OpenTelemetry": {
         "type": "Transitive",
         "resolved": "1.12.0",
@@ -574,10 +582,26 @@
           "OpenTelemetry.Extensions.Hosting": "[1.12.0, )"
         }
       },
+      "experimentframework.featuremanagement": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[0.1.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "Microsoft.FeatureManagement": "[4.4.0, )"
+        }
+      },
       "experimentframework.metrics.exporters": {
         "type": "Project",
         "dependencies": {
           "ExperimentFramework": "[0.1.0, )"
+        }
+      },
+      "experimentframework.openfeature": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[0.1.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "OpenFeature": "[2.2.0, )"
         }
       },
       "experimentframework.resilience": {
@@ -602,8 +626,16 @@
         "type": "Project",
         "dependencies": {
           "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework.StickyRouting": "[1.0.0, )",
           "Microsoft.AspNetCore.OpenApi": "[10.0.1, )",
           "Microsoft.FeatureManagement.AspNetCore": "[4.4.0, )"
+        }
+      },
+      "experimentframework.stickyrouting": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[0.1.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
         }
       }
     }

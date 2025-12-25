@@ -47,7 +47,7 @@ public sealed class TelemetryTests(ITestOutputHelper output) :
             "TestMethod",
             "MyFeatureFlag",
             "trial-1",
-            new[] { "trial-1", "trial-2" });
+            ["trial-1", "trial-2"]);
 
         return new InvocationResult(state, scope);
     }

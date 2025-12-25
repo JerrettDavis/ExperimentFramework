@@ -1,11 +1,11 @@
 ﻿using ExperimentFramework.Naming;
+using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
-using ExperimentFramework.Tests.TestInterfaces;
 
 namespace ExperimentFramework.Tests;
 

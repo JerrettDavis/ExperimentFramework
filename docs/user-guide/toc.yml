@@ -8,6 +8,8 @@
   href: selection-modes.md
 - name: OpenFeature Integration
   href: openfeature.md
+- name: Extensibility
+  href: extensibility.md
 - name: Error Handling
   href: error-handling.md
 - name: Telemetry

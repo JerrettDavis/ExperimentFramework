@@ -249,7 +249,7 @@ public class AsyncProxyTests(ITestOutputHelper output) : TinyBddXunitBase(output
             .When("invoke nested generic methods", InvokeNestedGeneric)
             .Then("tuple item1 is from V2", r => r.TupleResult.Item1 == "v2")
             .And("tuple item2 is correct", r => r.TupleResult.Item2 == 2)
-            .And("tuple item3 is correct", r => r.TupleResult.Item3 == false)
+            .And("tuple item3 is correct", r => !r.TupleResult.Item3)
             .Finally(r => (r.State.ServiceProvider as IDisposable)?.Dispose())
             .AssertPassed();
 

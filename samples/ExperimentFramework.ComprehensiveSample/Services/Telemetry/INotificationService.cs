@@ -14,7 +14,7 @@ public class EmailNotificationService : INotificationService
     {
         Console.WriteLine($"    → EmailNotificationService: Sending email to {recipient}");
         await Task.Delay(50); // Simulate email sending
-        Console.WriteLine($"    → Email sent successfully");
+        Console.WriteLine("    → Email sent successfully");
     }
 }
 
@@ -24,6 +24,6 @@ public class SmsNotificationService : INotificationService
     {
         Console.WriteLine($"    → SmsNotificationService: Sending SMS to {recipient}");
         await Task.Delay(30); // Simulate SMS sending
-        Console.WriteLine($"    → SMS sent successfully");
+        Console.WriteLine("    → SMS sent successfully");
     }
 }

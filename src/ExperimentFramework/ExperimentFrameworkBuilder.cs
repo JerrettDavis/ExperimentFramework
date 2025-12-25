@@ -29,10 +29,10 @@ namespace ExperimentFramework;
 /// </remarks>
 public sealed class ExperimentFrameworkBuilder
 {
-    private readonly List<IExperimentDecoratorFactory> _decoratorFactories = new();
-    private readonly List<IExperimentDefinition> _definitions = new();
+    private readonly List<IExperimentDecoratorFactory> _decoratorFactories = [];
+    private readonly List<IExperimentDefinition> _definitions = [];
     private IExperimentNamingConvention _namingConvention = new DefaultExperimentNamingConvention();
-    private bool _useRuntimeProxies = false;
+    private bool _useRuntimeProxies;
 
     private ExperimentFrameworkBuilder() { }
 

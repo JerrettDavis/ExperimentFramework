@@ -23,7 +23,7 @@ public class StandardCheckoutFlow : ICheckoutFlow
     {
         return new CheckoutInfo(
             "Standard Checkout",
-            new[] { "Cart Review", "Shipping Address", "Payment Method", "Review & Confirm", "Complete" },
+            ["Cart Review", "Shipping Address", "Payment Method", "Review & Confirm", "Complete"],
             90);
     }
 }
@@ -37,7 +37,7 @@ public class ExpressCheckoutFlow : ICheckoutFlow
     {
         return new CheckoutInfo(
             "Express Checkout",
-            new[] { "Review Cart", "Confirm & Pay", "Complete" },
+            ["Review Cart", "Confirm & Pay", "Complete"],
             30);
     }
 }
@@ -51,7 +51,7 @@ public class OneClickCheckoutFlow : ICheckoutFlow
     {
         return new CheckoutInfo(
             "One-Click Checkout",
-            new[] { "Confirm Purchase", "Complete" },
+            ["Confirm Purchase", "Complete"],
             10);
     }
 }

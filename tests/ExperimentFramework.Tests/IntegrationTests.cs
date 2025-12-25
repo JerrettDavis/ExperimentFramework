@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ExperimentFramework.Routing;
+using ExperimentFramework.StickyRouting;
 using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

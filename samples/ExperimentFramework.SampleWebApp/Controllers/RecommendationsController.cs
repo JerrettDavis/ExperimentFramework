@@ -9,15 +9,8 @@ namespace ExperimentFramework.SampleWebApp.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-public class RecommendationsController : ControllerBase
+public class RecommendationsController(IRecommendationEngine recommendationEngine) : ControllerBase
 {
-    private readonly IRecommendationEngine _recommendationEngine;
-
-    public RecommendationsController(IRecommendationEngine recommendationEngine)
-    {
-        _recommendationEngine = recommendationEngine;
-    }
-
     /// <summary>
     /// Gets personalized product recommendations.
     /// The recommendation algorithm is selected via sticky routing based on user/session identity.
@@ -26,8 +19,8 @@ public class RecommendationsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetRecommendations([FromQuery] string userId = "anonymous")
     {
-        var recommendations = await _recommendationEngine.GetRecommendationsAsync(userId);
-        var algorithm = _recommendationEngine.GetAlgorithmName();
+        var recommendations = await recommendationEngine.GetRecommendationsAsync(userId);
+        var algorithm = recommendationEngine.GetAlgorithmName();
 
         return Ok(new
         {
@@ -45,7 +38,7 @@ public class RecommendationsController : ControllerBase
     [HttpGet("algorithm")]
     public IActionResult GetAlgorithmInfo()
     {
-        var algorithm = _recommendationEngine.GetAlgorithmName();
+        var algorithm = recommendationEngine.GetAlgorithmName();
 
         return Ok(new
         {

@@ -1,5 +1,5 @@
-using ExperimentFramework.Decorators;
 using System.Collections.Concurrent;
+using ExperimentFramework.Decorators;
 
 namespace ExperimentFramework.ComprehensiveSample.Decorators;
 

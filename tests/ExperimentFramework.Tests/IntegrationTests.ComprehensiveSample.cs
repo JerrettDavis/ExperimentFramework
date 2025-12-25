@@ -1,7 +1,5 @@
 extern alias ComprehensiveSample;
-
 using ComprehensiveSample::ExperimentFramework.ComprehensiveSample;
-using ComprehensiveSample::ExperimentFramework.ComprehensiveSample.Decorators;
 using ComprehensiveSample::ExperimentFramework.ComprehensiveSample.Services.Decorator;
 using ComprehensiveSample::ExperimentFramework.ComprehensiveSample.Services.ErrorPolicy;
 using ComprehensiveSample::ExperimentFramework.ComprehensiveSample.Services.ReturnTypes;

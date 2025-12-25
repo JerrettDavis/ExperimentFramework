@@ -1,5 +1,3 @@
-using ExperimentFramework;
-
 namespace ExperimentFramework.Tests.TestInterfaces;
 
 /// <summary>
@@ -51,7 +49,7 @@ public static class ExperimentTestCompositionRoot
 
             // Variant service tests (IntegrationTests, SelectionModeTests)
             .Define<IVariantService>(c => c
-                .UsingStickyRouting("UserVariant")
+                .UsingCustomMode("StickyRouting", "UserVariant")
                 .AddDefaultTrial<ControlVariant>("control")
                 .AddTrial<VariantA>("variant-a")
                 .AddTrial<VariantB>("variant-b"))
@@ -70,7 +68,7 @@ public static class ExperimentTestCompositionRoot
 
             // IVariantTestService for VariantFeatureManagerTests
             .Define<IVariantTestService>(c => c
-                .UsingVariantFeatureFlag("MyVariantFeature")
+                .UsingCustomMode("VariantFeatureFlag", "MyVariantFeature")
                 .AddDefaultTrial<ControlService>("control")
                 .AddTrial<VariantAService>("variant-a")
                 .AddTrial<VariantBService>("variant-b"))

@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace ExperimentFramework.Naming;
 
 /// <summary>
@@ -10,8 +12,13 @@ namespace ExperimentFramework.Naming;
 /// <item><description>Configuration keys use the pattern <c>"Experiments:{ServiceType.Name}"</c>.</description></item>
 /// </list>
 /// </remarks>
-internal sealed class DefaultExperimentNamingConvention : IExperimentNamingConvention
+public sealed class DefaultExperimentNamingConvention : IExperimentNamingConvention
 {
+    /// <summary>
+    /// Gets the singleton instance of the default naming convention.
+    /// </summary>
+    public static DefaultExperimentNamingConvention Instance { get; } = new();
+
     /// <inheritdoc/>
     public string FeatureFlagNameFor(Type serviceType)
         => serviceType.Name;
@@ -34,7 +41,7 @@ internal sealed class DefaultExperimentNamingConvention : IExperimentNamingConve
         if (name.Length > 1 && name[0] == 'I' && char.IsUpper(name[1]))
             name = name[1..];
 
-        var builder = new System.Text.StringBuilder();
+        var builder = new StringBuilder();
         for (var i = 0; i < name.Length; i++)
         {
             var c = name[i];

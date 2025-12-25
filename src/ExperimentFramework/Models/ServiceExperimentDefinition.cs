@@ -39,6 +39,16 @@ internal sealed class ServiceExperimentDefinition<TService> : IExperimentDefinit
     public required SelectionMode Mode { get; init; }
 
     /// <summary>
+    /// Gets the mode identifier string for provider-based selection.
+    /// </summary>
+    /// <remarks>
+    /// If not explicitly set, this is derived from <see cref="Mode"/> using
+    /// <see cref="SelectionModeExtensions.ToModeIdentifier"/>.
+    /// For custom modes, this must be set explicitly.
+    /// </remarks>
+    public string? ModeIdentifier { get; init; }
+
+    /// <summary>
     /// Gets the selector name associated with the selection mode.
     /// </summary>
     /// <remarks>
@@ -149,6 +159,7 @@ internal sealed class ServiceExperimentDefinition<TService> : IExperimentDefinit
         {
             ServiceType = typeof(TService),
             Mode = Mode,
+            ModeIdentifier = ModeIdentifier ?? Mode.ToModeIdentifier(),
             SelectorName = SelectorName,
             DefaultKey = DefaultKey,
             Trials = Trials,

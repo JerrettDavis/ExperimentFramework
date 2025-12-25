@@ -1,5 +1,5 @@
-using ExperimentFramework.ComprehensiveSample.Services.Telemetry;
 using System.Diagnostics;
+using ExperimentFramework.ComprehensiveSample.Services.Telemetry;
 
 namespace ExperimentFramework.ComprehensiveSample.Demos;
 
@@ -29,7 +29,7 @@ public class OpenTelemetryDemo(INotificationService notificationService)
             Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStarted = activity =>
             {
-                Console.WriteLine($"\n  [OpenTelemetry] Activity Started:");
+                Console.WriteLine("\n  [OpenTelemetry] Activity Started:");
                 Console.WriteLine($"    Name: {activity.DisplayName}");
                 Console.WriteLine($"    OperationName: {activity.OperationName}");
                 foreach (var tag in activity.TagObjects)
@@ -39,7 +39,7 @@ public class OpenTelemetryDemo(INotificationService notificationService)
             },
             ActivityStopped = activity =>
             {
-                Console.WriteLine($"  [OpenTelemetry] Activity Stopped:");
+                Console.WriteLine("  [OpenTelemetry] Activity Stopped:");
                 Console.WriteLine($"    Duration: {activity.Duration.TotalMilliseconds}ms");
                 Console.WriteLine($"    Status: {activity.Status}");
             }

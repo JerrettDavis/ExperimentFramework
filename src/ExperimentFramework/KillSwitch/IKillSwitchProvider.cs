@@ -52,8 +52,8 @@ public interface IKillSwitchProvider
 /// </summary>
 public sealed class InMemoryKillSwitchProvider : IKillSwitchProvider
 {
-    private readonly HashSet<string> _disabledTrials = new();
-    private readonly HashSet<string> _disabledExperiments = new();
+    private readonly HashSet<string> _disabledTrials = [];
+    private readonly HashSet<string> _disabledExperiments = [];
     private readonly object _lock = new();
 
     /// <inheritdoc />

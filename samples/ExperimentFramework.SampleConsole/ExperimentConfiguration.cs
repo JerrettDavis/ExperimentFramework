@@ -1,5 +1,3 @@
-using ExperimentFramework;
-using ExperimentFramework.SampleConsole;
 using ExperimentFramework.SampleConsole.Contexts;
 using ExperimentFramework.SampleConsole.Providers;
 

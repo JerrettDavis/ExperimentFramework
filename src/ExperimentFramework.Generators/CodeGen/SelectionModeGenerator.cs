@@ -1,6 +1,6 @@
-using ExperimentFramework.Generators.Models;
-using System.Linq;
 using System.Text;
+using ExperimentFramework.Generators.Models;
+using Microsoft.CodeAnalysis;
 
 namespace ExperimentFramework.Generators.CodeGen;
 
@@ -12,6 +12,10 @@ internal static class SelectionModeGenerator
     /// <summary>
     /// Generates the SelectTrialKey helper method based on the experiment's selection mode.
     /// </summary>
+    /// <remarks>
+    /// For built-in modes (BooleanFeatureFlag, ConfigurationValue), generates optimized inline code.
+    /// For custom modes, generates delegation code to the runtime SelectionModeRegistry.
+    /// </remarks>
     public static void GenerateSelectionHelper(StringBuilder sb, ExperimentDefinitionModel experiment)
     {
         switch (experiment.SelectionMode)
@@ -24,16 +28,8 @@ internal static class SelectionModeGenerator
                 GenerateConfigurationValueSelector(sb, experiment);
                 break;
 
-            case SelectionModeModel.VariantFeatureFlag:
-                GenerateVariantFeatureFlagSelector(sb, experiment);
-                break;
-
-            case SelectionModeModel.StickyRouting:
-                GenerateStickyRoutingSelector(sb, experiment);
-                break;
-
-            case SelectionModeModel.OpenFeature:
-                GenerateOpenFeatureSelector(sb, experiment);
+            case SelectionModeModel.Custom:
+                GenerateCustomModeSelector(sb, experiment);
                 break;
         }
     }
@@ -88,169 +84,56 @@ internal static class SelectionModeGenerator
         sb.AppendLine("        }");
     }
 
-    private static void GenerateVariantFeatureFlagSelector(StringBuilder sb, ExperimentDefinitionModel experiment)
+    private static void GenerateCustomModeSelector(StringBuilder sb, ExperimentDefinitionModel experiment)
     {
+        var modeIdentifier = experiment.ModeIdentifier ?? "Unknown";
         var selectorName = experiment.SelectorName;
         var defaultKey = experiment.DefaultKey;
+        var serviceTypeName = experiment.ServiceType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
         sb.AppendLine("        private string SelectTrialKey(global::System.IServiceProvider sp)");
         sb.AppendLine("        {");
-        sb.AppendLine("            // Variant feature flags require reflection to access IVariantFeatureManager");
-        sb.AppendLine("            // This is because Microsoft.FeatureManagement.FeatureVariants is a separate package");
-        sb.AppendLine("            var variantManagerType = global::System.Type.GetType(\"Microsoft.FeatureManagement.IVariantFeatureManager, Microsoft.FeatureManagement\");");
-        sb.AppendLine("            if (variantManagerType != null)");
-        sb.AppendLine("            {");
-        sb.AppendLine("                var variantManager = sp.GetService(variantManagerType);");
-        sb.AppendLine("                if (variantManager != null)");
-        sb.AppendLine("                {");
-        sb.AppendLine("                    try");
-        sb.AppendLine("                    {");
-        sb.AppendLine("                        var getVariantMethod = variantManagerType.GetMethod(\"GetVariantAsync\");");
-        sb.AppendLine("                        if (getVariantMethod != null)");
-        sb.AppendLine("                        {");
-        sb.AppendLine($"                            var task = getVariantMethod.Invoke(variantManager, new object[] {{ \"{selectorName}\", default(global::System.Threading.CancellationToken) }}) as global::System.Threading.Tasks.Task<object>;");
-        sb.AppendLine("                            var variant = task?.GetAwaiter().GetResult();");
-        sb.AppendLine("                            if (variant != null)");
-        sb.AppendLine("                            {");
-        sb.AppendLine("                                var nameProperty = variant.GetType().GetProperty(\"Name\");");
-        sb.AppendLine("                                var variantName = nameProperty?.GetValue(variant) as string;");
-        sb.AppendLine("                                if (!string.IsNullOrEmpty(variantName))");
-        sb.AppendLine("                                {");
-        sb.AppendLine("                                    return variantName;");
-        sb.AppendLine("                                }");
-        sb.AppendLine("                            }");
-        sb.AppendLine("                        }");
-        sb.AppendLine("                    }");
-        sb.AppendLine("                    catch");
-        sb.AppendLine("                    {");
-        sb.AppendLine("                        // Fall through to default");
-        sb.AppendLine("                    }");
-        sb.AppendLine("                }");
-        sb.AppendLine("            }");
-        sb.AppendLine();
-        sb.AppendLine($"            return \"{defaultKey}\";");
-        sb.AppendLine("        }");
-    }
-
-    private static void GenerateStickyRoutingSelector(StringBuilder sb, ExperimentDefinitionModel experiment)
-    {
-        var defaultKey = experiment.DefaultKey;
-
-        sb.AppendLine("        private string SelectTrialKey(global::System.IServiceProvider sp)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            var identityProvider = sp.GetService(typeof(global::ExperimentFramework.Routing.IExperimentIdentityProvider)) as global::ExperimentFramework.Routing.IExperimentIdentityProvider;");
-        sb.AppendLine("            if (identityProvider == null || !identityProvider.TryGetIdentity(out var identity) || string.IsNullOrEmpty(identity))");
+        sb.AppendLine("            // Delegate to runtime provider for custom selection mode");
+        sb.AppendLine("            var registry = sp.GetService(typeof(global::ExperimentFramework.Selection.SelectionModeRegistry)) as global::ExperimentFramework.Selection.SelectionModeRegistry;");
+        sb.AppendLine("            if (registry == null)");
         sb.AppendLine("            {");
         sb.AppendLine($"                return \"{defaultKey}\";");
         sb.AppendLine("            }");
         sb.AppendLine();
-        sb.AppendLine("            // Get all trial keys");
-        sb.AppendLine("            var allKeys = _registration.Trials.Keys.ToArray();");
-        sb.AppendLine("            if (allKeys.Length == 0)");
+        sb.AppendLine($"            var provider = registry.GetProvider(\"{modeIdentifier}\", sp);");
+        sb.AppendLine("            if (provider == null)");
         sb.AppendLine("            {");
         sb.AppendLine($"                return \"{defaultKey}\";");
         sb.AppendLine("            }");
         sb.AppendLine();
-        sb.AppendLine("            // Compute hash-based index for deterministic routing");
-        sb.AppendLine("            var hash = identity.GetHashCode();");
-        sb.AppendLine("            var index = global::System.Math.Abs(hash % allKeys.Length);");
-        sb.AppendLine("            return allKeys[index];");
-        sb.AppendLine("        }");
-    }
 
-    private static void GenerateOpenFeatureSelector(StringBuilder sb, ExperimentDefinitionModel experiment)
-    {
-        var selectorName = experiment.SelectorName;
-        var defaultKey = experiment.DefaultKey;
-
-        // Determine if this is a boolean flag based on trial keys
-        var trialKeys = experiment.Trials.Keys.ToList();
-        var isBooleanFlag = trialKeys.Count == 2 &&
-                            trialKeys.Contains("true") &&
-                            trialKeys.Contains("false");
-
-        sb.AppendLine("        private string SelectTrialKey(global::System.IServiceProvider sp)");
-        sb.AppendLine("        {");
-        sb.AppendLine("            // Use reflection to access OpenFeature API (soft dependency)");
-        sb.AppendLine("            var apiType = global::System.Type.GetType(\"OpenFeature.Api, OpenFeature\");");
-        sb.AppendLine("            if (apiType == null)");
-        sb.AppendLine("            {");
-        sb.AppendLine($"                return \"{defaultKey}\";");
-        sb.AppendLine("            }");
-        sb.AppendLine();
-        sb.AppendLine("            // Get Api.Instance");
-        sb.AppendLine("            var instanceProperty = apiType.GetProperty(\"Instance\", global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static);");
-        sb.AppendLine("            var api = instanceProperty?.GetValue(null);");
-        sb.AppendLine("            if (api == null)");
-        sb.AppendLine("            {");
-        sb.AppendLine($"                return \"{defaultKey}\";");
-        sb.AppendLine("            }");
-        sb.AppendLine();
-        sb.AppendLine("            // Get client via GetClient()");
-        sb.AppendLine("            var getClientMethod = apiType.GetMethod(\"GetClient\", global::System.Type.EmptyTypes);");
-        sb.AppendLine("            var client = getClientMethod?.Invoke(api, null);");
-        sb.AppendLine("            if (client == null)");
-        sb.AppendLine("            {");
-        sb.AppendLine($"                return \"{defaultKey}\";");
-        sb.AppendLine("            }");
-        sb.AppendLine();
-        sb.AppendLine("            var clientType = client.GetType();");
-        sb.AppendLine();
-
-        if (isBooleanFlag)
+        // Build selector name - use provided or delegate to provider
+        if (!string.IsNullOrEmpty(selectorName))
         {
-            // Generate boolean flag evaluation
-            sb.AppendLine("            // Use GetBooleanValueAsync for boolean flags");
-            sb.AppendLine("            var getBoolMethod = clientType.GetMethod(\"GetBooleanValueAsync\",");
-            sb.AppendLine("                new[] { typeof(string), typeof(bool), typeof(global::System.Threading.CancellationToken) });");
-            sb.AppendLine();
-            sb.AppendLine("            if (getBoolMethod != null)");
-            sb.AppendLine("            {");
-            sb.AppendLine("                try");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    var task = getBoolMethod.Invoke(client, new object[] {{ \"{selectorName}\", false, default(global::System.Threading.CancellationToken) }}) as global::System.Threading.Tasks.Task<bool>;");
-            sb.AppendLine("                    if (task != null)");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var result = task.GetAwaiter().GetResult();");
-            sb.AppendLine("                        return result ? \"true\" : \"false\";");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                }");
-            sb.AppendLine("                catch");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    // Fall through to default");
-            sb.AppendLine("                }");
-            sb.AppendLine("            }");
+            sb.AppendLine($"            var selectorName = \"{selectorName}\";");
         }
         else
         {
-            // Generate string flag evaluation for multi-variant
-            sb.AppendLine("            // Use GetStringValueAsync for multi-variant flags");
-            sb.AppendLine("            var getStringMethod = clientType.GetMethod(\"GetStringValueAsync\",");
-            sb.AppendLine("                new[] { typeof(string), typeof(string), typeof(global::System.Threading.CancellationToken) });");
-            sb.AppendLine();
-            sb.AppendLine("            if (getStringMethod != null)");
-            sb.AppendLine("            {");
-            sb.AppendLine("                try");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    var task = getStringMethod.Invoke(client, new object[] {{ \"{selectorName}\", \"{defaultKey}\", default(global::System.Threading.CancellationToken) }}) as global::System.Threading.Tasks.Task<string>;");
-            sb.AppendLine("                    if (task != null)");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var result = task.GetAwaiter().GetResult();");
-            sb.AppendLine("                        if (!string.IsNullOrEmpty(result))");
-            sb.AppendLine("                        {");
-            sb.AppendLine("                            return result;");
-            sb.AppendLine("                        }");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                }");
-            sb.AppendLine("                catch");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    // Fall through to default");
-            sb.AppendLine("                }");
-            sb.AppendLine("            }");
+            sb.AppendLine("            // Get default selector name from provider");
+            sb.AppendLine("            var namingConvention = sp.GetService(typeof(global::ExperimentFramework.Naming.IExperimentNamingConvention)) as global::ExperimentFramework.Naming.IExperimentNamingConvention");
+            sb.AppendLine("                ?? global::ExperimentFramework.Naming.DefaultExperimentNamingConvention.Instance;");
+            sb.AppendLine($"            var selectorName = provider.GetDefaultSelectorName(typeof({serviceTypeName}), namingConvention);");
         }
 
         sb.AppendLine();
-        sb.AppendLine($"            return \"{defaultKey}\";");
+        sb.AppendLine("            // Build selection context");
+        sb.AppendLine("            var context = new global::ExperimentFramework.Selection.SelectionContext");
+        sb.AppendLine("            {");
+        sb.AppendLine("                ServiceProvider = sp,");
+        sb.AppendLine("                SelectorName = selectorName,");
+        sb.AppendLine("                TrialKeys = _registration.Trials.Keys.ToList().AsReadOnly(),");
+        sb.AppendLine($"                DefaultKey = \"{defaultKey}\",");
+        sb.AppendLine($"                ServiceType = typeof({serviceTypeName})");
+        sb.AppendLine("            };");
+        sb.AppendLine();
+        sb.AppendLine("            // Execute selection");
+        sb.AppendLine("            var selectedKey = provider.SelectTrialKeyAsync(context).GetAwaiter().GetResult();");
+        sb.AppendLine($"            return selectedKey ?? \"{defaultKey}\";");
         sb.AppendLine("        }");
     }
 }

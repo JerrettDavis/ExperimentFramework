@@ -1,5 +1,3 @@
-using ExperimentFramework;
-
 namespace ExperimentFramework.Benchmarks;
 
 /// <summary>

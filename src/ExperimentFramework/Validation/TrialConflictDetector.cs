@@ -17,7 +17,7 @@ namespace ExperimentFramework.Validation;
 /// </remarks>
 public sealed class TrialConflictDetector
 {
-    private readonly List<TrialConflict> _conflicts = new();
+    private readonly List<TrialConflict> _conflicts = [];
 
     /// <summary>
     /// Validates a collection of experiment registrations for conflicts.

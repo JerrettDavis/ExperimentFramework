@@ -1,4 +1,3 @@
-using ExperimentFramework;
 using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework.Resilience;

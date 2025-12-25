@@ -2,7 +2,6 @@ using ExperimentFramework.Decorators;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.CircuitBreaker;
-using Polly.Registry;
 
 namespace ExperimentFramework.Resilience;
 

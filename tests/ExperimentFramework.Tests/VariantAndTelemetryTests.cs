@@ -1,12 +1,13 @@
+using System.Diagnostics;
+using ExperimentFramework.StickyRouting;
+using ExperimentFramework.Telemetry;
+using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
-using ExperimentFramework.Tests.TestInterfaces;
-using ExperimentFramework.Telemetry;
-using System.Diagnostics;
 
 namespace ExperimentFramework.Tests;
 
@@ -35,7 +36,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
 
             var builder = ExperimentFrameworkBuilder.Create();
             builder.Define<IVariantTestService>(c => c
-                .UsingVariantFeatureFlag("TestVariant")
+                .UsingCustomMode("VariantFeatureFlag", "TestVariant")
                 .AddDefaultTrial<ControlService>("control")
                 .AddTrial<VariantAService>("variant-a")
                 .AddTrial<VariantBService>("variant-b"));
@@ -60,12 +61,10 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
         var telemetry = new OpenTelemetryExperimentTelemetry();
         Activity? capturedActivity = null;
 
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "ExperimentFramework",
-            Sample = (ref _) => ActivitySamplingResult.AllData,
-            ActivityStarted = activity => capturedActivity = activity
-        };
+        using var listener = new ActivityListener();
+        listener.ShouldListenTo = source => source.Name == "ExperimentFramework";
+        listener.Sample = (ref _) => ActivitySamplingResult.AllData;
+        listener.ActivityStarted = activity => capturedActivity = activity;
         ActivitySource.AddActivityListener(listener);
 
         var scope = telemetry.StartInvocation(
@@ -73,7 +72,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "TestSelector",
             "preferred-trial",
-            new[] { "preferred-trial", "default" });
+            ["preferred-trial", "default"]);
 
         scope.Dispose();
 
@@ -89,12 +88,10 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
         var telemetry = new OpenTelemetryExperimentTelemetry();
         Activity? capturedActivity = null;
 
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "ExperimentFramework",
-            Sample = (ref _) => ActivitySamplingResult.AllData,
-            ActivityStarted = activity => capturedActivity = activity
-        };
+        using var listener = new ActivityListener();
+        listener.ShouldListenTo = source => source.Name == "ExperimentFramework";
+        listener.Sample = (ref _) => ActivitySamplingResult.AllData;
+        listener.ActivityStarted = activity => capturedActivity = activity;
         ActivitySource.AddActivityListener(listener);
 
         var scope = telemetry.StartInvocation(
@@ -102,7 +99,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "Test",
             "trial1",
-            new[] { "trial1" });
+            ["trial1"]);
 
         scope.RecordSuccess();
         scope.Dispose();
@@ -127,7 +124,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "Test",
             "trial1",
-            new[] { "trial1" });
+            ["trial1"]);
 
         var exception = new InvalidOperationException("Test failure");
         scope.RecordFailure(exception);
@@ -148,7 +145,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "Test",
             "trial1",
-            new[] { "trial1", "trial2" });
+            ["trial1", "trial2"]);
 
         scope.RecordFallback("trial2");
         scope.Dispose();
@@ -164,12 +161,10 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
         var telemetry = new OpenTelemetryExperimentTelemetry();
         Activity? capturedActivity = null;
 
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "ExperimentFramework",
-            Sample = (ref _) => ActivitySamplingResult.AllData,
-            ActivityStarted = activity => capturedActivity = activity
-        };
+        using var listener = new ActivityListener();
+        listener.ShouldListenTo = source => source.Name == "ExperimentFramework";
+        listener.Sample = (ref _) => ActivitySamplingResult.AllData;
+        listener.ActivityStarted = activity => capturedActivity = activity;
         ActivitySource.AddActivityListener(listener);
 
         var scope = telemetry.StartInvocation(
@@ -177,7 +172,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "Test",
             "variant-a",
-            new[] { "control", "variant-a" });
+            ["control", "variant-a"]);
 
         scope.RecordVariant("variant-a", "variantManager");
 
@@ -213,7 +208,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "Test",
             "trial1",
-            new[] { "trial1" });
+            ["trial1"]);
 
         scope.RecordSuccess();
         scope.Dispose();
@@ -234,7 +229,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "Test",
             "trial1",
-            new[] { "trial1", "trial2" });
+            ["trial1", "trial2"]);
 
         // All operations should be no-ops
         scope.RecordSuccess();
@@ -258,7 +253,7 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             "Execute",
             "TestSelector",
             "preferred",
-            new[] { "preferred", "fallback" });
+            ["preferred", "fallback"]);
 
         scope.RecordSuccess();
         scope.Dispose();
@@ -297,12 +292,13 @@ public sealed class VariantAndTelemetryTests(ITestOutputHelper output) : TinyBdd
             var services = new ServiceCollection();
             services.AddSingleton<IConfiguration>(config);
             services.AddFeatureManagement();
+            services.AddExperimentStickyRouting(); // Register StickyRouting provider
             // NOT registering IExperimentIdentityProvider
             RegisterCommonServices(services);
 
             var builder = ExperimentFrameworkBuilder.Create();
             builder.Define<IVariantTestService>(c => c
-                .UsingStickyRouting("TestFeature")  // Will fall back to feature flag
+                .UsingCustomMode("StickyRouting", "TestFeature")  // Will fall back to default since no identity provider
                 .AddDefaultTrial<ControlService>("false")
                 .AddTrial<VariantAService>("true"));
 

@@ -26,11 +26,13 @@ All of these are functionally equivalent—use whichever reads most naturally fo
 ## Features
 
 **Selection Modes**
-- Boolean feature flags (`true`/`false` keys)
-- Configuration values (string variants)
-- Variant feature flags (IVariantFeatureManager integration)
-- Sticky routing (deterministic user/session-based routing)
-- OpenFeature (open standard for feature flag management)
+- Boolean feature flags (`true`/`false` keys) - built-in
+- Configuration values (string variants) - built-in
+- Custom/extensible modes via provider architecture
+- **Optional packages:**
+  - `ExperimentFramework.FeatureManagement` - Variant feature flags (IVariantFeatureManager)
+  - `ExperimentFramework.StickyRouting` - Deterministic user/session-based routing
+  - `ExperimentFramework.OpenFeature` - OpenFeature SDK integration
 
 **Resilience**
 - Timeout enforcement with fallback
@@ -133,7 +135,9 @@ public class MyService
 
 ## Selection Modes
 
-### Boolean Feature Flag
+### Built-in Modes
+
+#### Boolean Feature Flag
 Routes based on enabled/disabled state:
 ```csharp
 t.UsingFeatureFlag("MyFeature")
@@ -141,7 +145,7 @@ t.UsingFeatureFlag("MyFeature")
  .AddCondition<ExperimentalImpl>("true")
 ```
 
-### Configuration Value
+#### Configuration Value
 Routes based on string configuration value:
 ```csharp
 t.UsingConfigurationKey("Experiments:ServiceName")
@@ -150,23 +154,46 @@ t.UsingConfigurationKey("Experiments:ServiceName")
  .AddVariant<VariantB>("B")
 ```
 
-### Variant Feature Flag
-Routes based on IVariantFeatureManager (requires Microsoft.FeatureManagement package):
+### Extension Packages
+
+The framework supports additional selection modes via optional packages. Install only what you need.
+
+#### Variant Feature Flag (ExperimentFramework.FeatureManagement)
+
+Routes based on IVariantFeatureManager (Microsoft.FeatureManagement):
+
+```bash
+dotnet add package ExperimentFramework.FeatureManagement
+```
+
 ```csharp
+// Register the provider
+services.AddExperimentVariantFeatureFlags();
+services.AddFeatureManagement();
+
+// Configure experiment
 t.UsingVariantFeatureFlag("MyVariantFeature")
  .AddControl<ControlImpl>()
  .AddCondition<VariantA>("variant-a")
  .AddCondition<VariantB>("variant-b")
 ```
 
-### Sticky Routing (A/B Testing)
+#### Sticky Routing (ExperimentFramework.StickyRouting)
+
 Deterministic routing based on user/session identity:
+
+```bash
+dotnet add package ExperimentFramework.StickyRouting
+```
+
 ```csharp
-// 1. Implement identity provider
+// 1. Register the provider
+services.AddExperimentStickyRouting();
+
+// 2. Implement and register identity provider
 public class UserIdentityProvider : IExperimentIdentityProvider
 {
     private readonly IHttpContextAccessor _accessor;
-
     public UserIdentityProvider(IHttpContextAccessor accessor) => _accessor = accessor;
 
     public bool TryGetIdentity(out string identity)
@@ -175,9 +202,7 @@ public class UserIdentityProvider : IExperimentIdentityProvider
         return !string.IsNullOrEmpty(identity);
     }
 }
-
-// 2. Register provider
-builder.Services.AddScoped<IExperimentIdentityProvider, UserIdentityProvider>();
+services.AddScoped<IExperimentIdentityProvider, UserIdentityProvider>();
 
 // 3. Configure sticky routing
 t.UsingStickyRouting()
@@ -186,13 +211,20 @@ t.UsingStickyRouting()
  .AddCondition<VariantB>("b")
 ```
 
-### OpenFeature
-Routes based on OpenFeature flag evaluation (works with any OpenFeature-compatible provider):
-```csharp
-// Install OpenFeature SDK and your preferred provider
-// dotnet add package OpenFeature
+#### OpenFeature (ExperimentFramework.OpenFeature)
 
-// Configure provider
+Routes based on OpenFeature flag evaluation:
+
+```bash
+dotnet add package ExperimentFramework.OpenFeature
+dotnet add package OpenFeature
+```
+
+```csharp
+// Register the provider
+services.AddExperimentOpenFeature();
+
+// Configure OpenFeature provider
 await Api.Instance.SetProviderAsync(new YourProvider());
 
 // Configure experiment
@@ -203,6 +235,40 @@ t.UsingOpenFeature("payment-processor")
 ```
 
 See [OpenFeature Integration Guide](docs/user-guide/openfeature.md) for provider setup examples.
+
+### Custom Selection Modes
+
+Create your own selection modes with minimal boilerplate using the `[SelectionMode]` attribute:
+
+```csharp
+// 1. Create your provider (just one class!)
+[SelectionMode("Redis")]
+public class RedisSelectionProvider : SelectionModeProviderBase
+{
+    private readonly IConnectionMultiplexer _redis;
+
+    public RedisSelectionProvider(IConnectionMultiplexer redis)
+    {
+        _redis = redis;
+    }
+
+    public override async ValueTask<string?> SelectTrialKeyAsync(SelectionContext context)
+    {
+        var value = await _redis.GetDatabase().StringGetAsync(context.SelectorName);
+        return value.HasValue ? value.ToString() : null;
+    }
+}
+
+// 2. Register it (one line!)
+services.AddSelectionModeProvider<RedisSelectionProvider>();
+
+// 3. Use it
+t.UsingCustomMode("Redis", "cache:provider")
+ .AddControl<MemoryCache>()
+ .AddCondition<RedisCache>("redis")
+```
+
+No factory classes needed! See [Extensibility Guide](docs/user-guide/extensibility.md) for details.
 
 ## Error Policies
 
@@ -691,11 +757,9 @@ All async and generic scenarios validated with comprehensive tests:
 
 | Method | Description |
 |--------|-------------|
-| `UsingFeatureFlag(string?)` | Boolean feature flag selection |
-| `UsingConfigurationKey(string?)` | Configuration value selection |
-| `UsingVariantFeatureFlag(string?)` | Variant feature manager selection |
-| `UsingStickyRouting(string?)` | Sticky routing selection |
-| `UsingOpenFeature(string?)` | OpenFeature flag selection |
+| `UsingFeatureFlag(string?)` | Boolean feature flag selection (built-in) |
+| `UsingConfigurationKey(string?)` | Configuration value selection (built-in) |
+| `UsingCustomMode(string, string?)` | Custom selection mode (for extension packages) |
 | `AddControl<TImpl>()` | Registers the control (baseline) implementation |
 | `AddDefaultTrial<TImpl>(string)` | Registers the control implementation (alternative terminology) |
 | `AddCondition<TImpl>(string)` | Registers an experimental condition |
@@ -709,12 +773,29 @@ All async and generic scenarios validated with comprehensive tests:
 | `ActiveUntil(DateTimeOffset)` | Deactivates trial after specified time |
 | `ActiveWhen(Func<IServiceProvider, bool>)` | Activates trial when predicate returns true |
 
+### Extension Package Methods
+
+| Package | Method | Description |
+|---------|--------|-------------|
+| `ExperimentFramework.FeatureManagement` | `UsingVariantFeatureFlag(string?)` | Variant feature manager selection |
+| `ExperimentFramework.StickyRouting` | `UsingStickyRouting(string?)` | Identity-based sticky routing |
+| `ExperimentFramework.OpenFeature` | `UsingOpenFeature(string?)` | OpenFeature flag selection |
+
+### Extension Package Registration
+
+| Package | Registration Method |
+|---------|---------------------|
+| `ExperimentFramework.FeatureManagement` | `services.AddExperimentVariantFeatureFlags()` |
+| `ExperimentFramework.StickyRouting` | `services.AddExperimentStickyRouting()` |
+| `ExperimentFramework.OpenFeature` | `services.AddExperimentOpenFeature()` |
+
 ### Extension Methods
 
 | Method | Description |
 |--------|-------------|
 | `AddExperimentFramework(ExperimentFrameworkBuilder)` | Registers framework in DI |
 | `AddOpenTelemetryExperimentTracking()` | Enables OpenTelemetry tracing |
+| `AddSelectionModeProvider<TProvider>()` | Registers a custom selection mode provider |
 
 ## License
 

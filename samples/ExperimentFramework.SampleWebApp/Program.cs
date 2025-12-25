@@ -1,7 +1,7 @@
 using ExperimentFramework;
-using ExperimentFramework.Routing;
 using ExperimentFramework.SampleWebApp;
 using ExperimentFramework.SampleWebApp.Services;
+using ExperimentFramework.StickyRouting;
 using Microsoft.FeatureManagement;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,7 +45,8 @@ builder.Services.AddScoped<ICheckoutFlow, StandardCheckoutFlow>();
 // ========================================
 // Configure Experiment Framework
 // ========================================
-// Register identity provider for sticky routing
+// Register StickyRouting provider and identity provider for sticky routing
+builder.Services.AddExperimentStickyRouting();
 builder.Services.AddScoped<IExperimentIdentityProvider, SessionIdentityProvider>();
 
 // Configure experiments using FLUENT API (.UseSourceGenerators())

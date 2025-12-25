@@ -1,4 +1,4 @@
-using ExperimentFramework.Routing;
+using ExperimentFramework.StickyRouting;
 
 namespace ExperimentFramework.SampleWebApp.Services;
 
@@ -6,18 +6,11 @@ namespace ExperimentFramework.SampleWebApp.Services;
 /// Provides user identity for sticky A/B routing based on session ID.
 /// This ensures the same user always sees the same experiment variant.
 /// </summary>
-public class SessionIdentityProvider : IExperimentIdentityProvider
+public class SessionIdentityProvider(IHttpContextAccessor contextAccessor) : IExperimentIdentityProvider
 {
-    private readonly IHttpContextAccessor _contextAccessor;
-
-    public SessionIdentityProvider(IHttpContextAccessor contextAccessor)
-    {
-        _contextAccessor = contextAccessor;
-    }
-
     public bool TryGetIdentity(out string identity)
     {
-        var context = _contextAccessor.HttpContext;
+        var context = contextAccessor.HttpContext;
         if (context == null)
         {
             identity = string.Empty;

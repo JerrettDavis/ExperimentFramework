@@ -1,4 +1,9 @@
-using ExperimentFramework.Routing;
+using ExperimentFramework.Naming;
+using ExperimentFramework.Selection;
+using ExperimentFramework.StickyRouting;
+using ExperimentFramework.Tests.TestInterfaces;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
@@ -163,4 +168,146 @@ public sealed class StickyRoutingTests(ITestOutputHelper output) : TinyBddXunitB
                        bCount >= 30 && bCount <= 70;
             })
             .AssertPassed();
+}
+
+/// <summary>
+/// Tests for the StickyRoutingProvider and registration infrastructure.
+/// </summary>
+public sealed class StickyRoutingProviderTests
+{
+    private sealed class TestIdentityProvider(string identity) : IExperimentIdentityProvider
+    {
+        public bool TryGetIdentity(out string id)
+        {
+            id = identity;
+            return !string.IsNullOrEmpty(identity);
+        }
+    }
+
+    #region StickyRoutingProvider Tests
+
+    [Fact]
+    public void StickyRoutingProvider_has_correct_mode_identifier()
+    {
+        var provider = new StickyRoutingProvider();
+
+        Assert.Equal("StickyRouting", provider.ModeIdentifier);
+    }
+
+    [Fact]
+    public async Task StickyRoutingProvider_SelectTrialKeyAsync_returns_null_without_identity_provider()
+    {
+        var provider = new StickyRoutingProvider();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        var context = new SelectionContext
+        {
+            ServiceProvider = services,
+            SelectorName = "test",
+            TrialKeys = ["control", "variant"],
+            DefaultKey = "control",
+            ServiceType = typeof(ITestService)
+        };
+
+        var result = await provider.SelectTrialKeyAsync(context);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task StickyRoutingProvider_SelectTrialKeyAsync_returns_key_with_identity()
+    {
+        var provider = new StickyRoutingProvider();
+        var services = new ServiceCollection();
+        services.AddScoped<IExperimentIdentityProvider>(_ => new TestIdentityProvider("user-123"));
+        var sp = services.BuildServiceProvider();
+
+        var context = new SelectionContext
+        {
+            ServiceProvider = sp,
+            SelectorName = "test",
+            TrialKeys = ["control", "variant"],
+            DefaultKey = "control",
+            ServiceType = typeof(ITestService)
+        };
+
+        var result = await provider.SelectTrialKeyAsync(context);
+
+        Assert.NotNull(result);
+        Assert.Contains(result, context.TrialKeys);
+    }
+
+    [Fact]
+    public void StickyRoutingProvider_GetDefaultSelectorName_uses_convention()
+    {
+        var provider = new StickyRoutingProvider();
+        var convention = new DefaultExperimentNamingConvention();
+
+        var name = provider.GetDefaultSelectorName(typeof(ITestService), convention);
+
+        Assert.NotEmpty(name);
+    }
+
+    #endregion
+
+    #region Registration Tests
+
+    [Fact]
+    public void AddExperimentStickyRouting_registers_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddExperimentStickyRouting();
+
+        var sp = services.BuildServiceProvider();
+        var factory = sp.GetService<ISelectionModeProviderFactory>();
+
+        Assert.NotNull(factory);
+        Assert.Equal("StickyRouting", factory!.ModeIdentifier);
+    }
+
+    #endregion
+
+    #region Extension Method Tests
+
+    [Fact]
+    public void UsingStickyRouting_extension_method_works()
+    {
+        var config = new ConfigurationBuilder().Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        services.AddExperimentStickyRouting();
+        services.AddScoped<IExperimentIdentityProvider>(_ => new TestIdentityProvider("user-123"));
+        RegisterTestServices(services);
+
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Trial<IVariantService>(t => t
+                .UsingStickyRouting("test-experiment")
+                .AddControl<ControlVariant>()
+                .AddCondition<VariantA>("variant-a")
+                .AddCondition<VariantB>("variant-b"))
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IVariantService>();
+        var result = service.GetName();
+
+        Assert.Contains(result, new[] { "ControlVariant", "VariantA", "VariantB" });
+    }
+
+    #endregion
+
+    #region Test Helpers
+
+    private static void RegisterTestServices(IServiceCollection services)
+    {
+        services.AddScoped<ControlVariant>();
+        services.AddScoped<VariantA>();
+        services.AddScoped<VariantB>();
+        services.AddScoped<IVariantService, ControlVariant>();
+    }
+
+    #endregion
 }

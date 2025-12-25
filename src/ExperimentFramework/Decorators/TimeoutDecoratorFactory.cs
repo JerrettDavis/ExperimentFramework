@@ -29,17 +29,8 @@ public sealed class TimeoutDecoratorFactory : IExperimentDecoratorFactory
         return new TimeoutDecorator(_policy, logger);
     }
 
-    private sealed class TimeoutDecorator : IExperimentDecorator
+    private sealed class TimeoutDecorator(TimeoutPolicy policy, ILogger? logger) : IExperimentDecorator
     {
-        private readonly TimeoutPolicy _policy;
-        private readonly ILogger? _logger;
-
-        public TimeoutDecorator(TimeoutPolicy policy, ILogger? logger)
-        {
-            _policy = policy;
-            _logger = logger;
-        }
-
         public async ValueTask<object?> InvokeAsync(
             InvocationContext context,
             Func<ValueTask<object?>> next)
@@ -48,22 +39,22 @@ public sealed class TimeoutDecoratorFactory : IExperimentDecoratorFactory
             {
                 // Use Task.WaitAsync to enforce timeout without race conditions
                 var task = next().AsTask();
-                return await task.WaitAsync(_policy.Timeout);
+                return await task.WaitAsync(policy.Timeout);
             }
             catch (TimeoutException ex)
             {
                 // Wrap with detailed context information
                 var timeoutEx = new TimeoutException(
                     $"Trial '{context.TrialKey}' for {context.ServiceType.Name}.{context.MethodName} " +
-                    $"exceeded timeout of {_policy.Timeout.TotalMilliseconds}ms",
+                    $"exceeded timeout of {policy.Timeout.TotalMilliseconds}ms",
                     ex);
 
-                _logger?.LogWarning(timeoutEx,
+                logger?.LogWarning(timeoutEx,
                     "Trial timeout: {ServiceType}.{MethodName} trial={TrialKey} timeout={TimeoutMs}ms",
                     context.ServiceType.Name,
                     context.MethodName,
                     context.TrialKey,
-                    _policy.Timeout.TotalMilliseconds);
+                    policy.Timeout.TotalMilliseconds);
 
                 throw timeoutEx;
             }

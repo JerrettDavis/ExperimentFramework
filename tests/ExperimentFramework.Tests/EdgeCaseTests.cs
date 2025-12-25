@@ -1,11 +1,13 @@
+using ExperimentFramework.Decorators;
+using ExperimentFramework.StickyRouting;
+using ExperimentFramework.Telemetry;
+using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
-using ExperimentFramework.Tests.TestInterfaces;
-using ExperimentFramework.Routing;
 
 namespace ExperimentFramework.Tests;
 
@@ -151,7 +153,7 @@ public sealed class EdgeCaseTests(ITestOutputHelper output) : TinyBddXunitBase(o
     public void StickyTrialRouter_throws_when_no_trial_keys()
     {
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            StickyTrialRouter.SelectTrial("user123", "experiment", Array.Empty<string>()));
+            StickyTrialRouter.SelectTrial("user123", "experiment", []));
 
         Assert.Contains("No trial keys available", ex.Message);
     }
@@ -160,7 +162,7 @@ public sealed class EdgeCaseTests(ITestOutputHelper output) : TinyBddXunitBase(o
     [Fact]
     public void StickyTrialRouter_handles_single_trial()
     {
-        var result = StickyTrialRouter.SelectTrial("user123", "experiment", new[] { "only-trial" });
+        var result = StickyTrialRouter.SelectTrial("user123", "experiment", ["only-trial"]);
 
         Assert.Equal("only-trial", result);
     }
@@ -282,10 +284,10 @@ public sealed class EdgeCaseTests(ITestOutputHelper output) : TinyBddXunitBase(o
         services.AddOpenTelemetryExperimentTracking();
 
         var sp = services.BuildServiceProvider();
-        var telemetry = sp.GetRequiredService<ExperimentFramework.Telemetry.IExperimentTelemetry>();
+        var telemetry = sp.GetRequiredService<IExperimentTelemetry>();
 
         Assert.NotNull(telemetry);
-        Assert.IsType<ExperimentFramework.Telemetry.OpenTelemetryExperimentTelemetry>(telemetry);
+        Assert.IsType<OpenTelemetryExperimentTelemetry>(telemetry);
 
         sp.Dispose();
     }
@@ -294,14 +296,14 @@ public sealed class EdgeCaseTests(ITestOutputHelper output) : TinyBddXunitBase(o
     [Fact]
     public void NoopExperimentTelemetry_works()
     {
-        var telemetry = ExperimentFramework.Telemetry.NoopExperimentTelemetry.Instance;
+        var telemetry = NoopExperimentTelemetry.Instance;
 
         var scope = telemetry.StartInvocation(
             typeof(ITestService),
             "Execute",
             "test",
             "control",
-            new[] { "control", "variant" });
+            ["control", "variant"]);
 
         scope.RecordSuccess();
         scope.RecordFailure(new Exception("test"));
@@ -355,7 +357,7 @@ public sealed class EdgeCaseTests(ITestOutputHelper output) : TinyBddXunitBase(o
     public void AddDecoratorFactory_registers_decorator()
     {
         var builder = ExperimentFrameworkBuilder.Create();
-        var decoratorFactory = new ExperimentFramework.Decorators.BenchmarkDecoratorFactory();
+        var decoratorFactory = new BenchmarkDecoratorFactory();
 
         var result = builder.AddDecoratorFactory(decoratorFactory);
 

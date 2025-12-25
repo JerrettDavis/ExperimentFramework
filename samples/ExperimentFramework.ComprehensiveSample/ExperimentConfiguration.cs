@@ -91,11 +91,13 @@ public static class ExperimentConfiguration
             // OpenTelemetry telemetry is automatically enabled when registered in DI
 
             // ========================================
-            // DEMO 4: Variant Feature Flags
+            // DEMO 4: Custom Selection Mode (Variant Feature Flags)
             // ========================================
+            // Note: In a real app, you would use ExperimentFramework.FeatureManagement
+            // package which provides .UsingVariantFeatureFlag() extension method
 
             .Define<IPaymentProcessor>(c => c
-                .UsingVariantFeatureFlag("PaymentProviderVariant")
+                .UsingCustomMode("VariantFeatureFlag", "PaymentProviderVariant")
                 .AddDefaultTrial<StripePaymentProcessor>("stripe")
                 .AddTrial<PayPalPaymentProcessor>("paypal")
                 .AddTrial<SquarePaymentProcessor>("square")

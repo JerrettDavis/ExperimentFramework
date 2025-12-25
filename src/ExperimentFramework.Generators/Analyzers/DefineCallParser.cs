@@ -1,10 +1,10 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using ExperimentFramework.Generators.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 
 namespace ExperimentFramework.Generators.Analyzers;
 
@@ -43,7 +43,8 @@ internal static class DefineCallParser
             config.Trials,
             config.ErrorPolicy,
             config.FallbackTrialKey,
-            config.OrderedFallbackKeys);
+            config.OrderedFallbackKeys,
+            config.ModeIdentifier);
     }
 
     /// <summary>
@@ -95,6 +96,7 @@ internal static class DefineCallParser
         // Parse each invocation
         var selectionMode = SelectionModeModel.BooleanFeatureFlag;
         string? selectorName = null;
+        string? modeIdentifier = null;
         string? defaultKey = null;
         var trials = new Dictionary<string, INamedTypeSymbol>();
         var errorPolicy = ErrorPolicyModel.Throw;
@@ -117,19 +119,10 @@ internal static class DefineCallParser
                     selectorName = ExtractStringArgument(invocation, 0);
                     break;
 
-                case "UsingVariantFeatureFlag":
-                    selectionMode = SelectionModeModel.VariantFeatureFlag;
-                    selectorName = ExtractStringArgument(invocation, 0);
-                    break;
-
-                case "UsingStickyRouting":
-                    selectionMode = SelectionModeModel.StickyRouting;
-                    selectorName = ExtractStringArgument(invocation, 0);
-                    break;
-
-                case "UsingOpenFeature":
-                    selectionMode = SelectionModeModel.OpenFeature;
-                    selectorName = ExtractStringArgument(invocation, 0);
+                case "UsingCustomMode":
+                    selectionMode = SelectionModeModel.Custom;
+                    modeIdentifier = ExtractStringArgument(invocation, 0);
+                    selectorName = ExtractStringArgument(invocation, 1);
                     break;
 
                 case "AddDefaultTrial":
@@ -213,7 +206,8 @@ internal static class DefineCallParser
             trials.ToImmutableDictionary(),
             errorPolicy,
             fallbackTrialKey,
-            orderedFallbackKeys?.ToImmutableArray());
+            orderedFallbackKeys?.ToImmutableArray(),
+            modeIdentifier);
     }
 
     /// <summary>
@@ -264,7 +258,8 @@ internal static class DefineCallParser
         {
             return memberAccess.Name.Identifier.Text;
         }
-        else if (invocation.Expression is IdentifierNameSyntax identifier)
+
+        if (invocation.Expression is IdentifierNameSyntax identifier)
         {
             return identifier.Identifier.Text;
         }
@@ -342,32 +337,24 @@ internal static class DefineCallParser
     /// <summary>
     /// Intermediate result of parsing service configuration.
     /// </summary>
-    private sealed class ServiceConfiguration
+    private sealed class ServiceConfiguration(
+        SelectionModeModel selectionMode,
+        string selectorName,
+        string defaultKey,
+        ImmutableDictionary<string, INamedTypeSymbol> trials,
+        ErrorPolicyModel errorPolicy,
+        string? fallbackTrialKey = null,
+        ImmutableArray<string>? orderedFallbackKeys = null,
+        string? modeIdentifier = null
+    )
     {
-        public ServiceConfiguration(
-            SelectionModeModel selectionMode,
-            string selectorName,
-            string defaultKey,
-            ImmutableDictionary<string, INamedTypeSymbol> trials,
-            ErrorPolicyModel errorPolicy,
-            string? fallbackTrialKey = null,
-            ImmutableArray<string>? orderedFallbackKeys = null)
-        {
-            SelectionMode = selectionMode;
-            SelectorName = selectorName;
-            DefaultKey = defaultKey;
-            Trials = trials;
-            ErrorPolicy = errorPolicy;
-            FallbackTrialKey = fallbackTrialKey;
-            OrderedFallbackKeys = orderedFallbackKeys;
-        }
-
-        public SelectionModeModel SelectionMode { get; }
-        public string SelectorName { get; }
-        public string DefaultKey { get; }
-        public ImmutableDictionary<string, INamedTypeSymbol> Trials { get; }
-        public ErrorPolicyModel ErrorPolicy { get; }
-        public string? FallbackTrialKey { get; }
-        public ImmutableArray<string>? OrderedFallbackKeys { get; }
+        public SelectionModeModel SelectionMode { get; } = selectionMode;
+        public string SelectorName { get; } = selectorName;
+        public string DefaultKey { get; } = defaultKey;
+        public ImmutableDictionary<string, INamedTypeSymbol> Trials { get; } = trials;
+        public ErrorPolicyModel ErrorPolicy { get; } = errorPolicy;
+        public string? FallbackTrialKey { get; } = fallbackTrialKey;
+        public ImmutableArray<string>? OrderedFallbackKeys { get; } = orderedFallbackKeys;
+        public string? ModeIdentifier { get; } = modeIdentifier;
     }
 }

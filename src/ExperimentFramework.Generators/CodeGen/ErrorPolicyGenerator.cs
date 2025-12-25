@@ -1,5 +1,6 @@
-using ExperimentFramework.Generators.Models;
+using System.Collections.Immutable;
 using System.Text;
+using ExperimentFramework.Generators.Models;
 
 namespace ExperimentFramework.Generators.CodeGen;
 
@@ -99,7 +100,7 @@ internal static class ErrorPolicyGenerator
         sb.AppendLine("        }");
     }
 
-    private static void GenerateRedirectAndReplayOrderedPolicy(StringBuilder sb, System.Collections.Immutable.ImmutableArray<string> orderedFallbackKeys)
+    private static void GenerateRedirectAndReplayOrderedPolicy(StringBuilder sb, ImmutableArray<string> orderedFallbackKeys)
     {
         sb.AppendLine("        private System.Collections.Generic.List<string> BuildCandidateKeys(string preferredKey)");
         sb.AppendLine("        {");

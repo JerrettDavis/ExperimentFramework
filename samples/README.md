@@ -78,7 +78,7 @@ dotnet run
 An ASP.NET Core Web API demonstrating sticky routing for consistent user experiences.
 
 **Demonstrates:**
-- Sticky routing (hash-based deterministic A/B testing)
+- Sticky routing (hash-based deterministic A/B testing) - requires `ExperimentFramework.StickyRouting` package
 - Session-based identity provider
 - Boolean feature flag selection
 - `.UseSourceGenerators()` fluent API trigger
@@ -312,7 +312,17 @@ Uses `IConfiguration` to select based on configuration value.
 
 Uses Microsoft.FeatureManagement variants for A/B/C testing with weighted distribution.
 
+> **Package Required:** `ExperimentFramework.FeatureManagement`
+
+```bash
+dotnet add package ExperimentFramework.FeatureManagement
+```
+
 ```csharp
+// Register the provider
+services.AddExperimentVariantFeatureFlags();
+
+// Configure experiment
 .UsingVariantFeatureFlag("PaymentProviderVariant")
 .AddControl<Stripe>()
 .AddCondition<PayPal>("paypal")
@@ -343,16 +353,28 @@ Uses Microsoft.FeatureManagement variants for A/B/C testing with weighted distri
 
 Uses hash-based routing to ensure same user always sees same variant.
 
+> **Package Required:** `ExperimentFramework.StickyRouting`
+
+```bash
+dotnet add package ExperimentFramework.StickyRouting
+```
+
 ```csharp
+// Register the provider
+services.AddExperimentStickyRouting();
+
+// Configure experiment
 .UsingStickyRouting()
 .AddControl<AlgorithmA>()
 .AddCondition<AlgorithmB>("variant-b")
 .AddCondition<AlgorithmC>("variant-c")
 ```
 
-**Requires:** `IExperimentIdentityProvider` implementation
+**Also requires:** `IExperimentIdentityProvider` implementation
 
 ```csharp
+using ExperimentFramework.StickyRouting;
+
 public class SessionIdentityProvider : IExperimentIdentityProvider
 {
     public bool TryGetIdentity(out string identity)
@@ -361,6 +383,9 @@ public class SessionIdentityProvider : IExperimentIdentityProvider
         return !string.IsNullOrEmpty(identity);
     }
 }
+
+// Register identity provider
+services.AddScoped<IExperimentIdentityProvider, SessionIdentityProvider>();
 ```
 
 **See:** `ComprehensiveSample`, `WebApp → IRecommendationEngine`

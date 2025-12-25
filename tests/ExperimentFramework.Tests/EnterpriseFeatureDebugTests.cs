@@ -39,7 +39,7 @@ public sealed class EnterpriseFeatureDebugTests
 
     private sealed class TestMetrics : IExperimentMetrics
     {
-        public List<(string name, long value)> Counters { get; } = new();
+        public List<(string name, long value)> Counters { get; } = [];
 
         public void IncrementCounter(string name, long value = 1, params KeyValuePair<string, object>[] tags)
         {

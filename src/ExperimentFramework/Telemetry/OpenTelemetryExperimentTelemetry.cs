@@ -47,34 +47,30 @@ public sealed class OpenTelemetryExperimentTelemetry : IExperimentTelemetry
     /// <summary>
     /// OpenTelemetry telemetry scope backed by an <see cref="Activity"/>.
     /// </summary>
-    private sealed class OpenTelemetryScope : IExperimentTelemetryScope
+    private sealed class OpenTelemetryScope(Activity? activity) : IExperimentTelemetryScope
     {
-        private readonly Activity? _activity;
-
-        public OpenTelemetryScope(Activity? activity) => _activity = activity;
-
         public void RecordSuccess()
         {
-            _activity?.SetTag("experiment.outcome", "success");
+            activity?.SetTag("experiment.outcome", "success");
         }
 
         public void RecordFailure(Exception exception)
         {
-            _activity?.SetTag("experiment.outcome", "failure");
-            _activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+            activity?.SetTag("experiment.outcome", "failure");
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
         }
 
         public void RecordFallback(string fallbackKey)
         {
-            _activity?.SetTag("experiment.fallback", fallbackKey);
+            activity?.SetTag("experiment.fallback", fallbackKey);
         }
 
         public void RecordVariant(string variantName, string variantSource)
         {
-            _activity?.SetTag("experiment.variant", variantName);
-            _activity?.SetTag("experiment.variant.source", variantSource);
+            activity?.SetTag("experiment.variant", variantName);
+            activity?.SetTag("experiment.variant.source", variantSource);
         }
 
-        public void Dispose() => _activity?.Dispose();
+        public void Dispose() => activity?.Dispose();
     }
 }

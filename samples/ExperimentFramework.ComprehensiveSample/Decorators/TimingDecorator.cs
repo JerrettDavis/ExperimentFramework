@@ -1,5 +1,5 @@
-using ExperimentFramework.Decorators;
 using System.Diagnostics;
+using ExperimentFramework.Decorators;
 
 namespace ExperimentFramework.ComprehensiveSample.Decorators;
 

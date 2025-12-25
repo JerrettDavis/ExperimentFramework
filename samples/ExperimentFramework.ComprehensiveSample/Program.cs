@@ -14,21 +14,21 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 Console.WriteLine("""
-    ╔══════════════════════════════════════════════════════════════════════════════╗
-    ║                                                                              ║
-    ║                  ExperimentFramework - Comprehensive Sample                  ║
-    ║                                                                              ║
-    ║  Demonstrates all features of the ExperimentFramework library:               ║
-    ║    • All 5 error policies (Throw, RedirectDefault, RedirectAny,              ║
-    ║                             RedirectSpecific, RedirectOrdered)               ║
-    ║    • All 4 selection modes (FeatureFlag, Config, Variant, StickyRouting)     ║
-    ║    • All 5 return types (void, Task, Task<T>, ValueTask, ValueTask<T>)       ║
-    ║    • Custom decorators (timing, caching, logging)                            ║
-    ║    • OpenTelemetry distributed tracing integration                           ║
-    ║    • Variant feature flags (multi-variant A/B/C testing)                     ║
-    ║                                                                              ║
-    ╚══════════════════════════════════════════════════════════════════════════════╝
-    """);
+                  ╔══════════════════════════════════════════════════════════════════════════════╗
+                  ║                                                                              ║
+                  ║                  ExperimentFramework - Comprehensive Sample                  ║
+                  ║                                                                              ║
+                  ║  Demonstrates all features of the ExperimentFramework library:               ║
+                  ║    • All 5 error policies (Throw, RedirectDefault, RedirectAny,              ║
+                  ║                             RedirectSpecific, RedirectOrdered)               ║
+                  ║    • All 4 selection modes (FeatureFlag, Config, Variant, StickyRouting)     ║
+                  ║    • All 5 return types (void, Task, Task<T>, ValueTask, ValueTask<T>)       ║
+                  ║    • Custom decorators (timing, caching, logging)                            ║
+                  ║    • OpenTelemetry distributed tracing integration                           ║
+                  ║    • Variant feature flags (multi-variant A/B/C testing)                     ║
+                  ║                                                                              ║
+                  ╚══════════════════════════════════════════════════════════════════════════════╝
+                  """);
 
 var builder = Host.CreateApplicationBuilder(args);
 

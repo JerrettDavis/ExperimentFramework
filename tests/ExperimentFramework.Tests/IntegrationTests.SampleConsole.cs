@@ -1,11 +1,10 @@
 extern alias SampleConsole;
-
-using SampleConsole::ExperimentFramework.SampleConsole;
-using SampleConsole::ExperimentFramework.SampleConsole.Contexts;
-using SampleConsole::ExperimentFramework.SampleConsole.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
+using SampleConsole::ExperimentFramework.SampleConsole;
+using SampleConsole::ExperimentFramework.SampleConsole.Contexts;
+using SampleConsole::ExperimentFramework.SampleConsole.Providers;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;

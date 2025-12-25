@@ -508,10 +508,11 @@ For scoped services using `IFeatureManagerSnapshot`, the evaluation is cached wi
 2. Time-based activation is evaluated:
    - If outside time bounds or predicate returns false, use control
 3. Selection mode determines the condition key:
-   - Feature flag: Check if flag is enabled
-   - Configuration: Read configuration value
-   - Variant: Query variant feature manager
-   - Sticky routing: Hash user identity
+   - Feature flag: Check if flag is enabled (built-in)
+   - Configuration: Read configuration value (built-in)
+   - Variant: Query variant feature manager (requires `ExperimentFramework.FeatureManagement` package)
+   - Sticky routing: Hash user identity (requires `ExperimentFramework.StickyRouting` package)
+   - OpenFeature: Evaluate via OpenFeature SDK (requires `ExperimentFramework.OpenFeature` package)
 4. Key is matched to registered conditions
 5. If no match, control is used
 6. Implementation is resolved from service provider
@@ -519,6 +520,7 @@ For scoped services using `IFeatureManagerSnapshot`, the evaluation is cached wi
 
 ## Next Steps
 
-- [Selection Modes](selection-modes.md) - Learn about the four selection strategies
+- [Selection Modes](selection-modes.md) - Learn about the selection strategies
 - [Error Handling](error-handling.md) - Understand error policies and fallback behavior
 - [Telemetry](telemetry.md) - Integrate observability into your experiments
+- [Extensibility](extensibility.md) - Create custom selection mode providers

@@ -1,6 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Order;
-using ExperimentFramework;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
@@ -18,12 +19,12 @@ public record Customer(int Id, string Name, string Email);
 
 public class InMemoryDatabase : IDatabase
 {
-    private readonly List<Customer> _customers = new()
-    {
+    private readonly List<Customer> _customers =
+    [
         new(1, "Alice", "alice@example.com"),
         new(2, "Bob", "bob@example.com"),
         new(3, "Charlie", "charlie@example.com")
-    };
+    ];
 
     public async Task<List<Customer>> GetCustomersAsync()
     {
@@ -42,13 +43,13 @@ public class InMemoryDatabase : IDatabase
 
 public class CloudDatabase : IDatabase
 {
-    private readonly List<Customer> _customers = new()
-    {
+    private readonly List<Customer> _customers =
+    [
         new(1, "Alice", "alice@example.com"),
         new(2, "Bob", "bob@example.com"),
         new(3, "Charlie", "charlie@example.com"),
         new(4, "David", "david@example.com")
-    };
+    ];
 
     public async Task<List<Customer>> GetCustomersAsync()
     {
@@ -77,8 +78,8 @@ public class SimpleCache : ICache
     public string ComputeHash(string input)
     {
         // Simulate CPU-bound work (hashing)
-        using var sha = System.Security.Cryptography.SHA256.Create();
-        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
+        using var sha = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(input);
         var hash = sha.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
     }
@@ -94,8 +95,8 @@ public class AdvancedCache : ICache
     public string ComputeHash(string input)
     {
         // Simulate more intensive CPU-bound work
-        using var sha = System.Security.Cryptography.SHA512.Create();
-        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
+        using var sha = SHA512.Create();
+        var bytes = Encoding.UTF8.GetBytes(input);
         var hash = sha.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
     }

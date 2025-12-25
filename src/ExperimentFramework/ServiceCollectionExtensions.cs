@@ -1,5 +1,8 @@
-using ExperimentFramework.Decorators;
+using System.Reflection;
 using ExperimentFramework.Models;
+using ExperimentFramework.Naming;
+using ExperimentFramework.Selection;
+using ExperimentFramework.Selection.Providers;
 using ExperimentFramework.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -52,7 +55,28 @@ public static class ServiceCollectionExtensions
         // Register telemetry (default: noop)
         services.TryAddSingleton<IExperimentTelemetry>(NoopExperimentTelemetry.Instance);
 
-        // Register the registry as singleton
+        // Register the default naming convention
+        services.TryAddSingleton<IExperimentNamingConvention>(DefaultExperimentNamingConvention.Instance);
+
+        // Register the selection mode registry with built-in and external providers
+        services.TryAddSingleton<SelectionModeRegistry>(sp =>
+        {
+            var registry = new SelectionModeRegistry();
+
+            // Register built-in provider factories
+            registry.Register(new BooleanFeatureFlagProviderFactory());
+            registry.Register(new ConfigurationValueProviderFactory());
+
+            // Auto-register any external provider factories from DI
+            foreach (var factory in sp.GetServices<ISelectionModeProviderFactory>())
+            {
+                registry.Register(factory);
+            }
+
+            return registry;
+        });
+
+        // Register the experiment registry as singleton
         services.AddSingleton(sp => new ExperimentRegistry(config.Definitions, sp));
 
         // For each experiment definition, configure the service with a generated proxy
@@ -230,20 +254,19 @@ public static class ServiceCollectionExtensions
 
             // RuntimeExperimentProxy<TService>.Create(scopeFactory, registration, decoratorFactories, telemetry)
             var proxyType = typeof(RuntimeExperimentProxy<>).MakeGenericType(serviceType);
-            var createMethod = proxyType.GetMethod("Create", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            var createMethod = proxyType.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
 
             if (createMethod == null)
             {
                 throw new InvalidOperationException($"Failed to find Create method on RuntimeExperimentProxy<{serviceType.FullName}>");
             }
 
-            var proxy = createMethod.Invoke(null, new object[]
-            {
+            var proxy = createMethod.Invoke(null, [
                 scopeFactory,
                 registration,
                 config.DecoratorFactories,
                 telemetry
-            });
+            ]);
 
             return proxy ?? throw new InvalidOperationException($"Failed to create runtime proxy for {serviceType.FullName}");
         };
@@ -268,6 +291,63 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddOpenTelemetryExperimentTracking(this IServiceCollection services)
     {
         services.AddSingleton<IExperimentTelemetry, OpenTelemetryExperimentTelemetry>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a custom selection mode provider using the generic factory.
+    /// </summary>
+    /// <typeparam name="TProvider">
+    /// The selection mode provider type. Must have a <see cref="SelectionModeAttribute"/>
+    /// applied to specify the mode identifier.
+    /// </typeparam>
+    /// <param name="services">The service collection to configure.</param>
+    /// <returns>The service collection for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method eliminates the need for custom <see cref="ISelectionModeProviderFactory"/>
+    /// implementations. The provider is created using <see cref="Microsoft.Extensions.DependencyInjection.ActivatorUtilities"/>
+    /// with full dependency injection support.
+    /// </para>
+    /// <para>
+    /// Example:
+    /// <code>
+    /// [SelectionMode("Redis")]
+    /// public class RedisProvider : SelectionModeProviderBase
+    /// {
+    ///     public RedisProvider(IConnectionMultiplexer redis) { ... }
+    /// }
+    ///
+    /// // Registration:
+    /// services.AddSelectionModeProvider&lt;RedisProvider&gt;();
+    /// </code>
+    /// </para>
+    /// </remarks>
+    public static IServiceCollection AddSelectionModeProvider<TProvider>(this IServiceCollection services)
+        where TProvider : class, ISelectionModeProvider
+    {
+        services.AddSingleton<ISelectionModeProviderFactory, SelectionModeProviderFactory<TProvider>>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a custom selection mode provider with an explicit mode identifier.
+    /// </summary>
+    /// <typeparam name="TProvider">The selection mode provider type.</typeparam>
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="modeIdentifier">The mode identifier for this provider.</param>
+    /// <returns>The service collection for method chaining.</returns>
+    /// <remarks>
+    /// Use this overload when the provider type does not have a <see cref="SelectionModeAttribute"/>
+    /// or when you want to override the attribute value.
+    /// </remarks>
+    public static IServiceCollection AddSelectionModeProvider<TProvider>(
+        this IServiceCollection services,
+        string modeIdentifier)
+        where TProvider : class, ISelectionModeProvider
+    {
+        services.AddSingleton<ISelectionModeProviderFactory>(
+            new SelectionModeProviderFactory<TProvider>(modeIdentifier));
         return services;
     }
 }

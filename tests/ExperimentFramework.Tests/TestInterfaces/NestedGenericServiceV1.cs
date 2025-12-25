@@ -5,7 +5,7 @@ public class NestedGenericServiceV1 : INestedGenericService
     public Task<Dictionary<string, List<int>>> GetComplexDataAsync() =>
         Task.FromResult(new Dictionary<string, List<int>>
         {
-            ["v1"] = new List<int> { 1, 2, 3 }
+            ["v1"] = [1, 2, 3]
         });
 
     public Task<Tuple<string, int, bool>> GetTupleAsync() =>

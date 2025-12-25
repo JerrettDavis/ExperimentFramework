@@ -1,11 +1,13 @@
-using ExperimentFramework.Routing;
+using ExperimentFramework.Naming;
+using ExperimentFramework.Selection;
+using ExperimentFramework.StickyRouting;
+using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
-using ExperimentFramework.Tests.TestInterfaces;
 
 namespace ExperimentFramework.Tests;
 
@@ -156,6 +158,7 @@ public sealed class SelectionModeTests(ITestOutputHelper output) : TinyBddXunitB
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(config);
         services.AddFeatureManagement();
+        services.AddExperimentStickyRouting(); // Register the StickyRouting provider
         services.AddScoped<IExperimentIdentityProvider>(_ => new TestIdentityProvider(identity));
 
         RegisterAllTestServices(services);
@@ -293,7 +296,7 @@ public sealed class SelectionModeTests(ITestOutputHelper output) : TinyBddXunitB
 
         var experiments = ExperimentFrameworkBuilder.Create()
             .Define<IDatabase>(c => c
-                .UsingOpenFeature("database-experiment")
+                .UsingCustomMode("OpenFeature", "database-experiment")
                 .AddDefaultTrial<LocalDatabase>("local")
                 .AddTrial<CloudDatabase>("cloud")
                 .OnErrorRedirectAndReplayDefault())
@@ -313,4 +316,269 @@ public sealed class SelectionModeTests(ITestOutputHelper output) : TinyBddXunitB
             return !string.IsNullOrEmpty(identity);
         }
     }
+}
+
+/// <summary>
+/// Tests for selection mode infrastructure: registry, providers, factories, and attributes.
+/// </summary>
+public sealed class SelectionModeInfrastructureTests
+{
+    #region SelectionModeRegistry Tests
+
+    [Fact]
+    public void SelectionModeRegistry_Register_adds_factory()
+    {
+        var registry = new SelectionModeRegistry();
+        var factory = new TestSelectionModeProviderFactory("TestMode");
+
+        registry.Register(factory);
+
+        Assert.True(registry.IsRegistered("TestMode"));
+        Assert.Equal(1, registry.Count);
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_Register_throws_when_factory_null()
+    {
+        var registry = new SelectionModeRegistry();
+
+        Assert.Throws<ArgumentNullException>(() => registry.Register(null!));
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_GetProvider_returns_provider()
+    {
+        var registry = new SelectionModeRegistry();
+        var factory = new TestSelectionModeProviderFactory("TestMode");
+        registry.Register(factory);
+
+        var services = new ServiceCollection().BuildServiceProvider();
+        var provider = registry.GetProvider("TestMode", services);
+
+        Assert.NotNull(provider);
+        Assert.Equal("TestMode", provider!.ModeIdentifier);
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_GetProvider_returns_null_for_unknown_mode()
+    {
+        var registry = new SelectionModeRegistry();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        var provider = registry.GetProvider("UnknownMode", services);
+
+        Assert.Null(provider);
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_GetProvider_returns_null_for_empty_mode()
+    {
+        var registry = new SelectionModeRegistry();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        Assert.Null(registry.GetProvider("", services));
+        Assert.Null(registry.GetProvider(null!, services));
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_IsRegistered_returns_false_for_empty()
+    {
+        var registry = new SelectionModeRegistry();
+
+        Assert.False(registry.IsRegistered(""));
+        Assert.False(registry.IsRegistered(null!));
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_RegisteredModes_returns_all_modes()
+    {
+        var registry = new SelectionModeRegistry();
+        registry.Register(new TestSelectionModeProviderFactory("Mode1"));
+        registry.Register(new TestSelectionModeProviderFactory("Mode2"));
+
+        var modes = registry.RegisteredModes.ToList();
+
+        Assert.Contains("Mode1", modes);
+        Assert.Contains("Mode2", modes);
+    }
+
+    [Fact]
+    public void SelectionModeRegistry_is_case_insensitive()
+    {
+        var registry = new SelectionModeRegistry();
+        registry.Register(new TestSelectionModeProviderFactory("TestMode"));
+
+        Assert.True(registry.IsRegistered("testmode"));
+        Assert.True(registry.IsRegistered("TESTMODE"));
+        Assert.True(registry.IsRegistered("TestMode"));
+    }
+
+    #endregion
+
+    #region SelectionModeAttribute Tests
+
+    [Fact]
+    public void SelectionModeAttribute_stores_mode_identifier()
+    {
+        var attr = new SelectionModeAttribute("CustomMode");
+
+        Assert.Equal("CustomMode", attr.ModeIdentifier);
+    }
+
+    [Fact]
+    public void SelectionModeAttribute_throws_when_null()
+    {
+        Assert.Throws<ArgumentNullException>(() => new SelectionModeAttribute(null!));
+    }
+
+    #endregion
+
+    #region SelectionModeProviderFactory Tests
+
+    [Fact]
+    public void SelectionModeProviderFactory_generic_reads_attribute()
+    {
+        var factory = new SelectionModeProviderFactory<TestAttributedProvider>();
+
+        Assert.Equal("TestAttributed", factory.ModeIdentifier);
+    }
+
+    [Fact]
+    public void SelectionModeProviderFactory_generic_creates_provider()
+    {
+        var factory = new SelectionModeProviderFactory<TestAttributedProvider>();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        var provider = factory.Create(services);
+
+        Assert.NotNull(provider);
+        Assert.IsType<TestAttributedProvider>(provider);
+    }
+
+    [Fact]
+    public void SelectionModeProviderFactory_with_explicit_identifier()
+    {
+        var factory = new SelectionModeProviderFactory<TestAttributedProvider>("OverriddenMode");
+
+        Assert.Equal("OverriddenMode", factory.ModeIdentifier);
+    }
+
+    [Fact]
+    public void SelectionModeProviderFactory_throws_when_no_attribute()
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            new SelectionModeProviderFactory<TestNonAttributedProvider>());
+    }
+
+    #endregion
+
+    #region SelectionModeProviderBase Tests
+
+    [Fact]
+    public void SelectionModeProviderBase_reads_attribute()
+    {
+        var provider = new TestAttributedProvider();
+
+        Assert.Equal("TestAttributed", provider.ModeIdentifier);
+    }
+
+    [Fact]
+    public void SelectionModeProviderBase_with_explicit_identifier()
+    {
+        var provider = new TestExplicitIdentifierProvider("ExplicitMode");
+
+        Assert.Equal("ExplicitMode", provider.ModeIdentifier);
+    }
+
+    [Fact]
+    public void SelectionModeProviderBase_GetDefaultSelectorName_uses_convention()
+    {
+        var provider = new TestAttributedProvider();
+        var convention = new DefaultExperimentNamingConvention();
+
+        var name = provider.GetDefaultSelectorName(typeof(ITestService), convention);
+
+        Assert.NotEmpty(name);
+    }
+
+    #endregion
+
+    #region AddSelectionModeProvider Tests
+
+    [Fact]
+    public void AddSelectionModeProvider_registers_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddSelectionModeProvider<TestAttributedProvider>();
+
+        var sp = services.BuildServiceProvider();
+        var factory = sp.GetService<ISelectionModeProviderFactory>();
+
+        Assert.NotNull(factory);
+        Assert.Equal("TestAttributed", factory!.ModeIdentifier);
+    }
+
+    [Fact]
+    public void AddSelectionModeProvider_with_explicit_mode_registers_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddSelectionModeProvider<TestAttributedProvider>("CustomMode");
+
+        var sp = services.BuildServiceProvider();
+        var factory = sp.GetService<ISelectionModeProviderFactory>();
+
+        Assert.NotNull(factory);
+        Assert.Equal("CustomMode", factory!.ModeIdentifier);
+    }
+
+    #endregion
+
+    #region Test Support Classes
+
+    [SelectionMode("TestAttributed")]
+    private sealed class TestAttributedProvider : SelectionModeProviderBase
+    {
+        public override ValueTask<string?> SelectTrialKeyAsync(SelectionContext context)
+            => ValueTask.FromResult<string?>(context.DefaultKey);
+    }
+
+    private sealed class TestNonAttributedProvider : ISelectionModeProvider
+    {
+        public string ModeIdentifier => "NonAttributed";
+
+        public ValueTask<string?> SelectTrialKeyAsync(SelectionContext context)
+            => ValueTask.FromResult<string?>(context.DefaultKey);
+
+        public string GetDefaultSelectorName(Type serviceType, IExperimentNamingConvention convention)
+            => convention.FeatureFlagNameFor(serviceType);
+    }
+
+    private sealed class TestExplicitIdentifierProvider : SelectionModeProviderBase
+    {
+        public TestExplicitIdentifierProvider(string modeIdentifier) : base(modeIdentifier) { }
+
+        public override ValueTask<string?> SelectTrialKeyAsync(SelectionContext context)
+            => ValueTask.FromResult<string?>(context.DefaultKey);
+    }
+
+    private sealed class TestSelectionModeProviderFactory(string modeIdentifier) : ISelectionModeProviderFactory
+    {
+        public string ModeIdentifier => modeIdentifier;
+
+        public ISelectionModeProvider Create(IServiceProvider scopedProvider)
+            => new TestProvider(modeIdentifier);
+
+        private sealed class TestProvider(string modeIdentifier) : ISelectionModeProvider
+        {
+            public string ModeIdentifier => modeIdentifier;
+
+            public ValueTask<string?> SelectTrialKeyAsync(SelectionContext context)
+                => ValueTask.FromResult<string?>(context.DefaultKey);
+
+            public string GetDefaultSelectorName(Type serviceType, IExperimentNamingConvention convention)
+                => convention.FeatureFlagNameFor(serviceType);
+        }
+    }
+
+    #endregion
 }

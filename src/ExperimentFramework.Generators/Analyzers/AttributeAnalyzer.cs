@@ -1,8 +1,8 @@
+using System.Collections.Immutable;
+using System.Linq;
 using ExperimentFramework.Generators.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Immutable;
-using System.Linq;
 
 namespace ExperimentFramework.Generators.Analyzers;
 

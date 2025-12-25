@@ -2,19 +2,33 @@
 
 ExperimentFramework supports [OpenFeature](https://openfeature.dev/), an open standard for feature flag management. This allows integration with any OpenFeature-compatible provider such as LaunchDarkly, Flagsmith, CloudBees, or custom providers.
 
+> **Package Required**: OpenFeature support is provided by the `ExperimentFramework.OpenFeature` package.
+
+## Installation
+
+```bash
+dotnet add package ExperimentFramework.OpenFeature
+dotnet add package OpenFeature
+```
+
 ## Configuration
 
-Use `UsingOpenFeature()` to configure an experiment to use OpenFeature for condition selection:
+Register the provider and use `UsingOpenFeature()` to configure experiments:
 
 ```csharp
-services.AddExperimentFramework(
-    ExperimentFrameworkBuilder.Create()
-        .Trial<IPaymentProcessor>(t => t
-            .UsingOpenFeature("payment-processor-experiment")
-            .AddControl<StripeProcessor>("stripe")
-            .AddCondition<PayPalProcessor>("paypal")
-            .AddCondition<SquareProcessor>("square"))
-        .UseDispatchProxy());
+// Register the OpenFeature selection mode provider
+services.AddExperimentOpenFeature();
+
+// Define experiments
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Trial<IPaymentProcessor>(t => t
+        .UsingOpenFeature("payment-processor-experiment")
+        .AddControl<StripeProcessor>("stripe")
+        .AddCondition<PayPalProcessor>("paypal")
+        .AddCondition<SquareProcessor>("square"))
+    .UseDispatchProxy();
+
+services.AddExperimentFramework(experiments);
 ```
 
 ## Flag Key Naming
@@ -106,19 +120,16 @@ Api.Instance.SetContext(new EvaluationContextBuilder()
     .Build());
 ```
 
-## Soft Dependency
+## Package Architecture
 
-OpenFeature is a soft dependency - the framework uses reflection to access OpenFeature APIs. This means:
+OpenFeature support is provided via a separate package (`ExperimentFramework.OpenFeature`) that:
 
-- No compile-time dependency on the OpenFeature package
-- Graceful fallback when OpenFeature is not installed
-- Works with any OpenFeature SDK version
+- Has a direct dependency on the OpenFeature SDK
+- Provides the `UsingOpenFeature()` extension method
+- Registers the `OpenFeatureProviderFactory` for runtime selection
+- Graceful fallback to control condition when evaluation fails
 
-To use OpenFeature, add the package to your project:
-
-```bash
-dotnet add package OpenFeature
-```
+This modular approach means you only include OpenFeature dependencies if you actually use them.
 
 ## Example: Complete Setup
 
@@ -126,19 +137,23 @@ dotnet add package OpenFeature
 // Program.cs
 var builder = WebApplication.CreateBuilder(args);
 
+// Register OpenFeature selection mode provider
+builder.Services.AddExperimentOpenFeature();
+
 // Configure OpenFeature provider
 await Api.Instance.SetProviderAsync(new YourProvider());
 
 // Configure experiments
-builder.Services.AddExperimentFramework(
-    ExperimentFrameworkBuilder.Create()
-        .Trial<IRecommendationEngine>(t => t
-            .UsingOpenFeature("recommendation-algorithm")
-            .AddControl<CollaborativeFiltering>("collaborative")
-            .AddCondition<ContentBased>("content-based")
-            .AddCondition<HybridApproach>("hybrid")
-            .OnErrorRedirectAndReplayControl())
-        .UseDispatchProxy());
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Trial<IRecommendationEngine>(t => t
+        .UsingOpenFeature("recommendation-algorithm")
+        .AddControl<CollaborativeFiltering>("collaborative")
+        .AddCondition<ContentBased>("content-based")
+        .AddCondition<HybridApproach>("hybrid")
+        .OnErrorFallbackToControl())
+    .UseDispatchProxy();
+
+builder.Services.AddExperimentFramework(experiments);
 
 var app = builder.Build();
 ```

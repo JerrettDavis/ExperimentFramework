@@ -1,5 +1,4 @@
 using ExperimentFramework.Decorators;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework.KillSwitch;
@@ -30,25 +29,16 @@ public sealed class KillSwitchDecoratorFactory : IExperimentDecoratorFactory
         return new KillSwitchDecorator(_killSwitch, logger);
     }
 
-    private sealed class KillSwitchDecorator : IExperimentDecorator
+    private sealed class KillSwitchDecorator(IKillSwitchProvider killSwitch, ILogger? logger) : IExperimentDecorator
     {
-        private readonly IKillSwitchProvider _killSwitch;
-        private readonly ILogger? _logger;
-
-        public KillSwitchDecorator(IKillSwitchProvider killSwitch, ILogger? logger)
-        {
-            _killSwitch = killSwitch;
-            _logger = logger;
-        }
-
         public async ValueTask<object?> InvokeAsync(
             InvocationContext context,
             Func<ValueTask<object?>> next)
         {
             // Check if entire experiment is disabled
-            if (_killSwitch.IsExperimentDisabled(context.ServiceType))
+            if (killSwitch.IsExperimentDisabled(context.ServiceType))
             {
-                _logger?.LogWarning(
+                logger?.LogWarning(
                     "Experiment disabled by kill switch: {ServiceType}.{MethodName}",
                     context.ServiceType.Name,
                     context.MethodName);
@@ -58,9 +48,9 @@ public sealed class KillSwitchDecoratorFactory : IExperimentDecoratorFactory
             }
 
             // Check if specific trial is disabled
-            if (_killSwitch.IsTrialDisabled(context.ServiceType, context.TrialKey))
+            if (killSwitch.IsTrialDisabled(context.ServiceType, context.TrialKey))
             {
-                _logger?.LogWarning(
+                logger?.LogWarning(
                     "Trial disabled by kill switch: {ServiceType}.{MethodName} trial={TrialKey}",
                     context.ServiceType.Name,
                     context.MethodName,

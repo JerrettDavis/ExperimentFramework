@@ -1,5 +1,6 @@
 using ExperimentFramework.Decorators;
 using ExperimentFramework.Models;
+using ExperimentFramework.Selection;
 using ExperimentFramework.Telemetry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -95,6 +96,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -108,7 +110,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -147,6 +149,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -160,7 +163,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -199,6 +202,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -212,7 +216,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -250,6 +254,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -262,7 +267,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -300,6 +305,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -312,7 +318,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -352,6 +358,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.BooleanFeatureFlag,
+                ModeIdentifier = SelectionModes.BooleanFeatureFlag,
                 SelectorName = "UseServiceB",
                 Trials = new Dictionary<string, Type>
                 {
@@ -365,7 +372,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -403,6 +410,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -415,7 +423,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -462,6 +470,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -475,7 +484,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -514,6 +523,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -527,7 +537,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);
@@ -565,6 +575,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             {
                 ServiceType = typeof(ITestService),
                 Mode = SelectionMode.ConfigurationValue,
+                ModeIdentifier = SelectionModes.ConfigurationValue,
                 SelectorName = "TestKey",
                 Trials = new Dictionary<string, Type>
                 {
@@ -577,7 +588,7 @@ public sealed class RuntimeExperimentProxyTests(ITestOutputHelper output) : Tiny
             var proxy = RuntimeExperimentProxy<ITestService>.Create(
                 sp.GetRequiredService<IServiceScopeFactory>(),
                 registration,
-                Array.Empty<IExperimentDecoratorFactory>(),
+                [],
                 sp.GetRequiredService<IExperimentTelemetry>());
 
             return new TestContext(sp, proxy);

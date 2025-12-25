@@ -1,5 +1,3 @@
-using System;
-
 namespace ExperimentFramework;
 
 /// <summary>
@@ -31,7 +29,7 @@ namespace ExperimentFramework;
 /// }
 /// </code>
 /// </example>
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+[AttributeUsage(AttributeTargets.Method, Inherited = false)]
 public sealed class ExperimentCompositionRootAttribute : Attribute
 {
 }

@@ -124,7 +124,7 @@ public sealed class EnterpriseCoverageTests
                 .AddDefaultTrial<SuccessService>("")
                 .AddTrial<SlowService>("slow")
                 .OnErrorRedirectAndReplayDefault())
-            .WithTimeout(TimeSpan.FromMilliseconds(100), TimeoutAction.FallbackToDefault)
+            .WithTimeout(TimeSpan.FromMilliseconds(100))
             .UseDispatchProxy();
 
         services.AddExperimentFramework(experiments);
@@ -228,8 +228,8 @@ public sealed class EnterpriseCoverageTests
         var service = sp.GetRequiredService<ITestService>();
 
         // Act - First two calls should fail (exception wrapped in TargetInvocationException)
-        var ex1 = await Assert.ThrowsAnyAsync<Exception>(() => service.ExecuteAsync());
-        var ex2 = await Assert.ThrowsAnyAsync<Exception>(() => service.ExecuteAsync());
+        await Assert.ThrowsAnyAsync<Exception>(() => service.ExecuteAsync());
+        await Assert.ThrowsAnyAsync<Exception>(() => service.ExecuteAsync());
 
         // After minimum throughput of failures, circuit should open
         // Third call should throw CircuitBreakerOpenException or be blocked
@@ -237,7 +237,7 @@ public sealed class EnterpriseCoverageTests
         // Either CircuitBreakerOpenException or still the original failure
         Assert.NotNull(ex3);
 
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public sealed class EnterpriseCoverageTests
         var ex = await Assert.ThrowsAnyAsync<Exception>(() => service.ExecuteAsync());
         Assert.NotNull(ex);
 
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     #endregion
@@ -354,7 +354,7 @@ public sealed class EnterpriseCoverageTests
     {
         // Act
         var metrics = NoopExperimentMetrics.Instance;
-        metrics.IncrementCounter("test", 1);
+        metrics.IncrementCounter("test");
         metrics.RecordHistogram("test", 1.0);
         metrics.SetGauge("test", 1.0);
         metrics.RecordSummary("test", 1.0);
@@ -383,7 +383,7 @@ public sealed class EnterpriseCoverageTests
     {
         // Arrange
         var metrics = new PrometheusExperimentMetrics();
-        metrics.IncrementCounter("test", 1);
+        metrics.IncrementCounter("test");
 
         // Act
         metrics.Clear();
@@ -397,10 +397,10 @@ public sealed class EnterpriseCoverageTests
     public void OpenTelemetryMetrics_DoesNotThrow()
     {
         // Arrange
-        var metrics = new OpenTelemetryExperimentMetrics("Test", "1.0.0");
+        var metrics = new OpenTelemetryExperimentMetrics("Test");
 
         // Act
-        metrics.IncrementCounter("test", 1);
+        metrics.IncrementCounter("test");
         metrics.RecordHistogram("test", 1.0);
         metrics.SetGauge("test", 1.0);
         metrics.RecordSummary("test", 1.0);
@@ -564,8 +564,8 @@ public sealed class EnterpriseCoverageTests
 
     private sealed class TestMetrics : IExperimentMetrics
     {
-        public List<(string name, long value, KeyValuePair<string, object>[] tags)> Counters { get; } = new();
-        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Histograms { get; } = new();
+        public List<(string name, long value, KeyValuePair<string, object>[] tags)> Counters { get; } = [];
+        public List<(string name, double value, KeyValuePair<string, object>[] tags)> Histograms { get; } = [];
 
         public void IncrementCounter(string name, long value = 1, params KeyValuePair<string, object>[] tags)
         {

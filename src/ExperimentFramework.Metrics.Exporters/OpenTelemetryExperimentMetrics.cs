@@ -1,4 +1,3 @@
-using ExperimentFramework.Metrics;
 using System.Diagnostics.Metrics;
 
 namespace ExperimentFramework.Metrics.Exporters;

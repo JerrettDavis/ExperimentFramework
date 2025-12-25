@@ -2,10 +2,10 @@ using System.Reflection;
 using ExperimentFramework.Activation;
 using ExperimentFramework.Decorators;
 using ExperimentFramework.Models;
+using ExperimentFramework.Naming;
+using ExperimentFramework.Selection;
 using ExperimentFramework.Telemetry;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.FeatureManagement;
 
 namespace ExperimentFramework;
 
@@ -93,7 +93,7 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
         {
             try
             {
-                var result = InvokeTrial(sp, pipeline, trialKey, targetMethod, args ?? Array.Empty<object?>());
+                var result = InvokeTrial(sp, pipeline, trialKey, targetMethod, args ?? []);
 
                 // Handle async methods
                 if (targetMethod.ReturnType == typeof(Task))
@@ -103,15 +103,17 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                     telemetryScope.RecordSuccess();
                     return task;
                 }
-                else if (targetMethod.ReturnType.IsGenericType &&
-                         targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+
+                if (targetMethod.ReturnType.IsGenericType &&
+                    targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
                 {
                     var task = (Task)result!;
                     task.GetAwaiter().GetResult();
                     telemetryScope.RecordSuccess();
                     return task;
                 }
-                else if (targetMethod.ReturnType == typeof(ValueTask))
+
+                if (targetMethod.ReturnType == typeof(ValueTask))
                 {
                     var valueTask = (ValueTask)result!;
                     valueTask.GetAwaiter().GetResult();
@@ -119,8 +121,9 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                     // Wrap completed task in new ValueTask
                     return new ValueTask(Task.CompletedTask);
                 }
-                else if (targetMethod.ReturnType.IsGenericType &&
-                         targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+
+                if (targetMethod.ReturnType.IsGenericType &&
+                    targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
                 {
                     // Get the result using reflection
                     var valueTaskType = result!.GetType();
@@ -137,12 +140,10 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                     var valueTaskResultType = typeof(ValueTask<>).MakeGenericType(targetMethod.ReturnType.GetGenericArguments()[0]);
                     return Activator.CreateInstance(valueTaskResultType, taskResult);
                 }
-                else
-                {
-                    // Synchronous method
-                    telemetryScope.RecordSuccess();
-                    return result;
-                }
+
+                // Synchronous method
+                telemetryScope.RecordSuccess();
+                return result;
             }
             catch (Exception ex)
             {
@@ -198,8 +199,9 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
 
                 return null; // Task (non-generic) returns void
             }
-            else if (result != null && result.GetType().IsGenericType &&
-                     result.GetType().GetGenericTypeDefinition() == typeof(ValueTask<>))
+
+            if (result != null && result.GetType().IsGenericType &&
+                result.GetType().GetGenericTypeDefinition() == typeof(ValueTask<>))
             {
                 // Convert ValueTask<T> to Task<T>
                 var asTaskMethod = result.GetType().GetMethod("AsTask");
@@ -209,7 +211,8 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                 var resultProperty = task2.GetType().GetProperty("Result");
                 return resultProperty?.GetValue(task2);
             }
-            else if (result is ValueTask valueTask)
+
+            if (result is ValueTask valueTask)
             {
                 await valueTask.ConfigureAwait(false);
                 return null;
@@ -233,8 +236,9 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
             {
                 return Task.CompletedTask;
             }
-            else if (targetMethod.ReturnType.IsGenericType &&
-                     targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
+
+            if (targetMethod.ReturnType.IsGenericType &&
+                targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {
                 var resultType = targetMethod.ReturnType.GetGenericArguments()[0];
                 var fromResultMethod = typeof(Task).GetMethod("FromResult", BindingFlags.Public | BindingFlags.Static);
@@ -246,7 +250,7 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                 try
                 {
                     var genericFromResult = fromResultMethod.MakeGenericMethod(resultType);
-                    return genericFromResult.Invoke(null, new[] { boxedResult });
+                    return genericFromResult.Invoke(null, [boxedResult]);
                 }
                 catch (TargetInvocationException ex)
                 {
@@ -261,12 +265,14 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                         ex);
                 }
             }
-            else if (targetMethod.ReturnType == typeof(ValueTask))
+
+            if (targetMethod.ReturnType == typeof(ValueTask))
             {
                 return new ValueTask(Task.CompletedTask);
             }
-            else if (targetMethod.ReturnType.IsGenericType &&
-                     targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
+
+            if (targetMethod.ReturnType.IsGenericType &&
+                targetMethod.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))
             {
                 var resultType = targetMethod.ReturnType.GetGenericArguments()[0];
                 var valueTaskType = typeof(ValueTask<>).MakeGenericType(resultType);
@@ -286,15 +292,44 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
             return _registration!.DefaultKey;
         }
 
-        return _registration!.Mode switch
+        // Use the provider-based registry for selection
+        var registry = sp.GetService<SelectionModeRegistry>();
+        if (registry == null)
         {
-            SelectionMode.BooleanFeatureFlag => SelectBooleanFeatureFlag(sp),
-            SelectionMode.ConfigurationValue => SelectConfigurationValue(sp),
-            SelectionMode.VariantFeatureFlag => SelectVariantFeatureFlag(sp),
-            SelectionMode.StickyRouting => SelectStickyRouting(sp),
-            SelectionMode.OpenFeature => SelectOpenFeature(sp),
-            _ => _registration.DefaultKey
+            // No registry available, fall back to default
+            return _registration!.DefaultKey;
+        }
+
+        var provider = registry.GetProvider(_registration!.ModeIdentifier, sp);
+        if (provider == null)
+        {
+            // Provider not found for this mode, fall back to default
+            return _registration.DefaultKey;
+        }
+
+        // Get the naming convention for default selector name derivation
+        var namingConvention = sp.GetService<IExperimentNamingConvention>()
+            ?? DefaultExperimentNamingConvention.Instance;
+
+        // Use provider's default naming if no selector name was specified
+        var selectorName = string.IsNullOrEmpty(_registration.SelectorName)
+            ? provider.GetDefaultSelectorName(_registration.ServiceType, namingConvention)
+            : _registration.SelectorName;
+
+        // Build the selection context
+        var context = new SelectionContext
+        {
+            ServiceProvider = sp,
+            SelectorName = selectorName,
+            TrialKeys = _registration.Trials.Keys.ToList().AsReadOnly(),
+            DefaultKey = _registration.DefaultKey,
+            ServiceType = _registration.ServiceType
         };
+
+        // Execute selection asynchronously
+        var selectedKey = provider.SelectTrialKeyAsync(context).GetAwaiter().GetResult();
+
+        return selectedKey ?? _registration.DefaultKey;
     }
 
     private bool IsTrialActive(IServiceProvider sp)
@@ -314,211 +349,19 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
         return evaluator.IsActive(_registration);
     }
 
-    private string SelectBooleanFeatureFlag(IServiceProvider sp)
-    {
-        // Try IFeatureManagerSnapshot first (for request-scoped snapshots)
-        var snapshot = sp.GetService<IFeatureManagerSnapshot>();
-        if (snapshot != null)
-        {
-            var enabled = snapshot.IsEnabledAsync(_registration!.SelectorName).GetAwaiter().GetResult();
-            return enabled ? "true" : "false";
-        }
-
-        // Fall back to IFeatureManager
-        var manager = sp.GetService<IFeatureManager>();
-        if (manager != null)
-        {
-            var enabled = manager.IsEnabledAsync(_registration!.SelectorName).GetAwaiter().GetResult();
-            return enabled ? "true" : "false";
-        }
-
-        return _registration!.DefaultKey;
-    }
-
-    private string SelectConfigurationValue(IServiceProvider sp)
-    {
-        var configuration = sp.GetService<IConfiguration>();
-        if (configuration != null)
-        {
-            var value = configuration[_registration!.SelectorName];
-            if (!string.IsNullOrEmpty(value))
-                return value;
-        }
-
-        return _registration!.DefaultKey;
-    }
-
-    private string SelectVariantFeatureFlag(IServiceProvider sp)
-    {
-        // Use reflection to access IVariantFeatureManager since it's not in the core package
-        var variantManagerType = Type.GetType("Microsoft.FeatureManagement.IVariantFeatureManager, Microsoft.FeatureManagement");
-        if (variantManagerType != null)
-        {
-            var variantManager = sp.GetService(variantManagerType);
-            if (variantManager != null)
-            {
-                var getVariantMethod = variantManagerType.GetMethod("GetVariantAsync");
-                if (getVariantMethod != null)
-                {
-                    var task = (Task?)getVariantMethod.Invoke(variantManager, new object[] { _registration!.SelectorName, CancellationToken.None });
-                    if (task != null)
-                    {
-                        task.GetAwaiter().GetResult();
-                        var resultProperty = task.GetType().GetProperty("Result");
-                        var variant = resultProperty?.GetValue(task);
-
-                        if (variant != null)
-                        {
-                            var configurationProperty = variant.GetType().GetProperty("Configuration");
-                            var configuration = configurationProperty?.GetValue(variant);
-
-                            if (configuration != null)
-                            {
-                                var nameProperty = configuration.GetType().GetProperty("Name");
-                                var name = nameProperty?.GetValue(configuration) as string;
-
-                                if (!string.IsNullOrEmpty(name))
-                                    return name;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return _registration!.DefaultKey;
-    }
-
-    private string SelectStickyRouting(IServiceProvider sp)
-    {
-        // Try to get identity provider
-        var identityProviderType = Type.GetType("ExperimentFramework.Routing.IExperimentIdentityProvider, ExperimentFramework");
-        if (identityProviderType != null)
-        {
-            var identityProvider = sp.GetService(identityProviderType);
-            if (identityProvider != null)
-            {
-                var getIdentityMethod = identityProviderType.GetMethod("GetIdentity");
-                if (getIdentityMethod != null)
-                {
-                    var identity = getIdentityMethod.Invoke(identityProvider, null) as string;
-                    if (!string.IsNullOrEmpty(identity))
-                    {
-                        // Hash identity to select a trial
-                        var hash = identity.GetHashCode();
-                        var trialKeys = _registration!.Trials.Keys.OrderBy(k => k).ToArray();
-                        var index = Math.Abs(hash) % trialKeys.Length;
-                        return trialKeys[index];
-                    }
-                }
-            }
-        }
-
-        // Fall back to boolean feature flag
-        return SelectBooleanFeatureFlag(sp);
-    }
-
-    private string SelectOpenFeature(IServiceProvider sp)
-    {
-        // Use reflection to access OpenFeature API (soft dependency)
-        var apiType = Type.GetType("OpenFeature.Api, OpenFeature");
-        if (apiType == null)
-            return _registration!.DefaultKey;
-
-        // Get Api.Instance property
-        var instanceProperty = apiType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-        if (instanceProperty == null)
-            return _registration!.DefaultKey;
-
-        var api = instanceProperty.GetValue(null);
-        if (api == null)
-            return _registration!.DefaultKey;
-
-        // Get client via GetClient()
-        var getClientMethod = apiType.GetMethod("GetClient", Type.EmptyTypes);
-        if (getClientMethod == null)
-            return _registration!.DefaultKey;
-
-        var client = getClientMethod.Invoke(api, null);
-        if (client == null)
-            return _registration!.DefaultKey;
-
-        var clientType = client.GetType();
-
-        // Determine if we should use boolean or string evaluation based on trial keys
-        var trialKeys = _registration!.Trials.Keys.ToList();
-        var isBooleanFlag = trialKeys.Count == 2 &&
-                            trialKeys.Contains("true") &&
-                            trialKeys.Contains("false");
-
-        if (isBooleanFlag)
-        {
-            // Use GetBooleanValueAsync for boolean flags
-            var getBoolMethod = clientType.GetMethod("GetBooleanValueAsync",
-                new[] { typeof(string), typeof(bool), typeof(CancellationToken) });
-
-            if (getBoolMethod != null)
-            {
-                try
-                {
-                    var task = (Task<bool>?)getBoolMethod.Invoke(client,
-                        new object[] { _registration.SelectorName, false, CancellationToken.None });
-
-                    if (task != null)
-                    {
-                        var result = task.GetAwaiter().GetResult();
-                        return result ? "true" : "false";
-                    }
-                }
-                catch
-                {
-                    // Fall through to default
-                }
-            }
-        }
-        else
-        {
-            // Use GetStringValueAsync for multi-variant flags
-            var getStringMethod = clientType.GetMethod("GetStringValueAsync",
-                new[] { typeof(string), typeof(string), typeof(CancellationToken) });
-
-            if (getStringMethod != null)
-            {
-                try
-                {
-                    var task = (Task<string>?)getStringMethod.Invoke(client,
-                        new object[] { _registration.SelectorName, _registration.DefaultKey, CancellationToken.None });
-
-                    if (task != null)
-                    {
-                        var result = task.GetAwaiter().GetResult();
-                        if (!string.IsNullOrEmpty(result))
-                            return result;
-                    }
-                }
-                catch
-                {
-                    // Fall through to default
-                }
-            }
-        }
-
-        return _registration.DefaultKey;
-    }
-
     private List<string> BuildCandidateKeys(string preferredKey)
     {
         switch (_registration!.OnErrorPolicy)
         {
             case OnErrorPolicy.Throw:
-                return new List<string> { preferredKey };
+                return [preferredKey];
 
             case OnErrorPolicy.RedirectAndReplayDefault:
                 if (preferredKey == _registration.DefaultKey)
                 {
-                    return new List<string> { preferredKey };
+                    return [preferredKey];
                 }
-                return new List<string> { preferredKey, _registration.DefaultKey };
+                return [preferredKey, _registration.DefaultKey];
 
             case OnErrorPolicy.RedirectAndReplayAny:
                 var candidates = new List<string> { preferredKey };
@@ -532,9 +375,9 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
             case OnErrorPolicy.RedirectAndReplay:
                 if (preferredKey == _registration.FallbackTrialKey)
                 {
-                    return new List<string> { preferredKey };
+                    return [preferredKey];
                 }
-                return new List<string> { preferredKey, _registration.FallbackTrialKey! };
+                return [preferredKey, _registration.FallbackTrialKey!];
 
             case OnErrorPolicy.RedirectAndReplayOrdered:
                 var orderedCandidates = new List<string> { preferredKey };
@@ -548,7 +391,7 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
                 return orderedCandidates;
 
             default:
-                return new List<string> { preferredKey };
+                return [preferredKey];
         }
     }
 }

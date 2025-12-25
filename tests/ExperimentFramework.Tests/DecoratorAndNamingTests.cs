@@ -1,14 +1,12 @@
+using ExperimentFramework.Decorators;
+using ExperimentFramework.Naming;
+using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
-using Microsoft.Extensions.Logging;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
-using ExperimentFramework.Tests.TestInterfaces;
-using ExperimentFramework.Decorators;
-using ExperimentFramework.Naming;
-using Moq;
 
 namespace ExperimentFramework.Tests;
 
@@ -54,7 +52,7 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
             typeof(ITestService),
             "Execute",
             "test-trial",
-            Array.Empty<object?>());
+            []);
 
         var result = await decorator.InvokeAsync(context, async () =>
         {
@@ -65,7 +63,7 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
         Assert.Equal("result", result);
 
         // Test passes if no exception - decorator should work
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     [Scenario("Error logging decorator factory creates decorator")]
@@ -98,7 +96,7 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
             typeof(ITestService),
             "Execute",
             "test-trial",
-            Array.Empty<object?>());
+            []);
 
         var testException = new InvalidOperationException("Test error");
 
@@ -113,7 +111,7 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
         }
 
         Assert.True(exceptionThrown);
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     [Scenario("Error logging decorator passes through successful calls")]
@@ -131,12 +129,12 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
             typeof(ITestService),
             "Execute",
             "test-trial",
-            Array.Empty<object?>());
+            []);
 
         var result = await decorator.InvokeAsync(context, () => ValueTask.FromResult<object?>("success"));
 
         Assert.Equal("success", result);
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     [Scenario("Decorator pipeline executes decorators in order")]
@@ -152,18 +150,18 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
         var factory2 = new TestDecoratorFactory(decorator2);
 
         var sp = new ServiceCollection().BuildServiceProvider();
-        var pipeline = new DecoratorPipeline(new[] { factory1, factory2 }, sp);
+        var pipeline = new DecoratorPipeline([factory1, factory2], sp);
 
         var context = new InvocationContext(
             typeof(ITestService),
             "Execute",
             "test-trial",
-            Array.Empty<object?>());
+            []);
 
         await pipeline.InvokeAsync(context, () => ValueTask.FromResult<object?>("final"));
 
         Assert.Equal(new[] { "D1-before", "D2-before", "D2-after", "D1-after" }, executionOrder);
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     [Scenario("Decorator pipeline with no decorators works")]
@@ -171,18 +169,18 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
     public async Task DecoratorPipeline_with_no_decorators()
     {
         var sp = new ServiceCollection().BuildServiceProvider();
-        var pipeline = new DecoratorPipeline(Array.Empty<IExperimentDecoratorFactory>(), sp);
+        var pipeline = new DecoratorPipeline([], sp);
 
         var context = new InvocationContext(
             typeof(ITestService),
             "Execute",
             "test-trial",
-            Array.Empty<object?>());
+            []);
 
         var result = await pipeline.InvokeAsync(context, () => ValueTask.FromResult<object?>("result"));
 
         Assert.Equal("result", result);
-        sp.Dispose();
+        await sp.DisposeAsync();
     }
 
     [Scenario("Default naming convention generates feature flag names")]
@@ -328,36 +326,20 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
 }
 
 // Helper classes for testing
-internal class TestDecorator : IExperimentDecorator
+internal class TestDecorator(string name, List<string> log) : IExperimentDecorator
 {
-    private readonly string _name;
-    private readonly List<string> _log;
-
-    public TestDecorator(string name, List<string> log)
-    {
-        _name = name;
-        _log = log;
-    }
-
     public async ValueTask<object?> InvokeAsync(InvocationContext context, Func<ValueTask<object?>> next)
     {
-        _log.Add($"{_name}-before");
+        log.Add($"{name}-before");
         var result = await next();
-        _log.Add($"{_name}-after");
+        log.Add($"{name}-after");
         return result;
     }
 }
 
-internal class TestDecoratorFactory : IExperimentDecoratorFactory
+internal class TestDecoratorFactory(IExperimentDecorator decorator) : IExperimentDecoratorFactory
 {
-    private readonly IExperimentDecorator _decorator;
-
-    public TestDecoratorFactory(IExperimentDecorator decorator)
-    {
-        _decorator = decorator;
-    }
-
-    public IExperimentDecorator Create(IServiceProvider serviceProvider) => _decorator;
+    public IExperimentDecorator Create(IServiceProvider serviceProvider) => decorator;
 }
 
 internal class CustomTestNamingConvention : IExperimentNamingConvention

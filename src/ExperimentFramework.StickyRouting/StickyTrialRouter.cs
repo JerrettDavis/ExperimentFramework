@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace ExperimentFramework.Routing;
+namespace ExperimentFramework.StickyRouting;
 
 /// <summary>
 /// Routes trial selection using deterministic hashing based on user/session identity.
@@ -19,7 +19,7 @@ namespace ExperimentFramework.Routing;
 /// Hash algorithm: SHA256 (stable, cross-platform, collision-resistant)
 /// </para>
 /// </remarks>
-internal static class StickyTrialRouter
+public static class StickyTrialRouter
 {
     /// <summary>
     /// Selects a trial key using sticky routing based on identity hash.
