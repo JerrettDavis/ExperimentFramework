@@ -310,4 +310,45 @@ public sealed class StickyRoutingProviderTests
     }
 
     #endregion
+
+    #region Additional Provider Tests
+
+    [Fact]
+    public async Task StickyRoutingProvider_returns_null_when_identity_not_available()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<IExperimentIdentityProvider>(
+            _ => new TestIdentityProvider("")); // Empty identity
+        var sp = services.BuildServiceProvider();
+
+        var provider = new StickyRoutingProvider();
+        var context = new SelectionContext
+        {
+            ServiceProvider = sp,
+            SelectorName = "test",
+            TrialKeys = new List<string> { "control", "variant" },
+            DefaultKey = "control",
+            ServiceType = typeof(IDatabase)
+        };
+
+        var result = await provider.SelectTrialKeyAsync(context);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void StickyRoutingProvider_GetDefaultSelectorName_with_different_types()
+    {
+        var provider = new StickyRoutingProvider();
+        var convention = new DefaultExperimentNamingConvention();
+
+        var name1 = provider.GetDefaultSelectorName(typeof(IDatabase), convention);
+        var name2 = provider.GetDefaultSelectorName(typeof(ITestService), convention);
+
+        Assert.NotEqual(name1, name2);
+        Assert.Contains("Database", name1);
+        Assert.Contains("TestService", name2);
+    }
+
+    #endregion
 }

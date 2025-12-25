@@ -454,3 +454,189 @@ public sealed class EnterpriseFeatureTests
         Assert.True(metrics.Histograms.Count > 0);
     }
 }
+
+/// <summary>
+/// Tests for NoopKillSwitchProvider.
+/// </summary>
+public sealed class NoopKillSwitchProviderTests
+{
+    [Fact]
+    public void NoopKillSwitchProvider_Instance_is_singleton()
+    {
+        var instance1 = NoopKillSwitchProvider.Instance;
+        var instance2 = NoopKillSwitchProvider.Instance;
+
+        Assert.Same(instance1, instance2);
+    }
+
+    [Fact]
+    public void NoopKillSwitchProvider_IsTrialDisabled_returns_false()
+    {
+        var provider = NoopKillSwitchProvider.Instance;
+
+        Assert.False(provider.IsTrialDisabled(typeof(EnterpriseFeatureTests), "trial1"));
+        Assert.False(provider.IsTrialDisabled(typeof(NoopKillSwitchProviderTests), "any-key"));
+    }
+
+    [Fact]
+    public void NoopKillSwitchProvider_IsExperimentDisabled_returns_false()
+    {
+        var provider = NoopKillSwitchProvider.Instance;
+
+        Assert.False(provider.IsExperimentDisabled(typeof(EnterpriseFeatureTests)));
+        Assert.False(provider.IsExperimentDisabled(typeof(NoopKillSwitchProviderTests)));
+    }
+
+    [Fact]
+    public void NoopKillSwitchProvider_DisableTrial_is_noop()
+    {
+        var provider = NoopKillSwitchProvider.Instance;
+
+        // Should not throw
+        provider.DisableTrial(typeof(EnterpriseFeatureTests), "trial1");
+
+        // Should still return false (no actual disable)
+        Assert.False(provider.IsTrialDisabled(typeof(EnterpriseFeatureTests), "trial1"));
+    }
+
+    [Fact]
+    public void NoopKillSwitchProvider_DisableExperiment_is_noop()
+    {
+        var provider = NoopKillSwitchProvider.Instance;
+
+        // Should not throw
+        provider.DisableExperiment(typeof(EnterpriseFeatureTests));
+
+        // Should still return false (no actual disable)
+        Assert.False(provider.IsExperimentDisabled(typeof(EnterpriseFeatureTests)));
+    }
+
+    [Fact]
+    public void NoopKillSwitchProvider_EnableTrial_is_noop()
+    {
+        var provider = NoopKillSwitchProvider.Instance;
+
+        // Should not throw
+        provider.EnableTrial(typeof(EnterpriseFeatureTests), "trial1");
+    }
+
+    [Fact]
+    public void NoopKillSwitchProvider_EnableExperiment_is_noop()
+    {
+        var provider = NoopKillSwitchProvider.Instance;
+
+        // Should not throw
+        provider.EnableExperiment(typeof(EnterpriseFeatureTests));
+    }
+}
+
+/// <summary>
+/// Tests for Resilience package circuit breaker options and extensions.
+/// </summary>
+public sealed class ResilienceAdditionalTests
+{
+    private interface ISimpleService
+    {
+        string GetName();
+    }
+
+    private sealed class ServiceA : ISimpleService
+    {
+        public string GetName() => "A";
+    }
+
+    private sealed class ServiceB : ISimpleService
+    {
+        public string GetName() => "B";
+    }
+
+    private static void RegisterTestServices(IServiceCollection services)
+    {
+        services.AddScoped<ServiceA>();
+        services.AddScoped<ServiceB>();
+        services.AddScoped<ISimpleService, ServiceA>();
+    }
+
+    [Fact]
+    public void WithCircuitBreaker_with_no_configuration()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:TestFeature"] = "false"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        RegisterTestServices(services);
+
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Trial<ISimpleService>(t => t
+                .UsingConfigurationKey("FeatureManagement:TestFeature")
+                .AddControl<ServiceA>()
+                .AddCondition<ServiceB>("true"))
+            .WithCircuitBreaker() // No configuration
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var svc = scope.ServiceProvider.GetRequiredService<ISimpleService>();
+
+        Assert.NotNull(svc);
+        Assert.Equal("A", svc.GetName());
+    }
+
+    [Fact]
+    public void WithCircuitBreaker_with_options_object()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:TestFeature"] = "false"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        RegisterTestServices(services);
+
+        var options = new CircuitBreakerOptions
+        {
+            FailureThreshold = 5,
+            BreakDuration = TimeSpan.FromSeconds(30)
+        };
+
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Trial<ISimpleService>(t => t
+                .UsingConfigurationKey("FeatureManagement:TestFeature")
+                .AddControl<ServiceA>()
+                .AddCondition<ServiceB>("true"))
+            .WithCircuitBreaker(options)
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var svc = scope.ServiceProvider.GetRequiredService<ISimpleService>();
+
+        Assert.NotNull(svc);
+    }
+
+    [Fact]
+    public void CircuitBreakerOptions_defaults()
+    {
+        var options = new CircuitBreakerOptions();
+
+        Assert.Equal(5, options.FailureThreshold);
+        Assert.Equal(TimeSpan.FromSeconds(30), options.BreakDuration);
+        Assert.Equal(10, options.MinimumThroughput);
+        Assert.Equal(TimeSpan.FromSeconds(10), options.SamplingDuration);
+        Assert.Null(options.FailureRatioThreshold);
+        Assert.Equal(CircuitBreakerAction.ThrowException, options.OnCircuitOpen);
+        Assert.Null(options.FallbackTrialKey);
+    }
+}

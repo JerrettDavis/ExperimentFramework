@@ -421,3 +421,167 @@ public sealed class ExperimentFrameworkBuilderTests(ITestOutputHelper output) : 
         public string OpenFeatureFlagNameFor(Type serviceType) => $"of-{serviceType.Name.ToLowerInvariant()}";
     }
 }
+
+/// <summary>
+/// Tests for ExperimentBuilder validation and activation.
+/// </summary>
+public sealed class ExperimentBuilderValidationTests
+{
+    [Fact]
+    public void ExperimentBuilder_ActiveWhen_throws_when_null()
+    {
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Experiment("test", exp =>
+            {
+                Assert.Throws<ArgumentNullException>(() => exp.ActiveWhen(null!));
+            });
+    }
+
+    [Fact]
+    public void ExperimentBuilder_ActiveFrom_sets_start_time_only()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:TestFeature"] = "true"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        services.AddFeatureManagement();
+        services.AddScoped<LocalDatabase>();
+        services.AddScoped<CloudDatabase>();
+        services.AddScoped<IDatabase, LocalDatabase>();
+
+        // Start time is in the future
+        var start = DateTimeOffset.UtcNow.AddHours(1);
+
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Experiment("start-only-experiment", exp => exp
+                .Trial<IDatabase>(t => t
+                    .UsingFeatureFlag("TestFeature")
+                    .AddControl<LocalDatabase>()
+                    .AddCondition<CloudDatabase>("true"))
+                .ActiveFrom(start))
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
+
+        // Should use control because experiment hasn't started
+        Assert.Equal("LocalDatabase", db.GetName());
+    }
+
+    [Fact]
+    public void ExperimentBuilder_ActiveFrom_in_past_activates_experiment()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:TestFeature"] = "true"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        services.AddFeatureManagement();
+        services.AddScoped<LocalDatabase>();
+        services.AddScoped<CloudDatabase>();
+        services.AddScoped<IDatabase, LocalDatabase>();
+
+        // Start time is in the past
+        var start = DateTimeOffset.UtcNow.AddHours(-1);
+
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Experiment("past-start-experiment", exp => exp
+                .Trial<IDatabase>(t => t
+                    .UsingFeatureFlag("TestFeature")
+                    .AddControl<LocalDatabase>()
+                    .AddCondition<CloudDatabase>("true"))
+                .ActiveFrom(start))
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
+
+        // Should use CloudDatabase because experiment is active
+        Assert.Equal("CloudDatabase", db.GetName());
+    }
+
+    [Fact]
+    public void ExperimentBuilder_WithMetadata_adds_metadata()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:TestFeature"] = "true"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        services.AddFeatureManagement();
+        services.AddScoped<LocalDatabase>();
+        services.AddScoped<CloudDatabase>();
+        services.AddScoped<IDatabase, LocalDatabase>();
+
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Experiment("test-experiment", exp => exp
+                .Trial<IDatabase>(t => t
+                    .UsingFeatureFlag("TestFeature")
+                    .AddControl<LocalDatabase>()
+                    .AddCondition<CloudDatabase>("true"))
+                .WithMetadata("owner", "team-platform")
+                .WithMetadata("jira", "PROJ-123"))
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        // Should build without error
+        using var scope = sp.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
+        Assert.NotNull(db);
+    }
+
+    [Fact]
+    public void ExperimentBuilder_Build_validation_runs()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FeatureManagement:TestFeature"] = "true"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        services.AddFeatureManagement();
+        services.AddScoped<LocalDatabase>();
+        services.AddScoped<CloudDatabase>();
+        services.AddScoped<IDatabase, LocalDatabase>();
+
+        // Build with only AddCondition (no explicit control) - should work
+        var builder = ExperimentFrameworkBuilder.Create()
+            .Trial<IDatabase>(t => t
+                .UsingFeatureFlag("TestFeature")
+                .AddCondition<LocalDatabase>("false")
+                .AddCondition<CloudDatabase>("true"))
+            .UseDispatchProxy();
+
+        services.AddExperimentFramework(builder);
+        var sp = services.BuildServiceProvider();
+
+        using var scope = sp.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IDatabase>();
+
+        Assert.NotNull(db);
+    }
+}

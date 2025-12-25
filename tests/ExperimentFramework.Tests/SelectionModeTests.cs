@@ -582,3 +582,260 @@ public sealed class SelectionModeInfrastructureTests
 
     #endregion
 }
+
+/// <summary>
+/// Tests for SelectionRule model.
+/// </summary>
+public sealed class SelectionRuleTests
+{
+    [Fact]
+    public void SelectionRule_can_be_created_with_all_properties()
+    {
+        var predicate = new Func<IServiceProvider, bool>(_ => true);
+        var segments = new[] { "premium", "beta" };
+
+        var rule = new Models.SelectionRule
+        {
+            Mode = Models.SelectionMode.BooleanFeatureFlag,
+            SelectorName = "TestFeature",
+            StartTime = DateTimeOffset.UtcNow,
+            EndTime = DateTimeOffset.UtcNow.AddDays(30),
+            ActivationPredicate = predicate,
+            PercentageAllocation = 0.5,
+            UserSegments = segments
+        };
+
+        Assert.Equal(Models.SelectionMode.BooleanFeatureFlag, rule.Mode);
+        Assert.Equal("TestFeature", rule.SelectorName);
+        Assert.NotNull(rule.StartTime);
+        Assert.NotNull(rule.EndTime);
+        Assert.Same(predicate, rule.ActivationPredicate);
+        Assert.Equal(0.5, rule.PercentageAllocation);
+        Assert.Equal(segments, rule.UserSegments);
+    }
+
+    [Fact]
+    public void SelectionRule_FromRegistration_creates_minimal_rule()
+    {
+        var rule = Models.SelectionRule.FromRegistration(
+            Models.SelectionMode.ConfigurationValue,
+            "TaxProvider");
+
+        Assert.Equal(Models.SelectionMode.ConfigurationValue, rule.Mode);
+        Assert.Equal("TaxProvider", rule.SelectorName);
+        Assert.Null(rule.StartTime);
+        Assert.Null(rule.EndTime);
+        Assert.Null(rule.ActivationPredicate);
+        Assert.Null(rule.PercentageAllocation);
+        Assert.Null(rule.UserSegments);
+    }
+}
+
+/// <summary>
+/// Tests for ExperimentRegistration model.
+/// </summary>
+public sealed class ExperimentRegistrationModelTests
+{
+    [Fact]
+    public void ExperimentRegistration_with_all_properties()
+    {
+        var registration = new Models.ExperimentRegistration
+        {
+            ServiceType = typeof(IDatabase),
+            DefaultKey = "control",
+            Trials = new Dictionary<string, Type>
+            {
+                ["control"] = typeof(LocalDatabase),
+                ["variant"] = typeof(CloudDatabase)
+            },
+            Mode = Models.SelectionMode.BooleanFeatureFlag,
+            ModeIdentifier = "BooleanFeatureFlag",
+            SelectorName = "TestFeature",
+            OnErrorPolicy = Models.OnErrorPolicy.RedirectAndReplayDefault,
+            StartTime = DateTimeOffset.UtcNow,
+            EndTime = DateTimeOffset.UtcNow.AddDays(30),
+            ActivationPredicate = _ => true,
+            FallbackTrialKey = "control",
+            OrderedFallbackKeys = new List<string> { "control", "variant" }
+        };
+
+        Assert.Equal(typeof(IDatabase), registration.ServiceType);
+        Assert.Equal("control", registration.DefaultKey);
+        Assert.Equal(2, registration.Trials.Count);
+        Assert.Equal(Models.SelectionMode.BooleanFeatureFlag, registration.Mode);
+        Assert.Equal("BooleanFeatureFlag", registration.ModeIdentifier);
+        Assert.Equal("TestFeature", registration.SelectorName);
+        Assert.Equal(Models.OnErrorPolicy.RedirectAndReplayDefault, registration.OnErrorPolicy);
+        Assert.NotNull(registration.StartTime);
+        Assert.NotNull(registration.EndTime);
+        Assert.NotNull(registration.ActivationPredicate);
+        Assert.Equal("control", registration.FallbackTrialKey);
+        Assert.Equal(2, registration.OrderedFallbackKeys!.Count);
+    }
+}
+
+/// <summary>
+/// Tests for Experiment and Trial models.
+/// </summary>
+public sealed class ExperimentAndTrialModelTests
+{
+    [Fact]
+    public void Experiment_can_be_created()
+    {
+        var selectionRule = new Models.SelectionRule
+        {
+            Mode = Models.SelectionMode.BooleanFeatureFlag,
+            SelectorName = "TestFeature"
+        };
+
+        var behaviorRule = new Models.BehaviorRule
+        {
+            OnErrorPolicy = Models.OnErrorPolicy.Throw
+        };
+
+        var trial = new Models.Trial
+        {
+            ServiceType = typeof(IDatabase),
+            ControlKey = "control",
+            ControlType = typeof(LocalDatabase),
+            Conditions = new Dictionary<string, Type>
+            {
+                ["variant"] = typeof(CloudDatabase)
+            },
+            SelectionRule = selectionRule,
+            BehaviorRule = behaviorRule
+        };
+
+        var experiment = new Models.Experiment
+        {
+            Name = "test-experiment",
+            Trials = new List<Models.Trial> { trial },
+            StartTime = DateTimeOffset.UtcNow,
+            EndTime = DateTimeOffset.UtcNow.AddDays(30)
+        };
+
+        Assert.Equal("test-experiment", experiment.Name);
+        Assert.Single(experiment.Trials);
+        Assert.NotNull(experiment.StartTime);
+        Assert.NotNull(experiment.EndTime);
+    }
+
+    [Fact]
+    public void Trial_AllImplementations_includes_control_and_conditions()
+    {
+        var trial = new Models.Trial
+        {
+            ServiceType = typeof(IDatabase),
+            ControlKey = "control",
+            ControlType = typeof(LocalDatabase),
+            Conditions = new Dictionary<string, Type>
+            {
+                ["cloud"] = typeof(CloudDatabase)
+            },
+            SelectionRule = new Models.SelectionRule
+            {
+                Mode = Models.SelectionMode.BooleanFeatureFlag,
+                SelectorName = "TestFeature"
+            },
+            BehaviorRule = Models.BehaviorRule.Default
+        };
+
+        var allImpl = trial.AllImplementations;
+
+        Assert.Equal(2, allImpl.Count);
+        Assert.Equal(typeof(LocalDatabase), allImpl["control"]);
+        Assert.Equal(typeof(CloudDatabase), allImpl["cloud"]);
+    }
+
+    [Fact]
+    public void Trial_ToString_returns_summary()
+    {
+        var trial = new Models.Trial
+        {
+            ServiceType = typeof(IDatabase),
+            ControlKey = "control",
+            ControlType = typeof(LocalDatabase),
+            Conditions = new Dictionary<string, Type>
+            {
+                ["cloud"] = typeof(CloudDatabase)
+            },
+            SelectionRule = new Models.SelectionRule
+            {
+                Mode = Models.SelectionMode.BooleanFeatureFlag,
+                SelectorName = "TestFeature"
+            },
+            BehaviorRule = Models.BehaviorRule.Default
+        };
+
+        var str = trial.ToString();
+
+        Assert.Contains("Trial<IDatabase>", str);
+        Assert.Contains("control='control'", str);
+        Assert.Contains("cloud", str);
+    }
+
+    [Fact]
+    public void Experiment_ToString_returns_summary()
+    {
+        var trial = new Models.Trial
+        {
+            ServiceType = typeof(IDatabase),
+            ControlKey = "control",
+            ControlType = typeof(LocalDatabase),
+            Conditions = new Dictionary<string, Type>(),
+            SelectionRule = new Models.SelectionRule
+            {
+                Mode = Models.SelectionMode.BooleanFeatureFlag,
+                SelectorName = "TestFeature"
+            },
+            BehaviorRule = Models.BehaviorRule.Default
+        };
+
+        var experiment = new Models.Experiment
+        {
+            Name = "my-experiment",
+            Trials = new List<Models.Trial> { trial }
+        };
+
+        var str = experiment.ToString();
+
+        Assert.Contains("my-experiment", str);
+        Assert.Contains("IDatabase", str);
+    }
+
+    [Fact]
+    public void BehaviorRule_Default_returns_throw_policy()
+    {
+        var rule = Models.BehaviorRule.Default;
+
+        Assert.Equal(Models.OnErrorPolicy.Throw, rule.OnErrorPolicy);
+        Assert.Null(rule.FallbackConditionKey);
+        Assert.Null(rule.OrderedFallbackKeys);
+    }
+
+    [Fact]
+    public void BehaviorRule_FromRegistration_creates_rule()
+    {
+        var rule = Models.BehaviorRule.FromRegistration(
+            Models.OnErrorPolicy.RedirectAndReplay,
+            "fallback",
+            null);
+
+        Assert.Equal(Models.OnErrorPolicy.RedirectAndReplay, rule.OnErrorPolicy);
+        Assert.Equal("fallback", rule.FallbackConditionKey);
+    }
+
+    [Fact]
+    public void BehaviorRule_FromRegistration_with_ordered_keys()
+    {
+        var keys = new List<string> { "first", "second", "third" };
+
+        var rule = Models.BehaviorRule.FromRegistration(
+            Models.OnErrorPolicy.RedirectAndReplayOrdered,
+            null,
+            keys);
+
+        Assert.Equal(Models.OnErrorPolicy.RedirectAndReplayOrdered, rule.OnErrorPolicy);
+        Assert.Equal(3, rule.OrderedFallbackKeys!.Count);
+    }
+}

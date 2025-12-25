@@ -2,6 +2,7 @@ using ExperimentFramework.Decorators;
 using ExperimentFramework.StickyRouting;
 using ExperimentFramework.Telemetry;
 using ExperimentFramework.Tests.TestInterfaces;
+using ExperimentFramework.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FeatureManagement;
@@ -412,4 +413,86 @@ public interface INonExistentTestService
 public class NonExistentServiceImpl : INonExistentTestService
 {
     public string Execute() => "NonExistent";
+}
+
+/// <summary>
+/// Tests for TrialConflictException.
+/// </summary>
+public sealed class TrialConflictExceptionTests
+{
+    [Fact]
+    public void TrialConflictException_with_single_conflict()
+    {
+        var conflict = new TrialConflict
+        {
+            Type = TrialConflictType.DuplicateServiceRegistration,
+            ServiceType = typeof(TestInterfaces.ITestService),
+            Description = "Duplicate registration for ITestService with variant-a"
+        };
+
+        var exception = new TrialConflictException(conflict);
+
+        Assert.Contains("ITestService", exception.Message);
+        Assert.Contains("variant-a", exception.Message);
+        Assert.Single(exception.Conflicts);
+    }
+
+    [Fact]
+    public void TrialConflictException_with_multiple_conflicts()
+    {
+        var conflicts = new List<TrialConflict>
+        {
+            new TrialConflict
+            {
+                Type = TrialConflictType.DuplicateServiceRegistration,
+                ServiceType = typeof(TestInterfaces.ITestService),
+                Description = "Duplicate registration for ITestService"
+            },
+            new TrialConflict
+            {
+                Type = TrialConflictType.OverlappingTimeWindows,
+                ServiceType = typeof(TestInterfaces.IDatabase),
+                Description = "Overlapping time windows for IDatabase"
+            }
+        };
+
+        var exception = new TrialConflictException(conflicts);
+
+        Assert.Contains("ITestService", exception.Message);
+        Assert.Contains("IDatabase", exception.Message);
+        Assert.Equal(2, exception.Conflicts.Count);
+    }
+
+    [Fact]
+    public void TrialConflictException_throws_when_null_list()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new TrialConflictException((IReadOnlyList<TrialConflict>)null!));
+    }
+
+    [Fact]
+    public void TrialConflict_has_all_properties()
+    {
+        var conflict = new TrialConflict
+        {
+            Type = TrialConflictType.InvalidFallbackKey,
+            ServiceType = typeof(TestInterfaces.IDatabase),
+            Description = "Invalid fallback key 'cloud' for IDatabase",
+            ExperimentNames = new[] { "exp1", "exp2" }
+        };
+
+        Assert.Equal(typeof(TestInterfaces.IDatabase), conflict.ServiceType);
+        Assert.Equal(TrialConflictType.InvalidFallbackKey, conflict.Type);
+        Assert.Contains("cloud", conflict.Description);
+        Assert.Equal(2, conflict.ExperimentNames!.Count);
+    }
+
+    [Fact]
+    public void TrialConflictType_has_expected_values()
+    {
+        Assert.Equal(0, (int)TrialConflictType.OverlappingTimeWindows);
+        Assert.Equal(1, (int)TrialConflictType.ExcessivePercentageAllocation);
+        Assert.Equal(2, (int)TrialConflictType.DuplicateServiceRegistration);
+        Assert.Equal(3, (int)TrialConflictType.InvalidFallbackKey);
+    }
 }

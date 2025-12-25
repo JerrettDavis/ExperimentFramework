@@ -487,3 +487,51 @@ public sealed class ExperimentBuilderActivationTests
         Assert.Equal("LocalDatabase", db.GetName());
     }
 }
+
+/// <summary>
+/// Tests for ConfigurationValueProvider edge cases.
+/// </summary>
+public sealed class ConfigurationValueProviderAdditionalTests
+{
+    [Fact]
+    public async Task ConfigurationValueProvider_with_nested_key()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Experiments:TaxProvider:Setting"] = "OK"
+            })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(config);
+        var sp = services.BuildServiceProvider();
+
+        var provider = new ConfigurationValueProvider();
+        var context = new SelectionContext
+        {
+            ServiceProvider = sp,
+            SelectorName = "Experiments:TaxProvider:Setting",
+            TrialKeys = new List<string> { "Default", "OK" },
+            DefaultKey = "Default",
+            ServiceType = typeof(ITaxProvider)
+        };
+
+        var result = await provider.SelectTrialKeyAsync(context);
+
+        Assert.Equal("OK", result);
+    }
+
+    [Fact]
+    public void ConfigurationValueProvider_GetDefaultSelectorName_format()
+    {
+        var provider = new ConfigurationValueProvider();
+        var convention = new DefaultExperimentNamingConvention();
+
+        var name = provider.GetDefaultSelectorName(typeof(ITaxProvider), convention);
+
+        // Should follow the convention pattern
+        Assert.NotEmpty(name);
+        Assert.Contains("TaxProvider", name);
+    }
+}

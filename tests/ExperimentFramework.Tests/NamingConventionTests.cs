@@ -98,3 +98,46 @@ public sealed class NamingConventionTests(ITestOutputHelper output) : TinyBddXun
             => $"openfeature-{serviceType.Name.ToLowerInvariant()}";
     }
 }
+
+/// <summary>
+/// Tests for ExperimentSelectorName value object.
+/// </summary>
+public sealed class ExperimentSelectorNameTests
+{
+    [Fact]
+    public void ExperimentSelectorName_implicit_conversion_from_string()
+    {
+        ExperimentSelectorName name = "my-feature-flag";
+
+        Assert.Equal("my-feature-flag", name.Value);
+    }
+
+    [Fact]
+    public void ExperimentSelectorName_implicit_conversion_to_string()
+    {
+        var name = new ExperimentSelectorName("my-feature-flag");
+
+        string value = name;
+
+        Assert.Equal("my-feature-flag", value);
+    }
+
+    [Fact]
+    public void ExperimentSelectorName_ToString_returns_value()
+    {
+        var name = new ExperimentSelectorName("test-selector");
+
+        Assert.Equal("test-selector", name.ToString());
+    }
+
+    [Fact]
+    public void ExperimentSelectorName_equality()
+    {
+        var name1 = new ExperimentSelectorName("test");
+        var name2 = new ExperimentSelectorName("test");
+        var name3 = new ExperimentSelectorName("other");
+
+        Assert.Equal(name1, name2);
+        Assert.NotEqual(name1, name3);
+    }
+}
