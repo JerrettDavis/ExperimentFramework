@@ -107,8 +107,8 @@ public sealed class VariantFeatureManagerTests(ITestOutputHelper output) : TinyB
             .Then("availability status is returned", available =>
             {
                 // IsAvailable depends on whether Microsoft.FeatureManagement with variants is installed
-                // In this test environment, it may or may not be available
-                return available || !available;
+                // In this test environment, it may or may not be available - we just verify the property is accessible
+                return true;
             })
             .AssertPassed();
 
@@ -265,7 +265,7 @@ public sealed class VariantFeatureManagerTests(ITestOutputHelper output) : TinyB
         var sp = services.BuildServiceProvider();
 
         using var cts = new CancellationTokenSource();
-        await cts.CancelAsync(); // Cancel immediately
+        cts.Cancel(); // Cancel immediately
 
         // Should handle cancellation gracefully
         var variant = await VariantFeatureManagerAdapter.TryGetVariantAsync(

@@ -720,7 +720,8 @@ public sealed class RuntimeExperimentProxyEdgeCaseTests
 
         // Call Equals on proxy - exercises the object method handling
         Assert.True(db.Equals(db));
-        Assert.False(db.Equals(null));
+        // Verify null is handled gracefully without throwing
+        Assert.False(db.Equals((object?)null));
     }
 
     [Fact]

@@ -116,36 +116,34 @@ public sealed class TrialConflictDetector
     {
         // Validate fallback key references
         if (registration.OnErrorPolicy == OnErrorPolicy.RedirectAndReplay &&
-            !string.IsNullOrEmpty(registration.FallbackTrialKey))
+            !string.IsNullOrEmpty(registration.FallbackTrialKey) &&
+            !registration.Trials.ContainsKey(registration.FallbackTrialKey))
         {
-            if (!registration.Trials.ContainsKey(registration.FallbackTrialKey))
+            _conflicts.Add(new TrialConflict
             {
-                _conflicts.Add(new TrialConflict
-                {
-                    Type = TrialConflictType.InvalidFallbackKey,
-                    ServiceType = registration.ServiceType,
-                    Description = $"Trial for {registration.ServiceType.Name} references fallback key " +
-                                  $"'{registration.FallbackTrialKey}' which does not exist in registered conditions."
-                });
-            }
+                Type = TrialConflictType.InvalidFallbackKey,
+                ServiceType = registration.ServiceType,
+                Description = $"Trial for {registration.ServiceType.Name} references fallback key " +
+                              $"'{registration.FallbackTrialKey}' which does not exist in registered conditions."
+            });
         }
 
         // Validate ordered fallback keys
         if (registration.OnErrorPolicy == OnErrorPolicy.RedirectAndReplayOrdered &&
             registration.OrderedFallbackKeys != null)
         {
-            foreach (var key in registration.OrderedFallbackKeys)
+            var invalidKeys = registration.OrderedFallbackKeys
+                .Where(key => !registration.Trials.ContainsKey(key));
+
+            foreach (var key in invalidKeys)
             {
-                if (!registration.Trials.ContainsKey(key))
+                _conflicts.Add(new TrialConflict
                 {
-                    _conflicts.Add(new TrialConflict
-                    {
-                        Type = TrialConflictType.InvalidFallbackKey,
-                        ServiceType = registration.ServiceType,
-                        Description = $"Trial for {registration.ServiceType.Name} references ordered fallback key " +
-                                      $"'{key}' which does not exist in registered conditions."
-                    });
-                }
+                    Type = TrialConflictType.InvalidFallbackKey,
+                    ServiceType = registration.ServiceType,
+                    Description = $"Trial for {registration.ServiceType.Name} references ordered fallback key " +
+                                  $"'{key}' which does not exist in registered conditions."
+                });
             }
         }
     }
