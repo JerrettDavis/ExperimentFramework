@@ -715,14 +715,23 @@ public sealed class RuntimeExperimentProxyEdgeCaseTests
         services.AddExperimentFramework(builder);
         var sp = services.BuildServiceProvider();
 
-        using var scope = sp.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<TestInterfaces.IDatabase>();
+        using var scope1 = sp.CreateScope();
+        using var scope2 = sp.CreateScope();
+        var db1 = scope1.ServiceProvider.GetRequiredService<TestInterfaces.IDatabase>();
+        var db2 = scope2.ServiceProvider.GetRequiredService<TestInterfaces.IDatabase>();
 
-        // Call Equals on proxy - exercises the object method handling
         // Verify null is handled gracefully without throwing
-        Assert.False(db.Equals((object?)null));
+        Assert.False(db1.Equals((object?)null));
+
         // Verify comparing to a different object type returns false
-        Assert.False(db.Equals("not a database"));
+        Assert.False(db1.Equals("not a database"));
+        Assert.False(db1.Equals(42));
+
+        // Verify the proxy correctly reports its type
+        Assert.True(db1 is TestInterfaces.IDatabase);
+
+        // Verify the proxy is functional - both proxies select the same trial
+        Assert.Equal(db1.GetName(), db2.GetName());
     }
 
     [Fact]
