@@ -147,15 +147,15 @@ Error policies control what happens when a selected trial throws an exception.
 ### 1. OnErrorThrow (Fail Fast)
 
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     .UsingFeatureFlag("EnableNewVersion")
-    .AddDefaultTrial<OldVersion>("false")
-    .AddTrial<NewVersion>("true")
-    .OnErrorThrow()) // ← Throws immediately if trial fails
+    .AddControl<OldVersion>()
+    .AddCondition<NewVersion>("true")
+    .OnErrorThrow()) // ← Throws immediately if condition fails
 ```
 
 **Behavior:**
-- If selected trial throws → Exception propagates immediately
+- If selected condition throws → Exception propagates immediately
 - No fallback attempts
 - **Use when:** You want failures to be visible immediately (critical systems)
 
@@ -163,61 +163,61 @@ Error policies control what happens when a selected trial throws an exception.
 
 ---
 
-### 2. OnErrorRedirectAndReplayDefault (Safe Fallback)
+### 2. OnErrorFallbackToControl (Safe Fallback)
 
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     .UsingFeatureFlag("EnableExperiment")
-    .AddDefaultTrial<Stable>("false")  // ← Fallback
-    .AddTrial<Experimental>("true")
-    .OnErrorRedirectAndReplayDefault()) // ← Falls back to default
+    .AddControl<Stable>()  // ← Fallback
+    .AddCondition<Experimental>("true")
+    .OnErrorFallbackToControl()) // ← Falls back to control
 ```
 
 **Behavior:**
-- Tries: `[preferred trial, default trial]`
-- If preferred fails → Falls back to default
-- If default also fails → Exception propagates
-- **Use when:** You have a safe, stable default implementation
+- Tries: `[preferred condition, control]`
+- If preferred fails → Falls back to control
+- If control also fails → Exception propagates
+- **Use when:** You have a safe, stable control implementation
 
 **See:** `ComprehensiveSample → Demo 1.2`, `Console → IMyDatabase`
 
 ---
 
-### 3. OnErrorRedirectAndReplayAny (Resilience)
+### 3. OnErrorTryAny (Resilience)
 
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     .UsingConfig("Experiments:Provider")
-    .AddDefaultTrial<ProviderC>("")
-    .AddTrial<ProviderA>("a")
-    .AddTrial<ProviderB>("b")
-    .OnErrorRedirectAndReplayAny()) // ← Tries all trials
+    .AddControl<ProviderC>()
+    .AddVariant<ProviderA>("a")
+    .AddVariant<ProviderB>("b")
+    .OnErrorTryAny()) // ← Tries all conditions
 ```
 
 **Behavior:**
-- Tries: `[preferred trial, all other trials]`
+- Tries: `[preferred condition, all other conditions]`
 - Continues until one succeeds
-- Only throws if ALL trials fail
+- Only throws if ALL conditions fail
 - **Use when:** You need maximum resilience (multiple fallbacks)
 
 **See:** `ComprehensiveSample → Demo 1.3`, `Console → IMyTaxProvider`
 
 ---
 
-### 4. OnErrorRedirectAndReplay (Specific Fallback)
+### 4. OnErrorFallbackTo (Specific Fallback)
 
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     .UsingFeatureFlag("EnablePrimaryImplementation")
-    .AddDefaultTrial<PrimaryImpl>("true")
-    .AddTrial<SecondaryImpl>("false")
-    .AddTrial<NoopHandler>("noop")
-    .OnErrorRedirectAndReplay("noop")) // ← Specific fallback trial
+    .AddControl<PrimaryImpl>()
+    .AddCondition<SecondaryImpl>("secondary")
+    .AddCondition<NoopHandler>("noop")
+    .OnErrorFallbackTo("noop")) // ← Specific fallback condition
 ```
 
 **Behavior:**
-- Tries: `[preferred trial, specific fallback trial]`
-- If preferred fails → Redirects to specified trial (e.g., "noop")
+- Tries: `[preferred condition, specific fallback condition]`
+- If preferred fails → Redirects to specified condition (e.g., "noop")
 - If specific fallback also fails → Exception propagates
 - **Use when:** You want to redirect failures to a dedicated diagnostics/Noop handler
 
@@ -230,22 +230,22 @@ Error policies control what happens when a selected trial throws an exception.
 
 ---
 
-### 5. OnErrorRedirectAndReplayOrdered (Custom Fallback Chain)
+### 5. OnErrorTryInOrder (Custom Fallback Chain)
 
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     .UsingFeatureFlag("UseCloudDatabase")
-    .AddDefaultTrial<CloudDb>("true")
-    .AddTrial<LocalCache>("cache")
-    .AddTrial<InMemoryCache>("memory")
-    .AddTrial<StaticData>("static")
-    .OnErrorRedirectAndReplayOrdered("cache", "memory", "static"))
+    .AddControl<CloudDb>()
+    .AddCondition<LocalCache>("cache")
+    .AddCondition<InMemoryCache>("memory")
+    .AddCondition<StaticData>("static")
+    .OnErrorTryInOrder("cache", "memory", "static"))
 ```
 
 **Behavior:**
-- Tries: `[preferred trial, fallback1, fallback2, fallback3, ...]`
+- Tries: `[preferred condition, fallback1, fallback2, fallback3, ...]`
 - Tries each fallback in the exact order specified
-- Only throws if ALL trials fail
+- Only throws if ALL conditions fail
 - **Use when:** You need fine-grained control over fallback order
 
 **Example use cases:**
@@ -267,8 +267,8 @@ Uses `IFeatureManager` to select based on true/false.
 
 ```csharp
 .UsingFeatureFlag("EnableCloudDatabase")
-.AddDefaultTrial<LocalDb>("false")
-.AddTrial<CloudDb>("true")
+.AddControl<LocalDb>()
+.AddCondition<CloudDb>("true")
 ```
 
 **Configuration (appsettings.json):**
@@ -290,9 +290,9 @@ Uses `IConfiguration` to select based on configuration value.
 
 ```csharp
 .UsingConfigurationKey("Experiments:SearchAlgorithm")
-.AddDefaultTrial<BasicSearch>("")
-.AddTrial<AdvancedSearch>("advanced")
-.AddTrial<AISearch>("ai")
+.AddControl<BasicSearch>()
+.AddVariant<AdvancedSearch>("advanced")
+.AddVariant<AISearch>("ai")
 ```
 
 **Configuration (appsettings.json):**
@@ -314,9 +314,9 @@ Uses Microsoft.FeatureManagement variants for A/B/C testing with weighted distri
 
 ```csharp
 .UsingVariantFeatureFlag("PaymentProviderVariant")
-.AddDefaultTrial<Stripe>("stripe")
-.AddTrial<PayPal>("paypal")
-.AddTrial<Square>("square")
+.AddControl<Stripe>()
+.AddCondition<PayPal>("paypal")
+.AddCondition<Square>("square")
 ```
 
 **Configuration (appsettings.json):**
@@ -345,9 +345,9 @@ Uses hash-based routing to ensure same user always sees same variant.
 
 ```csharp
 .UsingStickyRouting()
-.AddDefaultTrial<AlgorithmA>("control")
-.AddTrial<AlgorithmB>("variant-b")
-.AddTrial<AlgorithmC>("variant-c")
+.AddControl<AlgorithmA>()
+.AddCondition<AlgorithmB>("variant-b")
+.AddCondition<AlgorithmC>("variant-c")
 ```
 
 **Requires:** `IExperimentIdentityProvider` implementation
@@ -401,7 +401,7 @@ public class TimingDecorator : IExperimentDecorator
 
 **Usage:**
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     ...
     .AddDecorator<TimingDecoratorFactory>())
 ```
@@ -448,7 +448,7 @@ Two ways to trigger source generation:
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IService>(...);
+        .Trial<IService>(...);
 }
 ```
 
@@ -462,7 +462,7 @@ public static ExperimentFrameworkBuilder ConfigureExperiments()
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IService>(...)
+        .Trial<IService>(...)
         .UseSourceGenerators(); // ← Trigger
 }
 ```

@@ -4,16 +4,16 @@ ExperimentFramework supports [OpenFeature](https://openfeature.dev/), an open st
 
 ## Configuration
 
-Use `UsingOpenFeature()` to configure an experiment to use OpenFeature for trial selection:
+Use `UsingOpenFeature()` to configure an experiment to use OpenFeature for condition selection:
 
 ```csharp
 services.AddExperimentFramework(
     ExperimentFrameworkBuilder.Create()
-        .Define<IPaymentProcessor>(c => c
+        .Trial<IPaymentProcessor>(t => t
             .UsingOpenFeature("payment-processor-experiment")
-            .AddDefaultTrial<StripeProcessor>("stripe")
-            .AddTrial<PayPalProcessor>("paypal")
-            .AddTrial<SquareProcessor>("square"))
+            .AddControl<StripeProcessor>("stripe")
+            .AddCondition<PayPalProcessor>("paypal")
+            .AddCondition<SquareProcessor>("square"))
         .UseDispatchProxy());
 ```
 
@@ -35,15 +35,15 @@ You can override this with an explicit flag key:
 
 ## Boolean vs String Flags
 
-The framework automatically detects the flag type based on trial keys:
+The framework automatically detects the flag type based on condition keys:
 
-**Boolean flags** (when trials are "true" and "false"):
+**Boolean flags** (when conditions are "true" and "false"):
 
 ```csharp
-.Define<IFeature>(c => c
+.Trial<IFeature>(t => t
     .UsingOpenFeature("new-feature")
-    .AddDefaultTrial<LegacyFeature>("false")
-    .AddTrial<NewFeature>("true"))
+    .AddControl<LegacyFeature>("false")
+    .AddCondition<NewFeature>("true"))
 ```
 
 Uses `GetBooleanValueAsync()` from OpenFeature.
@@ -51,11 +51,11 @@ Uses `GetBooleanValueAsync()` from OpenFeature.
 **String flags** (multi-variant):
 
 ```csharp
-.Define<IAlgorithm>(c => c
+.Trial<IAlgorithm>(t => t
     .UsingOpenFeature("algorithm-variant")
-    .AddDefaultTrial<ControlAlgorithm>("control")
-    .AddTrial<VariantA>("variant-a")
-    .AddTrial<VariantB>("variant-b"))
+    .AddControl<ControlAlgorithm>("control")
+    .AddVariant<VariantA>("variant-a")
+    .AddVariant<VariantB>("variant-b"))
 ```
 
 Uses `GetStringValueAsync()` from OpenFeature.
@@ -87,7 +87,7 @@ await Api.Instance.SetProviderAsync(
 
 ## Fallback Behavior
 
-When OpenFeature is not configured or flag evaluation fails, the framework falls back to the default trial. This provides resilience during:
+When OpenFeature is not configured or flag evaluation fails, the framework falls back to the control condition. This provides resilience during:
 
 - Provider initialization
 - Network failures
@@ -132,12 +132,12 @@ await Api.Instance.SetProviderAsync(new YourProvider());
 // Configure experiments
 builder.Services.AddExperimentFramework(
     ExperimentFrameworkBuilder.Create()
-        .Define<IRecommendationEngine>(c => c
+        .Trial<IRecommendationEngine>(t => t
             .UsingOpenFeature("recommendation-algorithm")
-            .AddDefaultTrial<CollaborativeFiltering>("collaborative")
-            .AddTrial<ContentBased>("content-based")
-            .AddTrial<HybridApproach>("hybrid")
-            .OnErrorRedirectAndReplayDefault())
+            .AddControl<CollaborativeFiltering>("collaborative")
+            .AddCondition<ContentBased>("content-based")
+            .AddCondition<HybridApproach>("hybrid")
+            .OnErrorRedirectAndReplayControl())
         .UseDispatchProxy());
 
 var app = builder.Build();
@@ -150,20 +150,20 @@ You can use different selection modes for different services in the same applica
 ```csharp
 ExperimentFrameworkBuilder.Create()
     // OpenFeature for external flag management
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingOpenFeature("payment-experiment")
-        .AddDefaultTrial<StripeProcessor>("stripe")
-        .AddTrial<PayPalProcessor>("paypal"))
+        .AddControl<StripeProcessor>("stripe")
+        .AddCondition<PayPalProcessor>("paypal"))
 
     // Microsoft Feature Management for internal flags
-    .Define<ISearchService>(c => c
+    .Trial<ISearchService>(t => t
         .UsingFeatureFlag("SearchV2")
-        .AddDefaultTrial<LegacySearch>("false")
-        .AddTrial<NewSearch>("true"))
+        .AddControl<LegacySearch>("false")
+        .AddCondition<NewSearch>("true"))
 
     // Configuration for static routing
-    .Define<ILogger>(c => c
+    .Trial<ILogger>(t => t
         .UsingConfigurationKey("Logging:Provider")
-        .AddDefaultTrial<ConsoleLogger>("console")
-        .AddTrial<FileLogger>("file"))
+        .AddControl<ConsoleLogger>("console")
+        .AddCondition<FileLogger>("file"))
 ```

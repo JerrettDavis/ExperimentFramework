@@ -87,15 +87,15 @@ This sample uses **`.UseSourceGenerators()`** to trigger compile-time proxy gene
 public static ExperimentFrameworkBuilder ConfigureWebExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IRecommendationEngine>(c => c
+        .Trial<IRecommendationEngine>(t => t
             .UsingStickyRouting()
-            .AddDefaultTrial<PopularityRecommendationEngine>("control")
-            .AddTrial<MLRecommendationEngine>("ml")
-            .AddTrial<CollaborativeRecommendationEngine>("collaborative"))
-        .Define<ICheckoutFlow>(c => c
+            .AddControl<PopularityRecommendationEngine>("control")
+            .AddVariant<MLRecommendationEngine>("ml")
+            .AddVariant<CollaborativeRecommendationEngine>("collaborative"))
+        .Trial<ICheckoutFlow>(t => t
             .UsingFeatureFlag("EnableExpressCheckout")
-            .AddDefaultTrial<StandardCheckoutFlow>("false")
-            .AddTrial<ExpressCheckoutFlow>("true"))
+            .AddControl<StandardCheckoutFlow>("false")
+            .AddVariant<ExpressCheckoutFlow>("true"))
         .UseSourceGenerators(); // Triggers compile-time proxy generation!
 }
 ```

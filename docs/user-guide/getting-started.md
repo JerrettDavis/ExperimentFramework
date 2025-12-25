@@ -132,11 +132,11 @@ Add a method with the `[ExperimentCompositionRoot]` attribute:
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IDatabase>(experiment => experiment
+        .Trial<IDatabase>(trial => trial
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDatabase>("false")
-            .AddTrial<CloudDatabase>("true")
-            .OnErrorRedirectAndReplayDefault());
+            .AddControl<LocalDatabase>()
+            .AddCondition<CloudDatabase>("true")
+            .OnErrorFallbackToControl());
 }
 
 // Register the experiment framework
@@ -152,11 +152,11 @@ The `[ExperimentCompositionRoot]` attribute triggers source generation at compil
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IDatabase>(experiment => experiment
+        .Trial<IDatabase>(trial => trial
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDatabase>("false")
-            .AddTrial<CloudDatabase>("true")
-            .OnErrorRedirectAndReplayDefault())
+            .AddControl<LocalDatabase>()
+            .AddCondition<CloudDatabase>("true")
+            .OnErrorFallbackToControl())
         .UseDispatchProxy(); // Use runtime proxies
 }
 
@@ -168,11 +168,11 @@ builder.Services.AddExperimentFramework(experiments);
 **What this code does:**
 
 - `ExperimentFrameworkBuilder.Create()` creates a new builder
-- `.Define<IDatabase>()` specifies we're experimenting on the IDatabase interface
+- `.Trial<IDatabase>()` defines a trial for the IDatabase interface
 - `.UsingFeatureFlag("UseCloudDb")` means the selection is based on a boolean feature flag
-- `.AddDefaultTrial<LocalDatabase>("false")` sets LocalDatabase as the default (used when flag is off)
-- `.AddTrial<CloudDatabase>("true")` sets CloudDatabase as the trial (used when flag is on)
-- `.OnErrorRedirectAndReplayDefault()` means if CloudDatabase throws, fall back to LocalDatabase
+- `.AddControl<LocalDatabase>()` sets LocalDatabase as the control (stable baseline)
+- `.AddCondition<CloudDatabase>("true")` adds CloudDatabase as a condition (experimental)
+- `.OnErrorFallbackToControl()` means if CloudDatabase throws, fall back to LocalDatabase
 - `[ExperimentCompositionRoot]` or `.UseDispatchProxy()` determines which proxy mode to use
 
 ### Step 5: Configure the Feature Flag
@@ -246,11 +246,11 @@ builder.Services.AddScoped<IDatabase, LocalDatabase>();
 
 // Define experiment
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(experiment => experiment
+    .Trial<IDatabase>(trial => trial
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<LocalDatabase>()
+        .AddCondition<CloudDatabase>("true")
+        .OnErrorFallbackToControl());
 
 builder.Services.AddExperimentFramework(experiments);
 
@@ -336,11 +336,11 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(logging => logging
         .AddBenchmarks()
         .AddErrorLogging())
-    .Define<IDatabase>(experiment => experiment
+    .Trial<IDatabase>(trial => trial
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<LocalDatabase>()
+        .AddCondition<CloudDatabase>("true")
+        .OnErrorFallbackToControl());
 ```
 
 Now when you run the application, you'll see additional logs showing trial selection and timing:

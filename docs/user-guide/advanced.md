@@ -4,7 +4,7 @@ This guide covers advanced patterns and techniques for customizing and extending
 
 ## Custom Decorators
 
-Decorators provide cross-cutting concerns without modifying trial implementations. You can create custom decorators to add functionality like caching, retry logic, or custom telemetry.
+Decorators provide cross-cutting concerns without modifying condition implementations. You can create custom decorators to add functionality like caching, retry logic, or custom telemetry.
 
 ### Implementing IExperimentDecorator
 
@@ -27,7 +27,7 @@ public sealed class InvocationContext
     public Type ServiceType { get; }
     public string MethodName { get; }
     public object?[] Arguments { get; }
-    public string TrialKey { get; }
+    public string ConditionKey { get; }
 }
 ```
 
@@ -68,7 +68,7 @@ public class CachingDecorator : IExperimentDecorator
     private static string BuildCacheKey(InvocationContext context)
     {
         var argsHash = string.Join(",", context.Arguments.Select(a => a?.GetHashCode() ?? 0));
-        return $"{context.ServiceType.Name}:{context.MethodName}:{context.TrialKey}:{argsHash}";
+        return $"{context.ServiceType.Name}:{context.MethodName}:{context.ConditionKey}:{argsHash}";
     }
 }
 ```
@@ -100,10 +100,10 @@ Register the decorator:
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .AddDecoratorFactory(new CachingDecoratorFactory(TimeSpan.FromMinutes(5)))
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"));
+        .AddControl<LocalDatabase>("false")
+        .AddCondition<CloudDatabase>("true"));
 
 services.AddMemoryCache();
 services.AddExperimentFramework(experiments);
@@ -228,10 +228,10 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .AddDecoratorFactory(new RetryFactory())           // Second: Retry if needed
     .AddDecoratorFactory(new CachingFactory())         // Third: Cache successful results
     .AddLogger(l => l.AddBenchmarks())                 // Fourth: Measure total time
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"));
+        .AddControl<LocalDatabase>("false")
+        .AddCondition<CloudDatabase>("true"));
 ```
 
 Execution flow:
@@ -242,12 +242,12 @@ Request
       └─ Retry (handles transient failures)
           └─ Caching (checks cache, stores result)
               └─ Benchmark (measures time)
-                  └─ Trial Execution
+                  └─ Condition Execution
 ```
 
 ## Request-Scoped Consistency
 
-Ensuring consistent trial selection within a request scope is critical for correctness.
+Ensuring consistent condition selection within a request scope is critical for correctness.
 
 ### Using IFeatureManagerSnapshot
 
@@ -284,14 +284,14 @@ services.AddScoped<OrderService>();
 services.AddFeatureManagement();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"))
-    .Define<IPaymentProcessor>(c => c
+        .AddControl<LocalDatabase>("false")
+        .AddCondition<CloudDatabase>("true"))
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPayment")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true"));
+        .AddControl<StripePayment>("false")
+        .AddCondition<NewPaymentProvider>("true"));
 
 services.AddExperimentFramework(experiments);
 ```
@@ -433,7 +433,7 @@ public class TenantUserIdentityProvider : IExperimentIdentityProvider
 }
 ```
 
-This ensures users in different tenants can receive different trial assignments.
+This ensures users in different tenants can receive different condition assignments.
 
 ## Performance Considerations
 
@@ -448,10 +448,10 @@ The framework is designed for minimal overhead, but you can optimize further:
 services.AddSingleton<ICache, InMemoryCache>();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<ICache>(c => c
+    .Trial<ICache>(t => t
         .UsingFeatureFlag("UseRedisCache")
-        .AddDefaultTrial<InMemoryCache>("false")
-        .AddTrial<RedisCache>("true"));
+        .AddControl<InMemoryCache>("false")
+        .AddCondition<RedisCache>("true"));
 ```
 
 **Disable Telemetry in Production**
@@ -485,10 +485,10 @@ public class ExperimentBenchmark
         services.AddScoped<CloudDatabase>();
 
         var experiments = ExperimentFrameworkBuilder.Create()
-            .Define<IDatabase>(c => c
+            .Trial<IDatabase>(t => t
                 .UsingFeatureFlag("UseCloudDb")
-                .AddDefaultTrial<LocalDatabase>("false")
-                .AddTrial<CloudDatabase>("true"));
+                .AddControl<LocalDatabase>("false")
+                .AddCondition<CloudDatabase>("true"));
 
         services.AddExperimentFramework(experiments);
         _serviceProvider = services.BuildServiceProvider();
@@ -532,10 +532,10 @@ public class OrderServiceTests
         services.AddScoped<OrderService>();
 
         var experiments = ExperimentFrameworkBuilder.Create()
-            .Define<IDatabase>(c => c
+            .Trial<IDatabase>(t => t
                 .UsingFeatureFlag("UseCloudDb")
-                .AddDefaultTrial<LocalDatabase>("false")
-                .AddTrial<CloudDatabase>("true"));
+                .AddControl<LocalDatabase>("false")
+                .AddCondition<CloudDatabase>("true"));
 
         services.AddExperimentFramework(experiments);
 
@@ -561,7 +561,7 @@ For sticky routing tests:
 public class StickyRoutingTests
 {
     [Fact]
-    public async Task StickyRouting_assigns_same_user_to_same_trial()
+    public async Task StickyRouting_assigns_same_user_to_same_condition()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -572,10 +572,10 @@ public class StickyRoutingTests
         services.AddScoped<CollaborativeFiltering>();
 
         var experiments = ExperimentFrameworkBuilder.Create()
-            .Define<IRecommendationEngine>(c => c
+            .Trial<IRecommendationEngine>(t => t
                 .UsingStickyRouting("RecommendationExperiment")
-                .AddDefaultTrial<ContentBased>("control")
-                .AddTrial<CollaborativeFiltering>("variant-a"));
+                .AddControl<ContentBased>("control")
+                .AddVariant<CollaborativeFiltering>("variant-a"));
 
         services.AddExperimentFramework(experiments);
 
@@ -617,9 +617,9 @@ public class StickyRoutingTests
 }
 ```
 
-### Testing Trial Implementations Directly
+### Testing Condition Implementations Directly
 
-Test trial implementations independently of the framework:
+Test condition implementations independently of the framework:
 
 ```csharp
 public class CloudDatabaseTests
@@ -668,10 +668,10 @@ public class DatadogExperimentTelemetry : IExperimentTelemetry
         Type serviceType,
         string methodName,
         string selectorName,
-        string trialKey,
+        string conditionKey,
         IReadOnlyList<string> candidateKeys)
     {
-        return new DatadogScope(_metrics, serviceType, methodName, trialKey);
+        return new DatadogScope(_metrics, serviceType, methodName, conditionKey);
     }
 
     private class DatadogScope : IExperimentTelemetryScope
@@ -679,16 +679,16 @@ public class DatadogExperimentTelemetry : IExperimentTelemetry
         private readonly IMetrics _metrics;
         private readonly Type _serviceType;
         private readonly string _methodName;
-        private readonly string _trialKey;
+        private readonly string _conditionKey;
         private readonly long _startTimestamp;
         private string _outcome = "success";
 
-        public DatadogScope(IMetrics metrics, Type serviceType, string methodName, string trialKey)
+        public DatadogScope(IMetrics metrics, Type serviceType, string methodName, string conditionKey)
         {
             _metrics = metrics;
             _serviceType = serviceType;
             _methodName = methodName;
-            _trialKey = trialKey;
+            _conditionKey = conditionKey;
             _startTimestamp = Stopwatch.GetTimestamp();
         }
 
@@ -705,7 +705,7 @@ public class DatadogExperimentTelemetry : IExperimentTelemetry
         public void RecordFallback(string fallbackKey)
         {
             _metrics.Increment("experiment.fallback",
-                tags: new[] { $"service:{_serviceType.Name}", $"trial:{_trialKey}" });
+                tags: new[] { $"service:{_serviceType.Name}", $"condition:{_conditionKey}" });
         }
 
         public void RecordVariant(string variantName, string variantSource)
@@ -722,7 +722,7 @@ public class DatadogExperimentTelemetry : IExperimentTelemetry
                 {
                     $"service:{_serviceType.Name}",
                     $"method:{_methodName}",
-                    $"trial:{_trialKey}",
+                    $"condition:{_conditionKey}",
                     $"outcome:{_outcome}"
                 });
 
@@ -730,7 +730,7 @@ public class DatadogExperimentTelemetry : IExperimentTelemetry
                 tags: new[]
                 {
                     $"service:{_serviceType.Name}",
-                    $"trial:{_trialKey}",
+                    $"condition:{_conditionKey}",
                     $"outcome:{_outcome}"
                 });
         }

@@ -6,8 +6,8 @@ Track experiment performance with Prometheus or OpenTelemetry metrics to monitor
 
 The metrics system collects:
 
-- **Invocation counts**: How many times each trial is executed
-- **Duration**: How long each trial takes to execute
+- **Invocation counts**: How many times each condition is executed
+- **Duration**: How long each condition takes to execute
 - **Outcomes**: Success vs failure rates
 - **Fallbacks**: How often fallback logic triggers
 
@@ -29,11 +29,11 @@ using ExperimentFramework.Metrics.Exporters;
 var prometheusMetrics = new PrometheusExperimentMetrics();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDb>("false")
-        .AddTrial<CloudDb>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<LocalDb>("false")
+        .AddCondition<CloudDb>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithMetrics(prometheusMetrics)
     .UseDispatchProxy();
 
@@ -75,7 +75,7 @@ experiment_duration_seconds_count{service="IDatabase",trial_key="cloud",method="
 
 **Tags:**
 - `service`: Service interface name (e.g., "IDatabase")
-- `trial_key`: Trial key (e.g., "cloud", "local")
+- `trial_key`: Condition key (e.g., "cloud", "local")
 - `method`: Method name (e.g., "GetDataAsync")
 
 ## OpenTelemetry Exporter
@@ -89,11 +89,11 @@ using OpenTelemetry.Metrics;
 var otelMetrics = new OpenTelemetryExperimentMetrics("ExperimentFramework", "1.0.0");
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDb>("false")
-        .AddTrial<CloudDb>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<LocalDb>("false")
+        .AddCondition<CloudDb>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithMetrics(otelMetrics)
     .UseDispatchProxy();
 
@@ -121,11 +121,11 @@ using OpenTelemetry.Metrics;
 var otelMetrics = new OpenTelemetryExperimentMetrics("ExperimentFramework", "1.0.0");
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDb>("false")
-        .AddTrial<CloudDb>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<LocalDb>("false")
+        .AddCondition<CloudDb>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithMetrics(otelMetrics)
     .UseDispatchProxy();
 
@@ -154,7 +154,7 @@ builder.Services.AddOpenTelemetry()
 ### Success Rate
 
 ```promql
-# Overall success rate per trial
+# Overall success rate per condition
 sum(rate(experiment_success_total[5m])) by (service, trial_key)
 /
 sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
@@ -163,7 +163,7 @@ sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ### Average Latency
 
 ```promql
-# Average latency per trial
+# Average latency per condition
 sum(rate(experiment_duration_seconds_sum[5m])) by (service, trial_key)
 /
 sum(rate(experiment_duration_seconds_count[5m])) by (service, trial_key)
@@ -181,14 +181,14 @@ histogram_quantile(0.95,
 ### Throughput
 
 ```promql
-# Requests per second per trial
+# Requests per second per condition
 sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 ```
 
 ### Error Rate
 
 ```promql
-# Error rate per trial
+# Error rate per condition
 sum(rate(experiment_errors_total[5m])) by (service, trial_key)
 /
 sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
@@ -221,16 +221,16 @@ var prometheusMetrics = new PrometheusExperimentMetrics();
 
 // Configure experiments
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDb>("false")
-        .AddTrial<CloudDb>("true")
-        .OnErrorRedirectAndReplayDefault())
-    .Define<IPaymentGateway>(c => c
+        .AddControl<LocalDb>("false")
+        .AddCondition<CloudDb>("true")
+        .OnErrorRedirectAndReplayControl())
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewPaymentGateway")
-        .AddDefaultTrial<StableGateway>("false")
-        .AddTrial<NewGateway>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<StableGateway>("false")
+        .AddCondition<NewGateway>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithMetrics(prometheusMetrics)
     .WithTimeout(TimeSpan.FromSeconds(5), TimeoutAction.FallbackToDefault)
     .WithCircuitBreaker(options =>
@@ -255,7 +255,7 @@ app.MapGet("/metrics", () =>
 // Health check based on metrics
 app.MapGet("/health", () =>
 {
-    // Could check if cloud trial error rate is acceptable
+    // Could check if cloud condition error rate is acceptable
     return Results.Ok(new { status = "healthy" });
 });
 
@@ -324,11 +324,11 @@ Add metrics from the start of rollout:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IService>(c => c
+    .Trial<IService>(t => t
         .UsingFeatureFlag("UseNewService")
-        .AddDefaultTrial<DefaultService>("false")
-        .AddTrial<NewService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<DefaultService>("false")
+        .AddCondition<NewService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithMetrics(prometheusMetrics)  // Add immediately
     .UseDispatchProxy();
 ```
@@ -381,7 +381,7 @@ Create alerts for:
 Combine experiment metrics with business metrics:
 
 ```promql
-# Conversion rate by trial
+# Conversion rate by condition
 sum(rate(business_conversions_total[5m])) by (service, trial_key)
 /
 sum(rate(business_pageviews_total[5m])) by (service, trial_key)

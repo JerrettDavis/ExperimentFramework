@@ -4,15 +4,15 @@ ExperimentFramework provides built-in error handling strategies to manage failur
 
 ## Error Policies
 
-Error policies determine what happens when a trial throws an exception. The framework supports five policies:
+Error policies determine what happens when a condition throws an exception. The framework supports five policies:
 
 | Policy | Behavior | Use Case |
 |--------|----------|----------|
 | Throw | Propagate the exception immediately | Development, when you want to see failures |
-| RedirectAndReplayDefault | Fall back to default trial on error | Production, safe rollback to stable code |
-| RedirectAndReplayAny | Try all trials until one succeeds | High availability scenarios |
-| RedirectAndReplay | Redirect to specific fallback trial | Dedicated diagnostics/safe-mode handlers |
-| RedirectAndReplayOrdered | Try ordered list of fallback trials | Fine-grained control over fallback strategy |
+| FallbackToControl | Fall back to control on error | Production, safe rollback to stable code |
+| TryAny | Try all conditions until one succeeds | High availability scenarios |
+| FallbackTo | Redirect to specific fallback condition | Dedicated diagnostics/safe-mode handlers |
+| TryInOrder | Try ordered list of fallback conditions | Fine-grained control over fallback strategy |
 
 ## Throw Policy (Default)
 
@@ -22,17 +22,17 @@ The throw policy propagates exceptions immediately without attempting fallback.
 
 - Development and testing environments
 - When you need to see and diagnose failures quickly
-- When trial failures should stop request processing
+- When condition failures should stop request processing
 
 ### Configuration
 
 Throw is the default policy if no policy is specified:
 
 ```csharp
-.Define<IPaymentProcessor>(c => c
+.Trial<IPaymentProcessor>(t => t
     .UsingFeatureFlag("UseNewPaymentProvider")
-    .AddDefaultTrial<StripePayment>("false")
-    .AddTrial<NewPaymentProvider>("true"))
+    .AddControl<StripePayment>("false")
+    .AddVariant<NewPaymentProvider>("true"))
     // No error policy specified - uses Throw by default
 ```
 
@@ -44,7 +44,7 @@ Or explicitly:
 
 ### Behavior
 
-When a trial throws an exception:
+When a condition throws an exception:
 
 ```csharp
 public class NewPaymentProvider : IPaymentProcessor
@@ -70,30 +70,30 @@ catch (PaymentException ex)
 }
 ```
 
-## RedirectAndReplayDefault Policy
+## FallbackToControl Policy
 
-The redirect-and-replay-default policy catches exceptions from the selected trial and falls back to the default trial.
+The fallback-to-control policy catches exceptions from the selected condition and falls back to the control.
 
 ### When to Use
 
 - Production environments
 - When you want to test new implementations with automatic rollback
-- When the default implementation is known to be stable
+- When the control implementation is known to be stable
 - When partial availability is better than complete failure
 
 ### Configuration
 
 ```csharp
-.Define<IPaymentProcessor>(c => c
+.Trial<IPaymentProcessor>(t => t
     .UsingFeatureFlag("UseNewPaymentProvider")
-    .AddDefaultTrial<StripePayment>("false")
-    .AddTrial<NewPaymentProvider>("true")
-    .OnErrorRedirectAndReplayDefault())
+    .AddControl<StripePayment>("false")
+    .AddVariant<NewPaymentProvider>("true")
+    .OnErrorFallbackToControl())
 ```
 
 ### Behavior
 
-When the selected trial throws:
+When the selected condition throws:
 
 ```
 1. Try NewPaymentProvider
@@ -101,7 +101,7 @@ When the selected trial throws:
 
 2. Catch exception
 
-3. Try StripePayment (default trial)
+3. Try StripePayment (control)
    └─ Succeeds
 
 4. Return result
@@ -115,7 +115,7 @@ var result = await paymentProcessor.ChargeAsync(100m);
 
 // If NewPaymentProvider throws, framework automatically:
 // 1. Catches the exception
-// 2. Switches to StripePayment (default)
+// 2. Switches to StripePayment (control)
 // 3. Retries the operation
 // 4. Returns the result from StripePayment
 
@@ -129,11 +129,11 @@ Use the error logging decorator to track when fallback occurs:
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l.AddErrorLogging())
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPaymentProvider")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true")
+        .OnErrorFallbackToControl());
 ```
 
 Logged output when fallback occurs:
@@ -147,7 +147,7 @@ error: ExperimentFramework.ErrorLogging[0]
 
 ### Avoiding Retry Storms
 
-Be cautious when the default trial can also fail:
+Be cautious when the control can also fail:
 
 ```csharp
 public class StripePayment : IPaymentProcessor
@@ -160,17 +160,17 @@ public class StripePayment : IPaymentProcessor
 }
 ```
 
-In this case, both trials fail and the exception propagates:
+In this case, both conditions fail and the exception propagates:
 
 ```
 1. Try NewPaymentProvider -> Throws
-2. Try StripePayment (default) -> Throws
+2. Try StripePayment (control) -> Throws
 3. Propagate exception to caller
 ```
 
-## RedirectAndReplayAny Policy
+## TryAny Policy
 
-The redirect-and-replay-any policy tries all registered trials in sequence until one succeeds.
+The try-any policy tries all registered conditions in sequence until one succeeds.
 
 ### When to Use
 
@@ -182,17 +182,17 @@ The redirect-and-replay-any policy tries all registered trials in sequence until
 ### Configuration
 
 ```csharp
-.Define<ICache>(c => c
+.Trial<ICache>(t => t
     .UsingConfigurationKey("Cache:Provider")
-    .AddDefaultTrial<InMemoryCache>("")
-    .AddTrial<RedisCache>("redis")
-    .AddTrial<MemcachedCache>("memcached")
-    .OnErrorRedirectAndReplayAny())
+    .AddControl<InMemoryCache>("")
+    .AddVariant<RedisCache>("redis")
+    .AddVariant<MemcachedCache>("memcached")
+    .OnErrorTryAny())
 ```
 
 ### Behavior
 
-When a trial throws, the framework tries the next available trial:
+When a condition throws, the framework tries the next available condition:
 
 ```
 1. Try RedisCache (selected by configuration)
@@ -201,19 +201,19 @@ When a trial throws, the framework tries the next available trial:
 2. Try MemcachedCache
    └─ Throws ConnectionException
 
-3. Try InMemoryCache (default)
+3. Try InMemoryCache (control)
    └─ Succeeds
 
 4. Return result
 ```
 
-### Trial Order
+### Condition Order
 
-Trials are attempted in this order:
+Conditions are attempted in this order:
 
-1. Selected trial (based on selection mode)
-2. Other non-default trials (order unspecified)
-3. Default trial (always last)
+1. Selected condition (based on selection mode)
+2. Other non-control conditions (order unspecified)
+3. Control (always last)
 
 ### Example Scenario
 
@@ -271,9 +271,9 @@ var value = await cache.GetAsync<string>("user:123");
 // No exception is thrown
 ```
 
-### When All Trials Fail
+### When All Conditions Fail
 
-If all trials throw exceptions, the last exception is propagated:
+If all conditions throw exceptions, the last exception is propagated:
 
 ```csharp
 public class InMemoryCache : ICache
@@ -295,31 +295,31 @@ Result:
 4. Propagate OutOfMemoryException to caller
 ```
 
-## RedirectAndReplay Policy
+## FallbackTo Policy
 
-The redirect-and-replay policy redirects to a specific fallback trial (e.g., a Noop diagnostics handler) when the selected trial fails.
+The fallback-to policy redirects to a specific fallback condition (e.g., a Noop diagnostics handler) when the selected condition fails.
 
 ### When to Use
 
 - When you need a dedicated safe-mode or diagnostics handler
-- When you want fine-grained control over which trial handles failures
-- When the fallback trial should differ from the default trial
+- When you want fine-grained control over which condition handles failures
+- When the fallback condition should differ from the control
 - Circuit breaker patterns with specific fallback logic
 
 ### Configuration
 
 ```csharp
-.Define<IDiagnosticsHandler>(c => c
+.Trial<IDiagnosticsHandler>(t => t
     .UsingFeatureFlag("UsePrimaryDiagnostics")
-    .AddDefaultTrial<PrimaryDiagnosticsHandler>("true")
-    .AddTrial<SecondaryDiagnosticsHandler>("false")
-    .AddTrial<NoopDiagnosticsHandler>("noop")
-    .OnErrorRedirectAndReplay("noop"))
+    .AddControl<PrimaryDiagnosticsHandler>("true")
+    .AddVariant<SecondaryDiagnosticsHandler>("false")
+    .AddVariant<NoopDiagnosticsHandler>("noop")
+    .OnErrorFallbackTo("noop"))
 ```
 
 ### Behavior
 
-When the selected trial throws, the framework redirects to the specified fallback trial:
+When the selected condition throws, the framework redirects to the specified fallback condition:
 
 ```
 1. Try PrimaryDiagnosticsHandler (selected by feature flag)
@@ -367,9 +367,9 @@ await diagnosticsHandler.CollectDiagnosticsAsync();
 // No exception is thrown
 ```
 
-### When Fallback Trial Also Fails
+### When Fallback Condition Also Fails
 
-If the specified fallback trial also throws, the exception propagates:
+If the specified fallback condition also throws, the exception propagates:
 
 ```
 1. Try PrimaryDiagnosticsHandler -> Throws TimeoutException
@@ -377,9 +377,9 @@ If the specified fallback trial also throws, the exception propagates:
 3. Propagate InvalidOperationException to caller
 ```
 
-## RedirectAndReplayOrdered Policy
+## TryInOrder Policy
 
-The redirect-and-replay-ordered policy tries an ordered list of fallback trials in exact sequence until one succeeds.
+The try-in-order policy tries an ordered list of fallback conditions in exact sequence until one succeeds.
 
 ### When to Use
 
@@ -391,18 +391,18 @@ The redirect-and-replay-ordered policy tries an ordered list of fallback trials 
 ### Configuration
 
 ```csharp
-.Define<IDataService>(c => c
+.Trial<IDataService>(t => t
     .UsingFeatureFlag("UseCloudDatabase")
-    .AddDefaultTrial<CloudDatabaseImpl>("true")
-    .AddTrial<LocalCacheImpl>("cache")
-    .AddTrial<InMemoryCacheImpl>("memory")
-    .AddTrial<StaticDataImpl>("static")
-    .OnErrorRedirectAndReplayOrdered("cache", "memory", "static"))
+    .AddControl<CloudDatabaseImpl>("true")
+    .AddVariant<LocalCacheImpl>("cache")
+    .AddVariant<InMemoryCacheImpl>("memory")
+    .AddVariant<StaticDataImpl>("static")
+    .OnErrorTryInOrder("cache", "memory", "static"))
 ```
 
 ### Behavior
 
-When a trial throws, the framework tries the fallback trials in exact order:
+When a condition throws, the framework tries the fallback conditions in exact order:
 
 ```
 1. Try CloudDatabaseImpl (selected by feature flag)
@@ -417,7 +417,7 @@ When a trial throws, the framework tries the fallback trials in exact order:
 4. Return result
 ```
 
-The framework stops at the first successful trial and doesn't try remaining fallbacks.
+The framework stops at the first successful condition and doesn't try remaining fallbacks.
 
 ### Example Scenario
 
@@ -491,18 +491,18 @@ var customerData = await dataService.GetCustomerDataAsync(123);
 // Caller receives result from InMemoryCache
 ```
 
-### Trial Order Rules
+### Condition Order Rules
 
-The framework tries trials in this exact order:
+The framework tries conditions in this exact order:
 
-1. **Selected trial** (based on selection mode) - tried first
+1. **Selected condition** (based on selection mode) - tried first
 2. **Ordered fallback keys** (in the order you specify) - tried in sequence
-3. **Fallback keys are skipped if they match the selected trial** - prevents duplicate attempts
+3. **Fallback keys are skipped if they match the selected condition** - prevents duplicate attempts
 
 Example:
 
 ```csharp
-.OnErrorRedirectAndReplayOrdered("cache", "memory", "static")
+.OnErrorTryInOrder("cache", "memory", "static")
 ```
 
 If feature flag selects `"memory"`, the order becomes:
@@ -512,11 +512,11 @@ If feature flag selects `"memory"`, the order becomes:
 3. Try "static" (second fallback, not already tried)
 ```
 
-The selected trial is never retried even if it appears in the fallback list.
+The selected condition is never retried even if it appears in the fallback list.
 
-### When All Trials Fail
+### When All Conditions Fail
 
-If all trials in the ordered sequence throw exceptions, the last exception propagates:
+If all conditions in the ordered sequence throw exceptions, the last exception propagates:
 
 ```
 1. Try CloudDatabaseImpl -> Throws ConnectionException
@@ -534,9 +534,9 @@ Each fallback attempt incurs the cost of:
 - Method invocation overhead
 
 For performance-critical paths, consider:
-- Keeping the fallback list short (2-3 trials max)
+- Keeping the fallback list short (2-3 conditions max)
 - Using fast-fail implementations that fail quickly
-- Monitoring fallback rates to identify problematic trials
+- Monitoring fallback rates to identify problematic conditions
 
 ## Error Logging Decorator
 
@@ -547,11 +547,11 @@ The error logging decorator logs exceptions before they propagate or trigger fal
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l.AddErrorLogging())
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPaymentProvider")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true")
+        .OnErrorFallbackToControl());
 ```
 
 ### Logged Information
@@ -570,7 +570,7 @@ The log includes:
 
 - Service interface name
 - Method name
-- Trial key that failed
+- Condition key that failed
 - Full exception with stack trace
 
 ## Choosing an Error Policy
@@ -582,29 +582,29 @@ Is this production?
 ├─ No (Development/Testing):
 │   └─ Use Throw (see failures immediately)
 └─ Yes (Production):
-    └─ Do you have a stable default implementation?
+    └─ Do you have a stable control implementation?
         ├─ Yes:
-        │   └─ Use RedirectAndReplayDefault
+        │   └─ Use FallbackToControl
         └─ No:
             └─ Do you have multiple fallback options?
-                ├─ Yes: Use RedirectAndReplayAny
+                ├─ Yes: Use TryAny
                 └─ No: Use Throw (and handle in application code)
 ```
 
 ## Best Practices
 
-### 1. Always Have a Stable Default
+### 1. Always Have a Stable Control
 
-The default trial should be your most reliable implementation:
+The control should be your most reliable implementation:
 
 ```csharp
-// Good: Stable implementation as default
-.AddDefaultTrial<ProvenPaymentProvider>("default")
-.AddTrial<NewExperimentalProvider>("experimental")
+// Good: Stable implementation as control
+.AddControl<ProvenPaymentProvider>("default")
+.AddVariant<NewExperimentalProvider>("experimental")
 
-// Bad: Experimental implementation as default
-.AddDefaultTrial<ExperimentalProvider>("default")
-.AddTrial<ProvenProvider>("proven")
+// Bad: Experimental implementation as control
+.AddControl<ExperimentalProvider>("default")
+.AddVariant<ProvenProvider>("proven")
 ```
 
 ### 2. Use Error Logging
@@ -616,16 +616,16 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l
         .AddBenchmarks()
         .AddErrorLogging())  // Track when failures occur
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPaymentProvider")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true")
+        .OnErrorFallbackToControl());
 ```
 
 ### 3. Monitor Fallback Rates
 
-Track how often fallback occurs to identify problematic trials:
+Track how often fallback occurs to identify problematic conditions:
 
 ```csharp
 public class MetricsDecorator : IExperimentDecorator
@@ -649,9 +649,9 @@ public class MetricsDecorator : IExperimentDecorator
 }
 ```
 
-### 4. Avoid Side Effects in Failing Trials
+### 4. Avoid Side Effects in Failing Conditions
 
-Ensure trials don't perform irreversible operations before failing:
+Ensure conditions don't perform irreversible operations before failing:
 
 ```csharp
 // Bad: Side effect before failure
@@ -672,7 +672,7 @@ public async Task ProcessPaymentAsync(Payment payment)
 
 ### 5. Consider Idempotency
 
-When using RedirectAndReplayAny, ensure operations are idempotent:
+When using TryAny, ensure operations are idempotent:
 
 ```csharp
 public async Task SendEmailAsync(Email email)
@@ -699,11 +699,11 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l
         .AddBenchmarks()
         .AddErrorLogging())
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPaymentProvider")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true")
+        .OnErrorFallbackToControl());
 
 services.AddExperimentFramework(experiments);
 services.AddOpenTelemetryExperimentTracking();
@@ -711,10 +711,10 @@ services.AddOpenTelemetryExperimentTracking();
 
 This provides:
 
-- Error logs when trials fail
+- Error logs when conditions fail
 - Timing metrics for successful and failed attempts
 - Distributed traces showing fallback paths
-- Telemetry tags indicating which trial was attempted and which succeeded
+- Telemetry tags indicating which condition was attempted and which succeeded
 
 ## Next Steps
 

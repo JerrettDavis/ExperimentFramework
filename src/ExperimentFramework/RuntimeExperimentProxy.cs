@@ -1,4 +1,5 @@
 using System.Reflection;
+using ExperimentFramework.Activation;
 using ExperimentFramework.Decorators;
 using ExperimentFramework.Models;
 using ExperimentFramework.Telemetry;
@@ -277,7 +278,15 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
     }
 
     private string SelectTrialKey(IServiceProvider sp)
-        => _registration!.Mode switch
+    {
+        // Check if the trial is active based on time bounds and predicates
+        // If not active, immediately return the control (default) key
+        if (!IsTrialActive(sp))
+        {
+            return _registration!.DefaultKey;
+        }
+
+        return _registration!.Mode switch
         {
             SelectionMode.BooleanFeatureFlag => SelectBooleanFeatureFlag(sp),
             SelectionMode.ConfigurationValue => SelectConfigurationValue(sp),
@@ -286,6 +295,24 @@ internal class RuntimeExperimentProxy<TService> : DispatchProxy
             SelectionMode.OpenFeature => SelectOpenFeature(sp),
             _ => _registration.DefaultKey
         };
+    }
+
+    private bool IsTrialActive(IServiceProvider sp)
+    {
+        // If no activation constraints, the trial is always active
+        if (_registration!.StartTime == null &&
+            _registration.EndTime == null &&
+            _registration.ActivationPredicate == null)
+        {
+            return true;
+        }
+
+        // Get or create the time provider
+        var timeProvider = sp.GetService<IExperimentTimeProvider>() ?? SystemTimeProvider.Instance;
+        var evaluator = new ActivationEvaluator(timeProvider, sp);
+
+        return evaluator.IsActive(_registration);
+    }
 
     private string SelectBooleanFeatureFlag(IServiceProvider sp)
     {

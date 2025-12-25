@@ -1,14 +1,14 @@
 # Kill Switch
 
-Kill switch provides manual control to immediately disable problematic experiments or trials without code deployment. Use it for emergency shutdowns when automated circuit breakers aren't fast enough or when you need explicit control.
+Kill switch provides manual control to immediately disable problematic experiments or conditions without code deployment. Use it for emergency shutdowns when automated circuit breakers aren't fast enough or when you need explicit control.
 
 ## Overview
 
 Kill switch enables:
 
 - **Emergency shutdown**: Instantly disable failing experiments
-- **Surgical control**: Disable specific trials while keeping others running
-- **Gradual rollback**: Disable trials incrementally during issues
+- **Surgical control**: Disable specific conditions while keeping others running
+- **Gradual rollback**: Disable conditions incrementally during issues
 - **Manual override**: Take control when automation isn't appropriate
 
 ## Installation
@@ -23,10 +23,10 @@ using ExperimentFramework.KillSwitch;
 var killSwitch = new InMemoryKillSwitchProvider();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDb>("false")
-        .AddTrial<CloudDb>("true")
+        .AddControl<LocalDb>("false")
+        .AddVariant<CloudDb>("true")
         .OnErrorRedirectAndReplayDefault())
     .WithKillSwitch(killSwitch)
     .UseDispatchProxy();
@@ -41,7 +41,7 @@ builder.Services.AddSingleton<IKillSwitchProvider>(killSwitch);
 
 ### Disable Entire Experiment
 
-Disables all trials, throws `ExperimentDisabledException`:
+Disables all conditions, throws `ExperimentDisabledException`:
 
 ```csharp
 killSwitch.DisableExperiment(typeof(IDatabase));
@@ -50,21 +50,21 @@ killSwitch.DisableExperiment(typeof(IDatabase));
 await database.GetDataAsync(); // Throws
 ```
 
-### Disable Specific Trial
+### Disable Specific Condition
 
-Disables one trial, falls back according to error policy:
+Disables one condition, falls back according to error policy:
 
 ```csharp
 killSwitch.DisableTrial(typeof(IDatabase), "cloud");
 
-// Calls to "cloud" trial fall back to default
+// Calls to "cloud" condition fall back to control
 // (if OnErrorRedirectAndReplayDefault is configured)
 ```
 
 ### Re-enable
 
 ```csharp
-// Re-enable specific trial
+// Re-enable specific condition
 killSwitch.EnableTrial(typeof(IDatabase), "cloud");
 
 // Re-enable entire experiment
@@ -75,7 +75,7 @@ killSwitch.EnableExperiment(typeof(IDatabase));
 
 ```csharp
 bool isDisabled = killSwitch.IsExperimentDisabled(typeof(IDatabase));
-bool isTrialDisabled = killSwitch.IsTrialDisabled(typeof(IDatabase), "cloud");
+bool isConditionDisabled = killSwitch.IsTrialDisabled(typeof(IDatabase), "cloud");
 ```
 
 ## Admin API
@@ -107,7 +107,7 @@ app.MapPost("/admin/experiments/disable", (
 })
 .RequireAuthorization("Admin");
 
-// Disable specific trial
+// Disable specific condition
 app.MapPost("/admin/experiments/disable-trial", (
     [FromQuery] string experimentName,
     [FromQuery] string trialKey,
@@ -117,7 +117,7 @@ app.MapPost("/admin/experiments/disable-trial", (
         return Results.NotFound($"Experiment '{experimentName}' not found");
 
     killSwitch.DisableTrial(type, trialKey);
-    return Results.Ok($"Trial '{trialKey}' of {experimentName} disabled");
+    return Results.Ok($"Condition '{trialKey}' of {experimentName} disabled");
 })
 .RequireAuthorization("Admin");
 
@@ -159,7 +159,7 @@ app.MapGet("/admin/experiments/status", (
 ### Usage
 
 ```bash
-# Disable cloud trial
+# Disable cloud condition
 curl -X POST "https://api.example.com/admin/experiments/disable-trial?experimentName=IDatabase&trialKey=cloud" \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 
@@ -245,7 +245,7 @@ var killSwitch = builder.Services.BuildServiceProvider()
     .GetRequiredService<IKillSwitchProvider>();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c.UsingFeatureFlag("UseCloudDb")...)
+    .Trial<IDatabase>(t => t.UsingFeatureFlag("UseCloudDb")...)
     .WithKillSwitch(killSwitch)
     .UseDispatchProxy();
 
@@ -260,10 +260,10 @@ Use both for defense in depth:
 var killSwitch = new InMemoryKillSwitchProvider();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentGateway>(c => c
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewGateway")
-        .AddDefaultTrial<StableGateway>("false")
-        .AddTrial<NewGateway>("true")
+        .AddControl<StableGateway>("false")
+        .AddVariant<NewGateway>("true")
         .OnErrorRedirectAndReplayDefault())
     .WithCircuitBreaker(options =>
     {
@@ -279,10 +279,10 @@ var experiments = ExperimentFrameworkBuilder.Create()
 1. Kill switch checks first (fastest)
 2. If not killed, circuit breaker evaluates
 3. If circuit open, falls back
-4. If circuit closed, executes trial
+4. If circuit closed, executes condition
 
 **When to use each:**
-- **Circuit breaker**: Automatic protection against failing trials
+- **Circuit breaker**: Automatic protection against failing conditions
 - **Kill switch**: Manual intervention when automation insufficient
 
 ## Real-World Example
@@ -298,10 +298,10 @@ var killSwitch = new InMemoryKillSwitchProvider();
 var metrics = new PrometheusExperimentMetrics();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentGateway>(c => c
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewPaymentGateway")
-        .AddDefaultTrial<StableGateway>("false")
-        .AddTrial<NewGateway>("true")
+        .AddControl<StableGateway>("false")
+        .AddVariant<NewGateway>("true")
         .OnErrorRedirectAndReplayDefault())
     .WithCircuitBreaker(options =>
     {
@@ -385,7 +385,7 @@ app.MapPost("/admin/experiments/disable-trial", (
     killSwitch.DisableTrial(type, trialKey);
 
     logger.LogWarning(
-        "Kill switch activated: User {User} disabled trial {Trial} of {Experiment}",
+        "Kill switch activated: User {User} disabled condition {Condition} of {Experiment}",
         user, trialKey, experimentName);
 
     return Results.Ok();
@@ -417,7 +417,7 @@ Document when to use kill switch:
 - Error rate > 10% and increasing
 - Circuit breaker not opening fast enough
 - Security incident involving experiment
-- Data corruption from experimental trial
+- Data corruption from experimental condition
 
 ## How to Use
 1. Verify metrics confirm issue
@@ -438,15 +438,15 @@ Verify it works before you need it:
 
 ```csharp
 [Fact]
-public async Task KillSwitch_DisablesTrial()
+public async Task KillSwitch_DisablesCondition()
 {
     // Arrange
     var killSwitch = new InMemoryKillSwitchProvider();
     var experiments = ExperimentFrameworkBuilder.Create()
-        .Define<IDatabase>(c => c
+        .Trial<IDatabase>(t => t
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDb>("false")
-            .AddTrial<CloudDb>("true")
+            .AddControl<LocalDb>("false")
+            .AddVariant<CloudDb>("true")
             .OnErrorRedirectAndReplayDefault())
         .WithKillSwitch(killSwitch)
         .UseDispatchProxy();
@@ -454,7 +454,7 @@ public async Task KillSwitch_DisablesTrial()
     // Act
     killSwitch.DisableTrial(typeof(IDatabase), "true");
 
-    // Assert - falls back to default
+    // Assert - falls back to control
     var result = await database.GetDataAsync();
     Assert.Equal("Local", result.Source);
 }
@@ -492,12 +492,12 @@ app.MapPost("/admin/experiments/disable-trial", (
 
 ### Kill Switch Not Working
 
-**Symptom**: Trial still executes after disabling.
+**Symptom**: Condition still executes after disabling.
 
 **Solutions:**
 1. Verify same `IKillSwitchProvider` instance used in experiments and admin API
 2. Check `WithKillSwitch()` called before `UseDispatchProxy()`
-3. Ensure correct service type and trial key (case-sensitive)
+3. Ensure correct service type and condition key (case-sensitive)
 4. For distributed: verify Redis connection
 
 ### Experiment Stays Disabled

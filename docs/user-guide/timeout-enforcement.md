@@ -1,13 +1,13 @@
 # Timeout Enforcement
 
-Timeout enforcement prevents slow trials from degrading system performance by limiting how long a trial can execute before either throwing an exception or falling back to a default implementation.
+Timeout enforcement prevents slow conditions from degrading system performance by limiting how long a condition can execute before either throwing an exception or falling back to a control implementation.
 
 ## Overview
 
-When a trial takes longer than the configured timeout, the framework can:
+When a condition takes longer than the configured timeout, the framework can:
 
 1. **Throw Exception**: Fail fast with a `TimeoutException`
-2. **Fallback to Default**: Automatically redirect to the default trial
+2. **Fallback to Control**: Automatically redirect to the control condition
 
 This is particularly useful when:
 - Testing new external APIs or services that may be slow
@@ -18,11 +18,11 @@ This is particularly useful when:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDb>("false")
-        .AddTrial<CloudDb>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<LocalDb>("false")
+        .AddCondition<CloudDb>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithTimeout(TimeSpan.FromSeconds(5), TimeoutAction.FallbackToDefault)
     .UseDispatchProxy();
 
@@ -33,7 +33,7 @@ builder.Services.AddExperimentFramework(experiments);
 
 ### ThrowException
 
-Throws a `TimeoutException` when the trial exceeds the timeout. Use this when you want explicit control over timeout handling.
+Throws a `TimeoutException` when the condition exceeds the timeout. Use this when you want explicit control over timeout handling.
 
 ```csharp
 .WithTimeout(TimeSpan.FromSeconds(3), TimeoutAction.ThrowException)
@@ -48,10 +48,10 @@ Throws a `TimeoutException` when the trial exceeds the timeout. Use this when yo
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentGateway>(c => c
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewGateway")
-        .AddDefaultTrial<StableGateway>("false")
-        .AddTrial<NewGateway>("true"))
+        .AddControl<StableGateway>("false")
+        .AddCondition<NewGateway>("true"))
     .WithTimeout(TimeSpan.FromSeconds(10), TimeoutAction.ThrowException)
     .UseDispatchProxy();
 
@@ -69,7 +69,7 @@ catch (TimeoutException)
 
 ### FallbackToDefault
 
-Automatically redirects to the default trial when timeout occurs. Use this for graceful degradation.
+Automatically redirects to the control condition when timeout occurs. Use this for graceful degradation.
 
 ```csharp
 .WithTimeout(TimeSpan.FromSeconds(3), TimeoutAction.FallbackToDefault)
@@ -124,11 +124,11 @@ public class CachedWeatherService : IWeatherService
 
 // Configuration
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IWeatherService>(c => c
+    .Trial<IWeatherService>(t => t
         .UsingFeatureFlag("UseExternalWeatherApi")
-        .AddDefaultTrial<CachedWeatherService>("false")
-        .AddTrial<ExternalApiWeatherService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<CachedWeatherService>("false")
+        .AddCondition<ExternalApiWeatherService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithTimeout(TimeSpan.FromSeconds(2), TimeoutAction.FallbackToDefault)
     .UseDispatchProxy();
 
@@ -190,11 +190,11 @@ builder.Services.AddScoped<RuleBasedEngine>();
 builder.Services.AddScoped<IRecommendationEngine, RuleBasedEngine>();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IRecommendationEngine>(c => c
+    .Trial<IRecommendationEngine>(t => t
         .UsingFeatureFlag("UseMachineLearning")
-        .AddDefaultTrial<RuleBasedEngine>("false")
-        .AddTrial<MachineLearningEngine>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<RuleBasedEngine>("false")
+        .AddCondition<MachineLearningEngine>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithTimeout(TimeSpan.FromSeconds(3), TimeoutAction.FallbackToDefault)
     .UseDispatchProxy();
 
@@ -213,11 +213,11 @@ dotnet add package ExperimentFramework.Resilience
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IWeatherService>(c => c
+    .Trial<IWeatherService>(t => t
         .UsingFeatureFlag("UseExternalApi")
-        .AddDefaultTrial<CachedService>("false")
-        .AddTrial<ExternalApiService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<CachedService>("false")
+        .AddCondition<ExternalApiService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithTimeout(TimeSpan.FromSeconds(2), TimeoutAction.FallbackToDefault)
     .WithCircuitBreaker(options =>
     {
@@ -265,11 +265,11 @@ var timeout = builder.Environment.IsProduction()
 Monitor timeout frequency to adjust settings:
 
 ```csharp
-.Define<IService>(c => c
+.Trial<IService>(t => t
     .UsingFeatureFlag("UseNewService")
-    .AddDefaultTrial<DefaultService>("false")
-    .AddTrial<NewService>("true")
-    .OnErrorRedirectAndReplayDefault())
+    .AddControl<DefaultService>("false")
+    .AddCondition<NewService>("true")
+    .OnErrorRedirectAndReplayControl())
 .WithTimeout(TimeSpan.FromSeconds(5), TimeoutAction.FallbackToDefault)
 .AddLogger(l => l.AddErrorLogging()) // Logs timeout as error
 ```
@@ -320,11 +320,11 @@ dotnet add package ExperimentFramework.Metrics.Exporters
 var metrics = new PrometheusExperimentMetrics();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IService>(c => c
+    .Trial<IService>(t => t
         .UsingFeatureFlag("UseNewService")
-        .AddDefaultTrial<DefaultService>("false")
-        .AddTrial<NewService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<DefaultService>("false")
+        .AddCondition<NewService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithTimeout(TimeSpan.FromSeconds(5), TimeoutAction.FallbackToDefault)
     .WithMetrics(metrics)
     .UseDispatchProxy();
@@ -335,7 +335,7 @@ app.MapGet("/metrics", () => metrics.GeneratePrometheusOutput());
 **Grafana query for timeout rate:**
 
 ```promql
-# Timeout rate per trial
+# Timeout rate per condition
 sum(rate(experiment_errors_total{error="TimeoutException"}[5m])) by (service, trial_key)
 /
 sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
@@ -345,21 +345,21 @@ sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 
 ### Timeouts Not Working
 
-**Symptom**: Trial runs longer than configured timeout.
+**Symptom**: Condition runs longer than configured timeout.
 
 **Solutions:**
 1. Verify `WithTimeout()` is called before `UseDispatchProxy()`
-2. Check that trial method is actually async (not sync blocking)
+2. Check that condition method is actually async (not sync blocking)
 3. Ensure timeout duration is correct
 
 ### Excessive Timeouts
 
-**Symptom**: All requests timing out, constant fallback to default.
+**Symptom**: All requests timing out, constant fallback to control.
 
 **Solutions:**
 1. Increase timeout duration based on actual latency
-2. Check if experimental trial has performance issues
-3. Use kill switch to temporarily disable problematic trial
+2. Check if experimental condition has performance issues
+3. Use kill switch to temporarily disable problematic condition
 4. Add circuit breaker to prevent repeated timeout attempts
 
 ### Fallback Not Occurring
@@ -367,9 +367,9 @@ sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 **Symptom**: `TimeoutException` thrown despite `FallbackToDefault` action.
 
 **Solutions:**
-1. Verify `OnErrorRedirectAndReplayDefault()` is configured
-2. Check that default trial is properly registered
-3. Ensure default trial doesn't also timeout
+1. Verify `OnErrorRedirectAndReplayControl()` is configured
+2. Check that control condition is properly registered
+3. Ensure control condition doesn't also timeout
 
 ## See Also
 

@@ -21,6 +21,11 @@ namespace ExperimentFramework;
 /// The builder itself does not interact with dependency injection directly. Instead, it produces
 /// an immutable configuration object that is later consumed by the DI integration layer.
 /// </para>
+/// <para>
+/// <b>Fluent DSL:</b> The builder provides multiple equivalent method names to support different team
+/// conventions. For example, <see cref="Trial{TService}"/> and <see cref="Define{TService}"/> are
+/// functionally identical—use whichever terminology best describes your scenario.
+/// </para>
 /// </remarks>
 public sealed class ExperimentFrameworkBuilder
 {
@@ -139,6 +144,76 @@ public sealed class ExperimentFrameworkBuilder
         var b = new ServiceExperimentBuilder<TService>();
         configure(b);
         _definitions.Add(b.Build(_namingConvention));
+        return this;
+    }
+
+    /// <summary>
+    /// Defines a trial for a specific service interface using the new terminology.
+    /// </summary>
+    /// <typeparam name="TService">
+    /// The service interface type that will be proxied and routed to trial implementations.
+    /// </typeparam>
+    /// <param name="configure">
+    /// A configuration action that defines the control, conditions, selection mode, and behavior
+    /// for the service.
+    /// </param>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// A "trial" is a single-interface experiment with a control and one or more conditions.
+    /// </para>
+    /// <para>
+    /// Use this method when you have a standalone trial that is not part of a named experiment.
+    /// For grouped trials under a named experiment, use <see cref="Experiment"/>.
+    /// </para>
+    /// </remarks>
+    public ExperimentFrameworkBuilder Trial<TService>(Action<ServiceExperimentBuilder<TService>> configure)
+        where TService : class
+        => Define(configure);
+
+    /// <summary>
+    /// Defines a named experiment that can contain multiple trials across different service interfaces.
+    /// </summary>
+    /// <param name="name">
+    /// A unique name for this experiment, used for tracking, reporting, and management.
+    /// </param>
+    /// <param name="configure">
+    /// A configuration action that defines the trials, activation rules, and metadata for the experiment.
+    /// </param>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// Named experiments provide several benefits:
+    /// <list type="bullet">
+    /// <item><description>Group related trials that should be activated together</description></item>
+    /// <item><description>Apply shared time bounds (start/end times) to all trials</description></item>
+    /// <item><description>Use a common activation predicate for the entire experiment</description></item>
+    /// <item><description>Track experiment metadata (owner, ticket references, etc.)</description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// Example:
+    /// <code>
+    /// builder.Experiment("q1-2025-migration", exp => exp
+    ///     .Trial&lt;IDatabase&gt;(t => t.AddControl&lt;Local&gt;().AddCondition&lt;Cloud&gt;("cloud"))
+    ///     .Trial&lt;ICache&gt;(t => t.AddControl&lt;Memory&gt;().AddCondition&lt;Redis&gt;("redis"))
+    ///     .ActiveFrom(startTime)
+    ///     .ActiveUntil(endTime)
+    ///     .ActiveWhen(sp => sp.GetService&lt;IEnvironment&gt;()?.IsProduction == true));
+    /// </code>
+    /// </para>
+    /// </remarks>
+    public ExperimentFrameworkBuilder Experiment(string name, Action<ExperimentBuilder> configure)
+    {
+        var experimentBuilder = new ExperimentBuilder(name);
+        configure(experimentBuilder);
+
+        // Build all trials and add them to definitions
+        foreach (var definition in experimentBuilder.Build(_namingConvention))
+        {
+            _definitions.Add(definition);
+        }
+
         return this;
     }
 

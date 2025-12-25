@@ -83,15 +83,15 @@ public static class ExperimentConfiguration
     public static ExperimentFrameworkBuilder ConfigureExperiments()
     {
         return ExperimentFrameworkBuilder.Create()
-            .Define<IMyDatabase>(c => c
+            .Trial<IMyDatabase>(t => t
                 .UsingFeatureFlag("UseCloudDb")
-                .AddDefaultTrial<LocalDatabase>("false")
-                .AddTrial<CloudDatabase>("true"))
-            .Define<ITaxProvider>(c => c
+                .AddControl<LocalDatabase>("false")
+                .AddVariant<CloudDatabase>("true"))
+            .Trial<ITaxProvider>(t => t
                 .UsingConfigurationKey("TaxProvider")
-                .AddDefaultTrial<DefaultTaxProvider>("")
-                .AddTrial<OkTaxProvider>("OK")
-                .AddTrial<TxTaxProvider>("TX"));
+                .AddControl<DefaultTaxProvider>("")
+                .AddVariant<OkTaxProvider>("OK")
+                .AddVariant<TxTaxProvider>("TX"));
     }
 }
 ```
@@ -106,15 +106,15 @@ public static class ExperimentConfiguration
     public static ExperimentFrameworkBuilder ConfigureExperiments()
     {
         return ExperimentFrameworkBuilder.Create()
-            .Define<IMyDatabase>(c => c
+            .Trial<IMyDatabase>(t => t
                 .UsingFeatureFlag("UseCloudDb")
-                .AddDefaultTrial<LocalDatabase>("false")
-                .AddTrial<CloudDatabase>("true"))
-            .Define<ITaxProvider>(c => c
+                .AddControl<LocalDatabase>("false")
+                .AddVariant<CloudDatabase>("true"))
+            .Trial<ITaxProvider>(t => t
                 .UsingConfigurationKey("TaxProvider")
-                .AddDefaultTrial<DefaultTaxProvider>("")
-                .AddTrial<OkTaxProvider>("OK")
-                .AddTrial<TxTaxProvider>("TX"))
+                .AddControl<DefaultTaxProvider>("")
+                .AddVariant<OkTaxProvider>("OK")
+                .AddVariant<TxTaxProvider>("TX"))
             .UseSourceGenerators(); // Fluent API marker
     }
 }
@@ -210,10 +210,10 @@ Compile-time code generation using Roslyn source generators:
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IMyDatabase>(c => c
+        .Trial<IMyDatabase>(t => t
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDatabase>("false")
-            .AddTrial<CloudDatabase>("true"));
+            .AddControl<LocalDatabase>("false")
+            .AddVariant<CloudDatabase>("true"));
     // Source generation triggered by [ExperimentCompositionRoot]
 }
 ```
@@ -223,7 +223,7 @@ Or explicitly with fluent API:
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IMyDatabase>(/* ... */)
+        .Trial<IMyDatabase>(/* ... */)
         .UseSourceGenerators(); // Explicit marker
 }
 ```
@@ -247,10 +247,10 @@ Dynamic proxy generation using `System.Reflection.DispatchProxy`:
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IMyDatabase>(c => c
+        .Trial<IMyDatabase>(t => t
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDatabase>("false")
-            .AddTrial<CloudDatabase>("true"))
+            .AddControl<LocalDatabase>("false")
+            .AddVariant<CloudDatabase>("true"))
         .UseDispatchProxy(); // Use runtime proxies
 }
 ```
@@ -345,17 +345,17 @@ Generated proxies follow a consistent naming pattern:
 
 ## Selection Modes
 
-The framework supports four selection modes for routing requests to trials:
+The framework supports four selection modes for routing requests to conditions:
 
 ### 1. Boolean Feature Flag
 
 Routes based on a true/false feature flag using `IFeatureManager`:
 
 ```csharp
-.Define<IMyDatabase>(c => c
+.Trial<IMyDatabase>(t => t
     .UsingFeatureFlag("UseCloudDb")
-    .AddDefaultTrial<LocalDatabase>("false")
-    .AddTrial<CloudDatabase>("true"))
+    .AddControl<LocalDatabase>("false")
+    .AddVariant<CloudDatabase>("true"))
 ```
 
 **Configuration:**
@@ -376,11 +376,11 @@ Routes based on a true/false feature flag using `IFeatureManager`:
 Routes based on any configuration value (multi-variant):
 
 ```csharp
-.Define<ITaxProvider>(c => c
+.Trial<ITaxProvider>(t => t
     .UsingConfigurationKey("TaxProvider")
-    .AddDefaultTrial<DefaultTaxProvider>("")
-    .AddTrial<OkTaxProvider>("OK")
-    .AddTrial<TxTaxProvider>("TX"))
+    .AddControl<DefaultTaxProvider>("")
+    .AddVariant<OkTaxProvider>("OK")
+    .AddVariant<TxTaxProvider>("TX"))
 ```
 
 **Configuration:**
@@ -400,11 +400,11 @@ Routes based on any configuration value (multi-variant):
 Routes based on variant feature flags (requires Microsoft.FeatureManagement variants):
 
 ```csharp
-.Define<IRecommendationEngine>(c => c
+.Trial<IRecommendationEngine>(t => t
     .UsingVariantFeatureFlag("RecommendationAlgorithm")
-    .AddDefaultTrial<BasicRecommendations>("control")
-    .AddTrial<MLRecommendations>("ml-powered")
-    .AddTrial<HybridRecommendations>("hybrid"))
+    .AddControl<BasicRecommendations>("control")
+    .AddVariant<MLRecommendations>("ml-powered")
+    .AddVariant<HybridRecommendations>("hybrid"))
 ```
 
 **Configuration:**
@@ -438,11 +438,11 @@ Routes based on variant feature flags (requires Microsoft.FeatureManagement vari
 Deterministic routing based on user identity (for A/B testing):
 
 ```csharp
-.Define<ICheckoutFlow>(c => c
+.Trial<ICheckoutFlow>(t => t
     .UsingStickyRouting()
-    .AddDefaultTrial<StandardCheckout>("control")
-    .AddTrial<ExpressCheckout>("variant-a")
-    .AddTrial<OneClickCheckout>("variant-b"))
+    .AddControl<StandardCheckout>("control")
+    .AddVariant<ExpressCheckout>("variant-a")
+    .AddVariant<OneClickCheckout>("variant-b"))
 ```
 
 **Requirements:**
@@ -474,22 +474,22 @@ services.AddScoped<IExperimentIdentityProvider, UserIdentityProvider>();
 
 ## Error Policies
 
-Control fallback behavior when a trial throws an exception:
+Control fallback behavior when a condition throws an exception:
 
 ### 1. Throw (No Fallback)
 
 Immediately propagate exceptions:
 
 ```csharp
-.Define<IMyService>(c => c
+.Trial<IMyService>(t => t
     .UsingFeatureFlag("UseNewImpl")
-    .AddDefaultTrial<OldImpl>("false")
-    .AddTrial<NewImpl>("true")
+    .AddControl<OldImpl>("false")
+    .AddVariant<NewImpl>("true")
     .OnErrorThrow())
 ```
 
 **Behavior:**
-- If selected trial throws, the exception propagates immediately
+- If selected condition throws, the exception propagates immediately
 - No fallback attempts
 
 **Use when:**
@@ -499,47 +499,47 @@ Immediately propagate exceptions:
 
 ### 2. RedirectAndReplayDefault (Safe Fallback)
 
-Falls back to default trial if selected trial fails:
+Falls back to control condition if selected condition fails:
 
 ```csharp
-.Define<IMyService>(c => c
+.Trial<IMyService>(t => t
     .UsingFeatureFlag("UseNewImpl")
-    .AddDefaultTrial<OldImpl>("false")
-    .AddTrial<NewImpl>("true")
+    .AddControl<OldImpl>("false")
+    .AddVariant<NewImpl>("true")
     .OnErrorRedirectAndReplayDefault())
 ```
 
 **Behavior:**
-- Tries selected trial first
-- If it fails and selected ≠ default, retries with default trial
-- If default fails or selected = default, propagates exception
+- Tries selected condition first
+- If it fails and selected ≠ control, retries with control condition
+- If control fails or selected = control, propagates exception
 
 **Use when:**
-- Default implementation is known to be stable
+- Control implementation is known to be stable
 - You want graceful degradation
-- Experimental trials may have bugs
+- Experimental conditions may have bugs
 
 ### 3. RedirectAndReplayAny (Try All)
 
-Tries all trials until one succeeds:
+Tries all conditions until one succeeds:
 
 ```csharp
-.Define<ITaxProvider>(c => c
+.Trial<ITaxProvider>(t => t
     .UsingConfigurationKey("TaxProvider")
-    .AddDefaultTrial<DefaultTaxProvider>("")
-    .AddTrial<OkTaxProvider>("OK")
-    .AddTrial<TxTaxProvider>("TX")
+    .AddControl<DefaultTaxProvider>("")
+    .AddVariant<OkTaxProvider>("OK")
+    .AddVariant<TxTaxProvider>("TX")
     .OnErrorRedirectAndReplayAny())
 ```
 
 **Behavior:**
-- Tries selected trial first
-- If it fails, tries default trial
-- If default fails, tries remaining trials
-- Only throws if all trials fail
+- Tries selected condition first
+- If it fails, tries control condition
+- If control fails, tries remaining conditions
+- Only throws if all conditions fail
 
 **Use when:**
-- Multiple trials are stable
+- Multiple conditions are stable
 - Availability is more important than consistency
 - Failover across multiple backends
 
@@ -667,14 +667,14 @@ public interface IRepository<T> where T : class
 public static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IRepository<User>>(c => c
+        .Trial<IRepository<User>>(t => t
             .UsingFeatureFlag("UseNewUserRepo")
-            .AddDefaultTrial<UserRepositoryV1>("false")
-            .AddTrial<UserRepositoryV2>("true"))
-        .Define<IRepository<Product>>(c => c
+            .AddControl<UserRepositoryV1>("false")
+            .AddVariant<UserRepositoryV2>("true"))
+        .Trial<IRepository<Product>>(t => t
             .UsingFeatureFlag("UseNewProductRepo")
-            .AddDefaultTrial<ProductRepositoryV1>("false")
-            .AddTrial<ProductRepositoryV2>("true"));
+            .AddControl<ProductRepositoryV1>("false")
+            .AddVariant<ProductRepositoryV2>("true"));
 }
 ```
 
@@ -716,7 +716,7 @@ public static class CoreExperiments
     public static ExperimentFrameworkBuilder ConfigureCoreExperiments()
     {
         return ExperimentFrameworkBuilder.Create()
-            .Define<IDatabase>(/* ... */);
+            .Trial<IDatabase>(/* ... */);
     }
 }
 
@@ -727,7 +727,7 @@ public static class FeatureExperiments
     public static ExperimentFrameworkBuilder ConfigureFeatureExperiments()
     {
         return ExperimentFrameworkBuilder.Create()
-            .Define<IFeatureService>(/* ... */);
+            .Trial<IFeatureService>(/* ... */);
     }
 }
 
@@ -755,10 +755,10 @@ public class CustomNamingConvention : IExperimentNamingConvention
 
 // Usage
 .UseNamingConvention(new CustomNamingConvention())
-.Define<IMyService>(c => c
+.Trial<IMyService>(t => t
     .UsingFeatureFlag() // Uses convention: "Features.IMyService"
-    .AddDefaultTrial<ServiceV1>("false")
-    .AddTrial<ServiceV2>("true"))
+    .AddControl<ServiceV1>("false")
+    .AddVariant<ServiceV2>("true"))
 ```
 
 ## Viewing Generated Code
@@ -801,16 +801,16 @@ dotnet build -v detailed | grep "ExperimentFramework.Generators"
 
 **Solutions:**
 1. Verify composition root has `[ExperimentCompositionRoot]` attribute
-2. Ensure `Define<IMyService>()` is in the attributed method
+2. Ensure `Trial<IMyService>()` is in the attributed method
 3. Check that IMyService is public
 4. Rebuild project
 
-### Trial Resolution Error
+### Condition Resolution Error
 
 **Error:** "No service for type MyServiceV2"
 
 **Solutions:**
-1. Register all trial implementations:
+1. Register all condition implementations:
    ```csharp
    services.AddScoped<MyServiceV1>();
    services.AddScoped<MyServiceV2>();
@@ -825,10 +825,10 @@ dotnet build -v detailed | grep "ExperimentFramework.Generators"
 Begin with feature flags for binary A/B tests:
 
 ```csharp
-.Define<IMyService>(c => c
+.Trial<IMyService>(t => t
     .UsingFeatureFlag("UseNewService")
-    .AddDefaultTrial<OldService>("false")
-    .AddTrial<NewService>("true"))
+    .AddControl<OldService>("false")
+    .AddVariant<NewService>("true"))
 ```
 
 Graduate to multi-variant or sticky routing as needed.
@@ -852,9 +852,9 @@ Keep one composition root per assembly:
 public static ExperimentFrameworkBuilder ConfigureAllExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IServiceA>(/* ... */)
-        .Define<IServiceB>(/* ... */)
-        .Define<IServiceC>(/* ... */);
+        .Trial<IServiceA>(/* ... */)
+        .Trial<IServiceB>(/* ... */)
+        .Trial<IServiceC>(/* ... */);
 }
 ```
 
@@ -871,7 +871,7 @@ services.AddOpenTelemetryExperimentTracking();
 
 ### 5. Test Experiment Switching
 
-Verify both trials work correctly:
+Verify both conditions work correctly:
 
 ```csharp
 [Fact]
@@ -916,7 +916,7 @@ For high-throughput scenarios:
 
 The ExperimentFramework provides a clean, performant way to implement runtime-switchable experiments:
 
-1. **Define experiments** with `[ExperimentCompositionRoot]` and `Define<T>()`
+1. **Define experiments** with `[ExperimentCompositionRoot]` and `Trial<T>()`
 2. **Register services** with your DI container
 3. **Configure routing** via feature flags or configuration
 4. **Use services** normally - routing happens automatically

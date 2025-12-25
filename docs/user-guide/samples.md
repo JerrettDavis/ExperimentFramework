@@ -41,7 +41,7 @@ builder.Services.AddSwaggerGen();
 // Add feature management
 builder.Services.AddFeatureManagement();
 
-// Register trial implementations
+// Register condition implementations
 builder.Services.AddScoped<LocalDatabase>();
 builder.Services.AddScoped<CloudDatabase>();
 builder.Services.AddSingleton<InMemoryCache>();
@@ -56,16 +56,16 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l
         .AddBenchmarks()
         .AddErrorLogging())
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true")
-        .OnErrorRedirectAndReplayDefault())
-    .Define<ICache>(c => c
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true")
+        .OnErrorFallbackToControl())
+    .Trial<ICache>(t => t
         .UsingConfigurationKey("Cache:Provider")
-        .AddDefaultTrial<InMemoryCache>("inmemory")
-        .AddTrial<RedisCache>("redis")
-        .OnErrorRedirectAndReplayDefault());
+        .AddControl<InMemoryCache>("inmemory")
+        .AddVariant<RedisCache>("redis")
+        .OnErrorFallbackToControl());
 
 builder.Services.AddExperimentFramework(experiments);
 
@@ -397,7 +397,7 @@ using ExperimentFramework;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Register trial implementations
+// Register condition implementations
 builder.Services.AddScoped<ContentBased>();
 builder.Services.AddScoped<CollaborativeFiltering>();
 builder.Services.AddScoped<HybridRecommendations>();
@@ -411,11 +411,11 @@ builder.Services.AddScoped<IExperimentIdentityProvider, SimulatedUserIdentityPro
 // Define experiment with sticky routing
 var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l.AddBenchmarks())
-    .Define<IRecommendationEngine>(c => c
+    .Trial<IRecommendationEngine>(t => t
         .UsingStickyRouting("RecommendationExperiment")
-        .AddDefaultTrial<ContentBased>("control")
-        .AddTrial<CollaborativeFiltering>("variant-a")
-        .AddTrial<HybridRecommendations>("variant-b"));
+        .AddControl<ContentBased>("control")
+        .AddVariant<CollaborativeFiltering>("variant-a")
+        .AddVariant<HybridRecommendations>("variant-b"));
 
 builder.Services.AddExperimentFramework(experiments);
 
@@ -649,12 +649,12 @@ builder.Services.AddScoped<IEmailSender, SmtpSender>();
 
 // Define experiment with variant feature flag
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IEmailSender>(c => c
+    .Trial<IEmailSender>(t => t
         .UsingVariantFeatureFlag("EmailProvider")
-        .AddDefaultTrial<SmtpSender>("smtp")
-        .AddTrial<SendGridSender>("sendgrid")
-        .AddTrial<MailgunSender>("mailgun")
-        .AddTrial<AmazonSesSender>("ses"));
+        .AddControl<SmtpSender>("smtp")
+        .AddVariant<SendGridSender>("sendgrid")
+        .AddVariant<MailgunSender>("mailgun")
+        .AddVariant<AmazonSesSender>("ses"));
 
 builder.Services.AddExperimentFramework(experiments);
 
@@ -727,10 +727,10 @@ public class CustomNamingConvention : IExperimentNamingConvention
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new CustomNamingConvention())
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag()  // Uses "payment-processor" from convention
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true"));
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true"));
 ```
 
 ### appsettings.json
@@ -763,7 +763,7 @@ public class ExperimentTests
     [Theory]
     [InlineData(true, typeof(CloudDatabase))]
     [InlineData(false, typeof(LocalDatabase))]
-    public async Task Database_experiment_selects_correct_trial(
+    public async Task Database_experiment_selects_correct_condition(
         bool featureEnabled,
         Type expectedType)
     {
@@ -784,10 +784,10 @@ public class ExperimentTests
         services.AddScoped<IDatabase, LocalDatabase>();
 
         var experiments = ExperimentFrameworkBuilder.Create()
-            .Define<IDatabase>(c => c
+            .Trial<IDatabase>(t => t
                 .UsingFeatureFlag("UseCloudDb")
-                .AddDefaultTrial<LocalDatabase>("false")
-                .AddTrial<CloudDatabase>("true"));
+                .AddControl<LocalDatabase>("false")
+                .AddVariant<CloudDatabase>("true"));
 
         services.AddExperimentFramework(experiments);
 
@@ -803,7 +803,7 @@ public class ExperimentTests
     }
 
     [Fact]
-    public async Task Sticky_routing_assigns_consistent_trials()
+    public async Task Sticky_routing_assigns_consistent_conditions()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -815,10 +815,10 @@ public class ExperimentTests
         services.AddScoped<IRecommendationEngine, ContentBased>();
 
         var experiments = ExperimentFrameworkBuilder.Create()
-            .Define<IRecommendationEngine>(c => c
+            .Trial<IRecommendationEngine>(t => t
                 .UsingStickyRouting("RecommendationExperiment")
-                .AddDefaultTrial<ContentBased>("control")
-                .AddTrial<CollaborativeFiltering>("variant-a"));
+                .AddControl<ContentBased>("control")
+                .AddVariant<CollaborativeFiltering>("variant-a"));
 
         services.AddExperimentFramework(experiments);
 

@@ -12,16 +12,16 @@ For boolean and variant feature flags, the default name is the service type name
 
 ```csharp
 // Explicit name
-.Define<IDatabase>(c => c
+.Trial<IDatabase>(t => t
     .UsingFeatureFlag("UseCloudDb")
-    .AddDefaultTrial<LocalDatabase>("false")
-    .AddTrial<CloudDatabase>("true"))
+    .AddControl<LocalDatabase>("false")
+    .AddVariant<CloudDatabase>("true"))
 
 // Convention-based name (uses "IDatabase")
-.Define<IDatabase>(c => c
+.Trial<IDatabase>(t => t
     .UsingFeatureFlag()  // No name provided
-    .AddDefaultTrial<LocalDatabase>("false")
-    .AddTrial<CloudDatabase>("true"))
+    .AddControl<LocalDatabase>("false")
+    .AddVariant<CloudDatabase>("true"))
 ```
 
 Configuration in `appsettings.json`:
@@ -40,16 +40,16 @@ For configuration value selection, the default key is `Experiments:{ServiceTypeN
 
 ```csharp
 // Explicit key
-.Define<ICache>(c => c
+.Trial<ICache>(t => t
     .UsingConfigurationKey("Cache:Provider")
-    .AddDefaultTrial<InMemoryCache>("inmemory")
-    .AddTrial<RedisCache>("redis"))
+    .AddControl<InMemoryCache>("inmemory")
+    .AddVariant<RedisCache>("redis"))
 
 // Convention-based key (uses "Experiments:ICache")
-.Define<ICache>(c => c
+.Trial<ICache>(t => t
     .UsingConfigurationKey()  // No key provided
-    .AddDefaultTrial<InMemoryCache>("inmemory")
-    .AddTrial<RedisCache>("redis"))
+    .AddControl<InMemoryCache>("inmemory")
+    .AddVariant<RedisCache>("redis"))
 ```
 
 Configuration in `appsettings.json`:
@@ -68,16 +68,16 @@ For sticky routing, the default name is the service type name (used for hashing)
 
 ```csharp
 // Explicit name
-.Define<IRecommendationEngine>(c => c
+.Trial<IRecommendationEngine>(t => t
     .UsingStickyRouting("RecommendationExperiment")
-    .AddDefaultTrial<ContentBased>("control")
-    .AddTrial<CollaborativeFiltering>("variant-a"))
+    .AddControl<ContentBased>("control")
+    .AddVariant<CollaborativeFiltering>("variant-a"))
 
 // Convention-based name (uses "IRecommendationEngine")
-.Define<IRecommendationEngine>(c => c
+.Trial<IRecommendationEngine>(t => t
     .UsingStickyRouting()  // No name provided
-    .AddDefaultTrial<ContentBased>("control")
-    .AddTrial<CollaborativeFiltering>("variant-a"))
+    .AddControl<ContentBased>("control")
+    .AddVariant<CollaborativeFiltering>("variant-a"))
 ```
 
 ## Custom Naming Conventions
@@ -131,10 +131,10 @@ Register the custom convention:
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new PrefixedNamingConvention("MyApp"))
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag()  // Uses "MyApp.IDatabase"
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"));
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true"));
 ```
 
 Configuration in `appsettings.json`:
@@ -185,10 +185,10 @@ var environment = builder.Configuration["ASPNETCORE_ENVIRONMENT"] ?? "Production
 
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new EnvironmentNamingConvention(environment))
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag()  // Uses "Production_IDatabase"
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"));
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true"));
 ```
 
 ### Example: Kebab-Case Convention
@@ -241,10 +241,10 @@ Usage:
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new KebabCaseNamingConvention())
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag()  // Uses "payment-processor"
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true"));
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true"));
 ```
 
 Configuration in `appsettings.json`:
@@ -343,13 +343,13 @@ Use the same naming convention throughout your application:
 // Good: All experiments use the same convention
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new KebabCaseNamingConvention())
-    .Define<IDatabase>(c => c.UsingFeatureFlag()...)
-    .Define<ICache>(c => c.UsingFeatureFlag()...)
-    .Define<IPaymentProcessor>(c => c.UsingFeatureFlag()...);
+    .Trial<IDatabase>(t => t.UsingFeatureFlag()...)
+    .Trial<ICache>(t => t.UsingFeatureFlag()...)
+    .Trial<IPaymentProcessor>(t => t.UsingFeatureFlag()...);
 
 // Bad: Mixing conventions
-.Define<IDatabase>(c => c.UsingFeatureFlag("UseCloudDb")...)  // Explicit
-.Define<ICache>(c => c.UsingFeatureFlag()...)                 // Convention
+.Trial<IDatabase>(t => t.UsingFeatureFlag("UseCloudDb")...)  // Explicit
+.Trial<ICache>(t => t.UsingFeatureFlag()...)                 // Convention
 ```
 
 ### 2. Document Your Convention
@@ -516,10 +516,10 @@ public class LegacyNamingConvention : IExperimentNamingConvention
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new LegacyNamingConvention())
-    // Before: .Define<IDatabase>(c => c.UsingFeatureFlag("UseCloudDb")...)
+    // Before: .Trial<IDatabase>(t => t.UsingFeatureFlag("UseCloudDb")...)
     // After:
-    .Define<IDatabase>(c => c.UsingFeatureFlag()...)  // Uses convention
-    .Define<ICache>(c => c.UsingFeatureFlag()...);
+    .Trial<IDatabase>(t => t.UsingFeatureFlag()...)  // Uses convention
+    .Trial<ICache>(t => t.UsingFeatureFlag()...);
 ```
 
 ### Step 3: Gradually Transition to New Convention
@@ -529,8 +529,8 @@ Once all explicit names are removed, switch to the new convention:
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseNamingConvention(new KebabCaseNamingConvention())
-    .Define<IDatabase>(c => c.UsingFeatureFlag()...)
-    .Define<ICache>(c => c.UsingFeatureFlag()...);
+    .Trial<IDatabase>(t => t.UsingFeatureFlag()...)
+    .Trial<ICache>(t => t.UsingFeatureFlag()...);
 ```
 
 Update configuration to match new names:

@@ -23,10 +23,10 @@ The benchmark decorator measures execution time for each experiment invocation.
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l.AddBenchmarks())
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"));
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true"));
 
 services.AddExperimentFramework(experiments);
 ```
@@ -61,10 +61,10 @@ The error logging decorator captures exceptions before they propagate or trigger
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l.AddErrorLogging())
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPaymentProvider")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true")
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true")
         .OnErrorRedirectAndReplayDefault());
 
 services.AddExperimentFramework(experiments);
@@ -88,7 +88,7 @@ The log includes:
 
 #### Use Cases
 
-- Monitoring trial failure rates
+- Monitoring condition failure rates
 - Debugging experimental implementations
 - Alerting on error thresholds
 - Understanding fallback behavior
@@ -102,10 +102,10 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .AddLogger(l => l
         .AddBenchmarks()
         .AddErrorLogging())
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true")
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true")
         .OnErrorRedirectAndReplayDefault());
 ```
 
@@ -133,10 +133,10 @@ Enable OpenTelemetry tracking:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"));
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true"));
 
 services.AddExperimentFramework(experiments);
 services.AddOpenTelemetryExperimentTracking();
@@ -166,10 +166,10 @@ Each experiment invocation creates an activity with these tags:
 | `experiment.service` | Interface type name | `IDatabase` |
 | `experiment.method` | Method being invoked | `QueryAsync` |
 | `experiment.selector` | Selector name (feature flag/config key) | `UseCloudDb` |
-| `experiment.trial.selected` | Initially selected trial key | `true` |
-| `experiment.trial.candidates` | All available trial keys | `false,true` |
+| `experiment.trial.selected` | Initially selected condition key | `true` |
+| `experiment.trial.candidates` | All available condition keys | `false,true` |
 | `experiment.outcome` | Success or failure | `success` |
-| `experiment.fallback` | Fallback trial key (if applicable) | `false` |
+| `experiment.fallback` | Fallback condition key (if applicable) | `false` |
 | `experiment.variant` | Variant name (for variant mode) | `variant-a` |
 | `experiment.variant.source` | How variant was determined | `variantManager` |
 
@@ -520,7 +520,7 @@ cat application.log | grep "Experiment error" | awk '{print $NF}' | sort | uniq 
 Use OpenTelemetry traces to understand request flow:
 
 1. Filter traces by experiment service
-2. Compare durations between trials
+2. Compare durations between conditions
 3. Identify downstream impacts
 4. Spot error propagation patterns
 

@@ -18,18 +18,18 @@ public static class ExperimentConfiguration
             .AddLogger(l => l.AddBenchmarks().AddErrorLogging())
 
             // Example 1: Boolean Feature Flag (true/false routing)
-            .Define<IMyDatabase>(c =>
-                c.UsingFeatureFlag("UseCloudDb")
-                    .AddDefaultTrial<MyDbContext>(key: "false")
-                    .AddTrial<MyCloudDbContext>(key: "true")
-                    .OnErrorRedirectAndReplayDefault())
+            .Trial<IMyDatabase>(t =>
+                t.UsingFeatureFlag("UseCloudDb")
+                    .AddControl<MyDbContext>()
+                    .AddCondition<MyCloudDbContext>("true")
+                    .OnErrorFallbackToControl())
 
             // Example 2: Configuration Value (multi-variant routing)
-            .Define<IMyTaxProvider>(c =>
-                c.UsingConfigurationKey("Experiments:TaxProvider")
-                    .AddDefaultTrial<DefaultTaxProvider>(key: "")
-                    .AddTrial<OkTaxProvider>(key: "OK")
-                    .AddTrial<TxTaxProvider>(key: "TX")
-                    .OnErrorRedirectAndReplayAny());
+            .Trial<IMyTaxProvider>(t =>
+                t.UsingConfigurationKey("Experiments:TaxProvider")
+                    .AddControl<DefaultTaxProvider>()
+                    .AddVariant<OkTaxProvider>("OK")
+                    .AddVariant<TxTaxProvider>("TX")
+                    .OnErrorTryAny());
     }
 }

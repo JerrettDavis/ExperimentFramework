@@ -17,19 +17,19 @@ public static class ExperimentConfiguration
     {
         return ExperimentFrameworkBuilder.Create()
             // Experiment 1: Recommendation algorithms (sticky routing for consistent UX)
-            .Define<IRecommendationEngine>(c => c
+            .Trial<IRecommendationEngine>(t => t
                 .UsingStickyRouting() // Same user always sees same algorithm
-                .AddDefaultTrial<PopularityRecommendationEngine>("control")
-                .AddTrial<MLRecommendationEngine>("ml")
-                .AddTrial<CollaborativeRecommendationEngine>("collaborative")
-                .OnErrorRedirectAndReplayDefault())
+                .AddControl<PopularityRecommendationEngine>()
+                .AddCondition<MLRecommendationEngine>("ml")
+                .AddCondition<CollaborativeRecommendationEngine>("collaborative")
+                .OnErrorFallbackToControl())
 
             // Experiment 2: Checkout flows (feature flag for gradual rollout)
-            .Define<ICheckoutFlow>(c => c
+            .Trial<ICheckoutFlow>(t => t
                 .UsingFeatureFlag("EnableExpressCheckout")
-                .AddDefaultTrial<StandardCheckoutFlow>("false")
-                .AddTrial<ExpressCheckoutFlow>("true")
-                .OnErrorRedirectAndReplayDefault())
+                .AddControl<StandardCheckoutFlow>()
+                .AddCondition<ExpressCheckoutFlow>("true")
+                .OnErrorFallbackToControl())
 
             // Use fluent API to trigger source generation (no attribute needed!)
             .UseSourceGenerators();

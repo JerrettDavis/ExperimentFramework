@@ -1,6 +1,6 @@
 # Selection Modes
 
-Selection modes determine how the framework chooses which trial to execute for each method call. The framework supports five selection modes, each suited to different use cases.
+Selection modes determine how the framework chooses which condition to execute for each method call. The framework supports five selection modes, each suited to different use cases.
 
 ## Overview
 
@@ -29,10 +29,10 @@ Define the experiment using `UsingFeatureFlag()`:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingFeatureFlag("UseNewPaymentProvider")
-        .AddDefaultTrial<StripePayment>("false")
-        .AddTrial<NewPaymentProvider>("true"));
+        .AddControl<StripePayment>("false")
+        .AddVariant<NewPaymentProvider>("true"));
 
 services.AddExperimentFramework(experiments);
 ```
@@ -150,12 +150,12 @@ Define the experiment using `UsingConfigurationKey()`:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IRecommendationEngine>(c => c
+    .Trial<IRecommendationEngine>(t => t
         .UsingConfigurationKey("Recommendations:Algorithm")
-        .AddDefaultTrial<ContentBased>("")
-        .AddTrial<CollaborativeFiltering>("collaborative")
-        .AddTrial<HybridRecommendations>("hybrid")
-        .AddTrial<MLRecommendations>("ml"));
+        .AddControl<ContentBased>("")
+        .AddCondition<CollaborativeFiltering>("collaborative")
+        .AddCondition<HybridRecommendations>("hybrid")
+        .AddCondition<MLRecommendations>("ml"));
 
 services.AddExperimentFramework(experiments);
 ```
@@ -172,10 +172,10 @@ Configure the selection in `appsettings.json`:
 
 ### Empty Value Behavior
 
-When the configuration key is missing or empty, the default trial is used:
+When the configuration key is missing or empty, the control condition is used:
 
 ```csharp
-.AddDefaultTrial<ContentBased>("")  // Used when key is missing or empty
+.AddControl<ContentBased>("")  // Used when key is missing or empty
 ```
 
 ### Runtime Configuration Changes
@@ -188,7 +188,7 @@ builder.Configuration.AddJsonFile("appsettings.json",
     reloadOnChange: true);
 ```
 
-The next method invocation will read the updated configuration value and select the appropriate trial.
+The next method invocation will read the updated configuration value and select the appropriate condition.
 
 ### Environment-Specific Configuration
 
@@ -211,10 +211,10 @@ Use configuration value selection for environment-specific behavior:
 ```
 
 ```csharp
-.Define<ICache>(c => c
+.Trial<ICache>(t => t
     .UsingConfigurationKey("Cache:Provider")
-    .AddDefaultTrial<InMemoryCache>("inmemory")
-    .AddTrial<RedisCache>("redis"))
+    .AddControl<InMemoryCache>("inmemory")
+    .AddCondition<RedisCache>("redis"))
 ```
 
 ## Variant Feature Flag
@@ -236,7 +236,7 @@ Variant feature flags require Microsoft.FeatureManagement with variant support:
 dotnet add package Microsoft.FeatureManagement
 ```
 
-The framework detects `IVariantFeatureManager` via reflection. If it's not available, the experiment falls back to the default trial.
+The framework detects `IVariantFeatureManager` via reflection. If it's not available, the experiment falls back to the control condition.
 
 ### Configuration
 
@@ -244,12 +244,12 @@ Define the experiment using `UsingVariantFeatureFlag()`:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IEmailSender>(c => c
+    .Trial<IEmailSender>(t => t
         .UsingVariantFeatureFlag("EmailProvider")
-        .AddDefaultTrial<SmtpSender>("smtp")
-        .AddTrial<SendGridSender>("sendgrid")
-        .AddTrial<MailgunSender>("mailgun")
-        .AddTrial<AmazonSesSender>("ses"));
+        .AddControl<SmtpSender>("smtp")
+        .AddVariant<SendGridSender>("sendgrid")
+        .AddVariant<MailgunSender>("mailgun")
+        .AddVariant<AmazonSesSender>("ses"));
 
 services.AddExperimentFramework(experiments);
 ```
@@ -335,11 +335,11 @@ The variant feature manager selects which variant a user receives based on:
 
 ### Graceful Degradation
 
-If `IVariantFeatureManager` is not available or returns null, the experiment uses the default trial:
+If `IVariantFeatureManager` is not available or returns null, the experiment uses the control condition:
 
 ```csharp
 // Variant manager not installed or returns null
-// -> Uses SmtpSender (default trial)
+// -> Uses SmtpSender (control condition)
 ```
 
 This allows the framework to work without a hard dependency on variant support.
@@ -360,7 +360,7 @@ var result = await emailSender.SendAsync("user@example.com", "Subject", "Body", 
 
 ## Sticky Routing
 
-Sticky routing provides deterministic trial selection based on user identity, ensuring the same user always sees the same trial.
+Sticky routing provides deterministic condition selection based on user identity, ensuring the same user always sees the same condition.
 
 ### When to Use
 
@@ -371,13 +371,13 @@ Sticky routing provides deterministic trial selection based on user identity, en
 
 ### How It Works
 
-Sticky routing uses a SHA256 hash of the user identity and selector name to deterministically select a trial:
+Sticky routing uses a SHA256 hash of the user identity and selector name to deterministically select a condition:
 
 1. Get user identity from `IExperimentIdentityProvider`
 2. Compute: `hash = SHA256(identity + ":" + selectorName)`
-3. Select trial: `trials[hash % trialCount]`
+3. Select condition: `conditions[hash % conditionCount]`
 
-The same identity always produces the same hash, ensuring consistent trial selection.
+The same identity always produces the same hash, ensuring consistent condition selection.
 
 ### Identity Provider
 
@@ -421,23 +421,23 @@ Define the experiment using `UsingStickyRouting()`:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IRecommendationEngine>(c => c
+    .Trial<IRecommendationEngine>(t => t
         .UsingStickyRouting("RecommendationExperiment")
-        .AddDefaultTrial<ContentBased>("control")
-        .AddTrial<CollaborativeFiltering>("variant-a")
-        .AddTrial<HybridRecommendations>("variant-b"));
+        .AddControl<ContentBased>("control")
+        .AddCondition<CollaborativeFiltering>("variant-a")
+        .AddCondition<HybridRecommendations>("variant-b"));
 
 services.AddExperimentFramework(experiments);
 ```
 
-### Distribution Across Trials
+### Distribution Across Conditions
 
-Sticky routing distributes users evenly across trials based on hash distribution:
+Sticky routing distributes users evenly across conditions based on hash distribution:
 
 ```
 Users: user1, user2, user3, user4, user5, user6
 
-Trial Keys (sorted): control, variant-a, variant-b
+Condition Keys (sorted): control, variant-a, variant-b
 
 Distribution:
 - user1 -> hash % 3 = 0 -> control
@@ -448,7 +448,7 @@ Distribution:
 - user6 -> hash % 3 = 2 -> variant-b
 ```
 
-The distribution is approximately even across all trials.
+The distribution is approximately even across all conditions.
 
 ### Fallback Behavior
 
@@ -457,7 +457,7 @@ If `IExperimentIdentityProvider` is not registered or returns no identity, stick
 ```csharp
 // No identity provider registered
 // -> Falls back to checking feature flag "RecommendationExperiment"
-// -> Uses trial based on flag state (true/false)
+// -> Uses condition based on flag state (true/false)
 ```
 
 Configure the fallback feature flag:
@@ -474,19 +474,19 @@ Configure the fallback feature flag:
 
 Sticky routing provides strong consistency guarantees:
 
-- Same user + same experiment = same trial (always)
-- Different users = distributed across trials
-- Changing trial keys or order will change user assignments
+- Same user + same experiment = same condition (always)
+- Different users = distributed across conditions
+- Changing condition keys or order will change user assignments
 
-### Trial Key Ordering
+### Condition Key Ordering
 
-Trial keys are sorted alphabetically before hashing to ensure deterministic behavior:
+Condition keys are sorted alphabetically before hashing to ensure deterministic behavior:
 
 ```csharp
 // These produce the same results regardless of registration order
-.AddDefaultTrial<A>("alpha")
-.AddTrial<B>("beta")
-.AddTrial<C>("charlie")
+.AddControl<A>("alpha")
+.AddCondition<B>("beta")
+.AddCondition<C>("charlie")
 
 // Internally sorted to: ["alpha", "beta", "charlie"]
 ```
@@ -518,7 +518,7 @@ public class TenantUserIdentityProvider : IExperimentIdentityProvider
 }
 ```
 
-This ensures users in different tenants can be assigned to different trials.
+This ensures users in different tenants can be assigned to different conditions.
 
 ## OpenFeature
 
@@ -537,11 +537,11 @@ Define the experiment using `UsingOpenFeature()`:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentProcessor>(c => c
+    .Trial<IPaymentProcessor>(t => t
         .UsingOpenFeature("payment-processor")
-        .AddDefaultTrial<StripeProcessor>("stripe")
-        .AddTrial<PayPalProcessor>("paypal")
-        .AddTrial<SquareProcessor>("square"));
+        .AddControl<StripeProcessor>("stripe")
+        .AddVariant<PayPalProcessor>("paypal")
+        .AddVariant<SquareProcessor>("square"));
 
 services.AddExperimentFramework(experiments);
 ```
@@ -568,7 +568,7 @@ When no flag key is specified, the framework generates a kebab-case name:
 
 The framework automatically detects the flag type:
 
-**Boolean flags** (trials are "true" and "false"):
+**Boolean flags** (conditions are "true" and "false"):
 - Uses `GetBooleanValueAsync()`
 
 **String flags** (multi-variant):
@@ -576,7 +576,7 @@ The framework automatically detects the flag type:
 
 ### Fallback Behavior
 
-If OpenFeature is not configured or evaluation fails, the default trial is used.
+If OpenFeature is not configured or evaluation fails, the control condition is used.
 
 For detailed configuration and provider examples, see the [OpenFeature Integration Guide](openfeature.md).
 
@@ -605,18 +605,18 @@ You can define multiple experiments on different services:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IDatabase>(c => c
+    .Trial<IDatabase>(t => t
         .UsingFeatureFlag("UseCloudDb")
-        .AddDefaultTrial<LocalDatabase>("false")
-        .AddTrial<CloudDatabase>("true"))
-    .Define<ICache>(c => c
+        .AddControl<LocalDatabase>("false")
+        .AddVariant<CloudDatabase>("true"))
+    .Trial<ICache>(t => t
         .UsingConfigurationKey("Cache:Provider")
-        .AddDefaultTrial<InMemoryCache>("inmemory")
-        .AddTrial<RedisCache>("redis"))
-    .Define<IRecommendationEngine>(c => c
+        .AddControl<InMemoryCache>("inmemory")
+        .AddCondition<RedisCache>("redis"))
+    .Trial<IRecommendationEngine>(t => t
         .UsingStickyRouting("RecommendationExperiment")
-        .AddDefaultTrial<ContentBased>("control")
-        .AddTrial<CollaborativeFiltering>("variant-a"));
+        .AddControl<ContentBased>("control")
+        .AddCondition<CollaborativeFiltering>("variant-a"));
 
 services.AddExperimentFramework(experiments);
 ```

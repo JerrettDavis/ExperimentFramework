@@ -40,7 +40,7 @@ No additional package needed. Use `.UseDispatchProxy()` in your configuration.
 
 ## Quick Example
 
-Define an experiment that switches between database implementations based on a feature flag:
+Define a trial that switches between database implementations based on a feature flag:
 
 ```csharp
 // Register your service implementations
@@ -53,22 +53,22 @@ services.AddScoped<IDatabase, LocalDatabase>();
 static ExperimentFrameworkBuilder ConfigureExperiments()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IDatabase>(c => c
+        .Trial<IDatabase>(t => t
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDatabase>("false")
-            .AddTrial<CloudDatabase>("true")
-            .OnErrorRedirectAndReplayDefault());
+            .AddControl<LocalDatabase>()
+            .AddCondition<CloudDatabase>("true")
+            .OnErrorFallbackToControl());
 }
 
 // OR use runtime proxies
 static ExperimentFrameworkBuilder ConfigureWithRuntimeProxies()
 {
     return ExperimentFrameworkBuilder.Create()
-        .Define<IDatabase>(c => c
+        .Trial<IDatabase>(t => t
             .UsingFeatureFlag("UseCloudDb")
-            .AddDefaultTrial<LocalDatabase>("false")
-            .AddTrial<CloudDatabase>("true")
-            .OnErrorRedirectAndReplayDefault())
+            .AddControl<LocalDatabase>()
+            .AddCondition<CloudDatabase>("true")
+            .OnErrorFallbackToControl())
         .UseDispatchProxy();
 }
 

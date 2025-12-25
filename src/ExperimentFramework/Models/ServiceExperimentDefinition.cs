@@ -102,6 +102,35 @@ internal sealed class ServiceExperimentDefinition<TService> : IExperimentDefinit
     public IReadOnlyList<string>? OrderedFallbackKeys { get; init; }
 
     /// <summary>
+    /// Gets the name of the parent experiment this trial belongs to, if any.
+    /// </summary>
+    public string? ExperimentName { get; init; }
+
+    /// <summary>
+    /// Gets the time from which this trial becomes active.
+    /// </summary>
+    /// <remarks>
+    /// If set, the trial will fall back to the control implementation before this time.
+    /// </remarks>
+    public DateTimeOffset? StartTime { get; init; }
+
+    /// <summary>
+    /// Gets the time after which this trial becomes inactive.
+    /// </summary>
+    /// <remarks>
+    /// If set, the trial will fall back to the control implementation after this time.
+    /// </remarks>
+    public DateTimeOffset? EndTime { get; init; }
+
+    /// <summary>
+    /// Gets the custom predicate that determines whether this trial is active.
+    /// </summary>
+    /// <remarks>
+    /// If the predicate returns false, the trial falls back to the control implementation.
+    /// </remarks>
+    public Func<IServiceProvider, bool>? ActivationPredicate { get; init; }
+
+    /// <summary>
     /// Creates a runtime <see cref="ExperimentRegistration"/> from this definition.
     /// </summary>
     /// <param name="_">
@@ -125,6 +154,10 @@ internal sealed class ServiceExperimentDefinition<TService> : IExperimentDefinit
             Trials = Trials,
             OnErrorPolicy = OnErrorPolicy,
             FallbackTrialKey = FallbackTrialKey,
-            OrderedFallbackKeys = OrderedFallbackKeys
+            OrderedFallbackKeys = OrderedFallbackKeys,
+            ExperimentName = ExperimentName,
+            StartTime = StartTime,
+            EndTime = EndTime,
+            ActivationPredicate = ActivationPredicate
         };
 }

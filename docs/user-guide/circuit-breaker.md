@@ -1,13 +1,13 @@
 # Circuit Breaker
 
-Circuit breaker automatically disables failing trials after reaching a failure threshold, preventing cascading failures and giving failing services time to recover.
+Circuit breaker automatically disables failing conditions after reaching a failure threshold, preventing cascading failures and giving failing services time to recover.
 
 ## Overview
 
 The circuit breaker pattern protects your system by:
 
 1. **Monitoring failures**: Tracks failure rate over a sliding time window
-2. **Opening the circuit**: Stops calling failing trial when threshold exceeded
+2. **Opening the circuit**: Stops calling failing condition when threshold exceeded
 3. **Half-open state**: Periodically tests if service recovered
 4. **Closing the circuit**: Resumes normal operation when service healthy
 
@@ -27,11 +27,11 @@ This package includes Polly and circuit breaker integration.
 using ExperimentFramework.Resilience;
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentGateway>(c => c
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewPaymentGateway")
-        .AddDefaultTrial<StableGateway>("false")
-        .AddTrial<NewGateway>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<StableGateway>("false")
+        .AddCondition<NewGateway>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithCircuitBreaker(options =>
     {
         options.FailureRatioThreshold = 0.5;      // Open after 50% failure rate
@@ -111,10 +111,10 @@ What happens when circuit opens:
 // Throw exception
 options.OnCircuitOpen = CircuitBreakerAction.ThrowException;
 
-// Fallback to default trial
+// Fallback to control condition
 options.OnCircuitOpen = CircuitBreakerAction.FallbackToDefault;
 
-// Fallback to specific trial
+// Fallback to specific condition
 options.OnCircuitOpen = CircuitBreakerAction.FallbackToSpecificTrial;
 options.FallbackTrialKey = "noop";
 ```
@@ -198,11 +198,11 @@ builder.Services.AddScoped<NewPaymentGateway>();
 builder.Services.AddScoped<IPaymentGateway, StablePaymentGateway>();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentGateway>(c => c
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewPaymentGateway")
-        .AddDefaultTrial<StablePaymentGateway>("false")
-        .AddTrial<NewPaymentGateway>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<StablePaymentGateway>("false")
+        .AddCondition<NewPaymentGateway>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithCircuitBreaker(options =>
     {
         // Conservative settings for payment processing
@@ -230,11 +230,11 @@ Circuit breaker works great with timeout enforcement:
 
 ```csharp
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IExternalService>(c => c
+    .Trial<IExternalService>(t => t
         .UsingFeatureFlag("UseExternalApi")
-        .AddDefaultTrial<CachedService>("false")
-        .AddTrial<ExternalApiService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<CachedService>("false")
+        .AddCondition<ExternalApiService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithTimeout(TimeSpan.FromSeconds(3), TimeoutAction.FallbackToDefault)
     .WithCircuitBreaker(options =>
     {
@@ -260,11 +260,11 @@ Different circuit breaker settings per service:
 ```csharp
 // Critical payment service - conservative settings
 var paymentExperiments = ExperimentFrameworkBuilder.Create()
-    .Define<IPaymentGateway>(c => c
+    .Trial<IPaymentGateway>(t => t
         .UsingFeatureFlag("UseNewPayment")
-        .AddDefaultTrial<StablePayment>("false")
-        .AddTrial<NewPayment>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<StablePayment>("false")
+        .AddCondition<NewPayment>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithCircuitBreaker(options =>
     {
         options.FailureRatioThreshold = 0.1;  // Very conservative
@@ -275,11 +275,11 @@ var paymentExperiments = ExperimentFrameworkBuilder.Create()
 
 // Non-critical recommendations - permissive settings
 var recommendationExperiments = ExperimentFrameworkBuilder.Create()
-    .Define<IRecommendationEngine>(c => c
+    .Trial<IRecommendationEngine>(t => t
         .UsingFeatureFlag("UseMachineLearning")
-        .AddDefaultTrial<RuleBased>("false")
-        .AddTrial<MachineLearning>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<RuleBased>("false")
+        .AddCondition<MachineLearning>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithCircuitBreaker(options =>
     {
         options.FailureRatioThreshold = 0.6;  // More permissive
@@ -344,11 +344,11 @@ public async Task CircuitBreaker_OpensAfterFailures()
 {
     // Arrange
     var experiments = ExperimentFrameworkBuilder.Create()
-        .Define<IService>(c => c
+        .Trial<IService>(t => t
             .UsingFeatureFlag("UseNewService")
-            .AddDefaultTrial<StableService>("false")
-            .AddTrial<FailingService>("true")
-            .OnErrorRedirectAndReplayDefault())
+            .AddControl<StableService>("false")
+            .AddCondition<FailingService>("true")
+            .OnErrorRedirectAndReplayControl())
         .WithCircuitBreaker(options =>
         {
             options.FailureRatioThreshold = 0.5;
@@ -382,11 +382,11 @@ Combine with kill switch for manual control:
 var killSwitch = new InMemoryKillSwitchProvider();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IService>(c => c
+    .Trial<IService>(t => t
         .UsingFeatureFlag("UseNewService")
-        .AddDefaultTrial<StableService>("false")
-        .AddTrial<NewService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<StableService>("false")
+        .AddCondition<NewService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithCircuitBreaker(options =>
     {
         options.FailureRatioThreshold = 0.5;
@@ -412,11 +412,11 @@ dotnet add package ExperimentFramework.Metrics.Exporters
 var metrics = new PrometheusExperimentMetrics();
 
 var experiments = ExperimentFrameworkBuilder.Create()
-    .Define<IService>(c => c
+    .Trial<IService>(t => t
         .UsingFeatureFlag("UseNewService")
-        .AddDefaultTrial<StableService>("false")
-        .AddTrial<NewService>("true")
-        .OnErrorRedirectAndReplayDefault())
+        .AddControl<StableService>("false")
+        .AddCondition<NewService>("true")
+        .OnErrorRedirectAndReplayControl())
     .WithCircuitBreaker(options =>
     {
         options.FailureRatioThreshold = 0.5;
@@ -435,7 +435,7 @@ app.MapGet("/metrics", () => metrics.GeneratePrometheusOutput());
 # Circuit breaker open rate
 sum(rate(experiment_errors_total{error="CircuitBreakerOpenException"}[5m])) by (service)
 
-# Failure rate by trial
+# Failure rate by condition
 sum(rate(experiment_errors_total[5m])) by (service, trial_key)
 /
 sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
@@ -461,7 +461,7 @@ sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 1. Increase `FailureRatioThreshold` (too strict)
 2. Increase `MinimumThroughput` (premature from small sample)
 3. Increase `BreakDuration` (not enough time to recover)
-4. Check if trial has intermittent issues needing fixing
+4. Check if condition has intermittent issues needing fixing
 
 ### Fallback Not Working
 
@@ -469,12 +469,12 @@ sum(rate(experiment_invocations_total[5m])) by (service, trial_key)
 
 **Solutions:**
 1. Verify `OnCircuitOpen = CircuitBreakerAction.FallbackToDefault`
-2. Ensure `OnErrorRedirectAndReplayDefault()` is configured
-3. Check that default trial is registered
+2. Ensure `OnErrorRedirectAndReplayControl()` is configured
+3. Check that control condition is registered
 
 ## See Also
 
-- [Timeout Enforcement](timeout-enforcement.md) - Prevent slow trials
+- [Timeout Enforcement](timeout-enforcement.md) - Prevent slow conditions
 - [Error Handling](error-handling.md) - Fallback strategies
 - [Kill Switch](kill-switch.md) - Manual emergency shutdown
 - [Metrics](metrics.md) - Monitor circuit breaker state

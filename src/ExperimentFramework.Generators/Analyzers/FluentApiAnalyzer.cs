@@ -106,14 +106,16 @@ internal static class FluentApiAnalyzer
     }
 
     /// <summary>
-    /// Checks if an invocation is a Define&lt;T&gt; call syntactically.
+    /// Checks if an invocation is a Define&lt;T&gt; or Trial&lt;T&gt; call syntactically.
     /// </summary>
     private static bool IsDefineCall(InvocationExpressionSyntax invocation)
     {
         if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
             memberAccess.Name is GenericNameSyntax genericName)
         {
-            return genericName.Identifier.Text == "Define" &&
+            // Support both "Define" and "Trial" method names
+            var methodName = genericName.Identifier.Text;
+            return (methodName == "Define" || methodName == "Trial") &&
                    genericName.TypeArgumentList.Arguments.Count == 1;
         }
 
