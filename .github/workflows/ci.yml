@@ -40,9 +40,7 @@ jobs:
           dotnet test ExperimentFramework.slnx \
             --configuration Release \
             --collect:"XPlat Code Coverage" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Include="[ExperimentFramework*]*" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[*Tests]*"
+            --settings tests/ExperimentFramework.Tests/coverage.runsettings
 
       - name: Install ReportGenerator
         run: dotnet tool update -g dotnet-reportgenerator-globaltool
@@ -55,8 +53,8 @@ jobs:
             -reports:"$REPORTS" \
             -targetdir:"coverage-report" \
             -reporttypes:"HtmlInline;Cobertura;TextSummary;lcov;Badges" \
-            -assemblyfilters:"+ExperimentFramework*;-*Tests*" \
-            -filefilters:"-**/*.Tests/*;-**/*Tests*/**"
+            -assemblyfilters:"+ExperimentFramework*;-*Tests*;-*SampleConsole*;-*SampleWebApp*;-*ComprehensiveSample*;-*Benchmarks*" \
+            -filefilters:"-**/*.Tests/*;-**/*Tests*/**;-**/samples/**;-**/benchmarks/**"
           echo "COVERAGE_SUMMARY<<EOF" >> $GITHUB_ENV
           cat coverage-report/Summary.txt >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
