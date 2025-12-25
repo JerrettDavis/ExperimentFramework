@@ -719,10 +719,10 @@ public sealed class RuntimeExperimentProxyEdgeCaseTests
         var db = scope.ServiceProvider.GetRequiredService<TestInterfaces.IDatabase>();
 
         // Call Equals on proxy - exercises the object method handling
-        // Intentionally comparing db to itself to verify self-equality works
-        Assert.True(db.Equals(db));
         // Verify null is handled gracefully without throwing
         Assert.False(db.Equals((object?)null));
+        // Verify comparing to a different object type returns false
+        Assert.False(db.Equals("not a database"));
     }
 
     [Fact]
