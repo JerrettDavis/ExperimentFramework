@@ -398,7 +398,8 @@ public sealed class ExperimentBuilderActivationTests
     [Fact]
     public void ExperimentBuilder_ActiveWhen_throws_when_null()
     {
-        var builder = ExperimentFrameworkBuilder.Create()
+        // Builder result intentionally discarded - we're testing the callback throws
+        _ = ExperimentFrameworkBuilder.Create()
             .Experiment("test", exp =>
             {
                 Assert.Throws<ArgumentNullException>(() => exp.ActiveWhen(null!));
