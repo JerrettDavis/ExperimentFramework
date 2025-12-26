@@ -356,7 +356,7 @@ public sealed class SelectionModeInfrastructureTests
         var provider = registry.GetProvider("TestMode", services);
 
         Assert.NotNull(provider);
-        Assert.Equal("TestMode", provider!.ModeIdentifier);
+        Assert.Equal("TestMode", provider.ModeIdentifier);
     }
 
     [Fact]
@@ -515,7 +515,7 @@ public sealed class SelectionModeInfrastructureTests
         var factory = sp.GetService<ISelectionModeProviderFactory>();
 
         Assert.NotNull(factory);
-        Assert.Equal("TestAttributed", factory!.ModeIdentifier);
+        Assert.Equal("TestAttributed", factory.ModeIdentifier);
     }
 
     [Fact]
@@ -528,7 +528,7 @@ public sealed class SelectionModeInfrastructureTests
         var factory = sp.GetService<ISelectionModeProviderFactory>();
 
         Assert.NotNull(factory);
-        Assert.Equal("CustomMode", factory!.ModeIdentifier);
+        Assert.Equal("CustomMode", factory.ModeIdentifier);
     }
 
     #endregion

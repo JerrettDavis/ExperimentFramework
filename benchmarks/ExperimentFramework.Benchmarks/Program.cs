@@ -24,8 +24,6 @@ switch (choice)
     case "2":
         BenchmarkRunner.Run<RealWorldScenarioBenchmarks>();
         break;
-    case "3":
-    case "":
     default:
         BenchmarkRunner.Run<ProxyOverheadBenchmarks>();
         BenchmarkRunner.Run<RealWorldScenarioBenchmarks>();

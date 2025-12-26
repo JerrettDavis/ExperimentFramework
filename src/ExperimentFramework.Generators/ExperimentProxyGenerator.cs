@@ -41,7 +41,7 @@ public sealed class ExperimentProxyGenerator : IIncrementalGenerator
             .Combine(attributeDefinitions.Collect());
 
         context.RegisterSourceOutput(allDefinitions,
-            static (sourceContext, definitions) => GenerateProxies(sourceContext, definitions));
+            static (sourceContext, definitions) => GenerateProxies(sourceContext, definitions!));
     }
 
     /// <summary>

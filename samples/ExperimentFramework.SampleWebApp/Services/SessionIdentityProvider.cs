@@ -18,8 +18,8 @@ public class SessionIdentityProvider(IHttpContextAccessor contextAccessor) : IEx
         }
 
         // Try to get user ID from claims (authenticated users)
-        var userId = context.User?.FindFirst("sub")?.Value
-                  ?? context.User?.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+        var userId = context.User.FindFirst("sub")?.Value
+                  ?? context.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
 
         if (!string.IsNullOrEmpty(userId))
         {

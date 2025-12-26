@@ -15,7 +15,7 @@ internal static class AttributeAnalyzer
     /// <summary>
     /// Extracts experiment definitions from a method decorated with [ExperimentCompositionRoot].
     /// </summary>
-    public static ExperimentDefinitionCollection? ExtractDefinitions(GeneratorSyntaxContext context)
+    public static ExperimentDefinitionCollection ExtractDefinitions(GeneratorSyntaxContext context)
     {
         var method = (MethodDeclarationSyntax)context.Node;
 

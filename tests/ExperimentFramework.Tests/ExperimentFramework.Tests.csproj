@@ -30,6 +30,8 @@
         <ProjectReference Include="..\..\src\ExperimentFramework.FeatureManagement\ExperimentFramework.FeatureManagement.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.StickyRouting\ExperimentFramework.StickyRouting.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.OpenFeature\ExperimentFramework.OpenFeature.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Data\ExperimentFramework.Data.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Science\ExperimentFramework.Science.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,4 +1,3 @@
-using ExperimentFramework.Models;
 using ExperimentFramework.Naming;
 using ExperimentFramework.Tests.TestInterfaces;
 using Microsoft.Extensions.Configuration;

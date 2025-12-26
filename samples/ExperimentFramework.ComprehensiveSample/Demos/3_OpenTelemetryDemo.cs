@@ -23,26 +23,24 @@ public class OpenTelemetryDemo(INotificationService notificationService)
         Console.WriteLine("\nWatching for Activities with source 'ExperimentFramework':");
 
         // Set up Activity listener to capture telemetry
-        using var listener = new ActivityListener
+        using var listener = new ActivityListener();
+        listener.ShouldListenTo = source => source.Name == "ExperimentFramework";
+        listener.Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded;
+        listener.ActivityStarted = activity =>
         {
-            ShouldListenTo = source => source.Name == "ExperimentFramework",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStarted = activity =>
+            Console.WriteLine("\n  [OpenTelemetry] Activity Started:");
+            Console.WriteLine($"    Name: {activity.DisplayName}");
+            Console.WriteLine($"    OperationName: {activity.OperationName}");
+            foreach (var tag in activity.TagObjects)
             {
-                Console.WriteLine("\n  [OpenTelemetry] Activity Started:");
-                Console.WriteLine($"    Name: {activity.DisplayName}");
-                Console.WriteLine($"    OperationName: {activity.OperationName}");
-                foreach (var tag in activity.TagObjects)
-                {
-                    Console.WriteLine($"    Tag: {tag.Key} = {tag.Value}");
-                }
-            },
-            ActivityStopped = activity =>
-            {
-                Console.WriteLine("  [OpenTelemetry] Activity Stopped:");
-                Console.WriteLine($"    Duration: {activity.Duration.TotalMilliseconds}ms");
-                Console.WriteLine($"    Status: {activity.Status}");
+                Console.WriteLine($"    Tag: {tag.Key} = {tag.Value}");
             }
+        };
+        listener.ActivityStopped = activity =>
+        {
+            Console.WriteLine("  [OpenTelemetry] Activity Stopped:");
+            Console.WriteLine($"    Duration: {activity.Duration.TotalMilliseconds}ms");
+            Console.WriteLine($"    Status: {activity.Status}");
         };
 
         ActivitySource.AddActivityListener(listener);

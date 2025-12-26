@@ -68,7 +68,7 @@ public sealed class FeatureManagementPackageTests
         var factory = sp.GetService<ISelectionModeProviderFactory>();
 
         Assert.NotNull(factory);
-        Assert.Equal("VariantFeatureFlag", factory!.ModeIdentifier);
+        Assert.Equal("VariantFeatureFlag", factory.ModeIdentifier);
     }
 
     #endregion

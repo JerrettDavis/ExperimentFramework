@@ -6,9 +6,9 @@ namespace ExperimentFramework.ComprehensiveSample.Demos;
 /// Demonstrates all 5 supported return types:
 /// - void (synchronous, no return value)
 /// - Task (asynchronous, no return value)
-/// - Task<T> (asynchronous with return value)
+/// - Task&gt;T&lt; (asynchronous with return value)
 /// - ValueTask (asynchronous, no return value, allocation-optimized)
-/// - ValueTask<T> (asynchronous with return value, allocation-optimized)
+/// - ValueTask&gt;T&lt; (asynchronous with return value, allocation-optimized)
 /// </summary>
 public class ReturnTypesDemo(
     IVoidService voidService,

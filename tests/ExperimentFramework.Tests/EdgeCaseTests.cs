@@ -426,7 +426,7 @@ public sealed class TrialConflictExceptionTests
         var conflict = new TrialConflict
         {
             Type = TrialConflictType.DuplicateServiceRegistration,
-            ServiceType = typeof(TestInterfaces.ITestService),
+            ServiceType = typeof(ITestService),
             Description = "Duplicate registration for ITestService with variant-a"
         };
 
@@ -445,13 +445,13 @@ public sealed class TrialConflictExceptionTests
             new TrialConflict
             {
                 Type = TrialConflictType.DuplicateServiceRegistration,
-                ServiceType = typeof(TestInterfaces.ITestService),
+                ServiceType = typeof(ITestService),
                 Description = "Duplicate registration for ITestService"
             },
             new TrialConflict
             {
                 Type = TrialConflictType.OverlappingTimeWindows,
-                ServiceType = typeof(TestInterfaces.IDatabase),
+                ServiceType = typeof(IDatabase),
                 Description = "Overlapping time windows for IDatabase"
             }
         };
@@ -476,12 +476,12 @@ public sealed class TrialConflictExceptionTests
         var conflict = new TrialConflict
         {
             Type = TrialConflictType.InvalidFallbackKey,
-            ServiceType = typeof(TestInterfaces.IDatabase),
+            ServiceType = typeof(IDatabase),
             Description = "Invalid fallback key 'cloud' for IDatabase",
-            ExperimentNames = new[] { "exp1", "exp2" }
+            ExperimentNames = ["exp1", "exp2"]
         };
 
-        Assert.Equal(typeof(TestInterfaces.IDatabase), conflict.ServiceType);
+        Assert.Equal(typeof(IDatabase), conflict.ServiceType);
         Assert.Equal(TrialConflictType.InvalidFallbackKey, conflict.Type);
         Assert.Contains("cloud", conflict.Description);
         Assert.Equal(2, conflict.ExperimentNames!.Count);

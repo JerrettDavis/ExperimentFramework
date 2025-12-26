@@ -1,4 +1,3 @@
-using ExperimentFramework.Decorators;
 using ExperimentFramework.Models;
 using ExperimentFramework.Selection;
 using ExperimentFramework.Telemetry;
@@ -721,7 +720,7 @@ public sealed class RuntimeExperimentProxyEdgeCaseTests
         var db2 = scope2.ServiceProvider.GetRequiredService<TestInterfaces.IDatabase>();
 
         // Verify null is handled gracefully without throwing
-        Assert.False(db1.Equals((object?)null));
+        Assert.False(db1.Equals(null));
 
         // Verify comparing to a different object type returns false
         Assert.False(db1.Equals("not a database"));

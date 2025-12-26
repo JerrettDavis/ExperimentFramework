@@ -104,7 +104,7 @@ public sealed class VariantFeatureManagerTests(ITestOutputHelper output) : TinyB
     [Fact]
     public Task Adapter_availability_check()
         => Given("variant adapter", () => VariantFeatureManagerAdapter.IsAvailable)
-            .Then("availability status is returned", available =>
+            .Then("availability status is returned", _ =>
             {
                 // IsAvailable depends on whether Microsoft.FeatureManagement with variants is installed
                 // In this test environment, it may or may not be available - we just verify the property is accessible
