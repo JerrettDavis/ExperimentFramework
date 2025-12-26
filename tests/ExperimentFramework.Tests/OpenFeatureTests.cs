@@ -70,7 +70,7 @@ public sealed class OpenFeatureTests
         var factory = sp.GetService<ISelectionModeProviderFactory>();
 
         Assert.NotNull(factory);
-        Assert.Equal("OpenFeature", factory!.ModeIdentifier);
+        Assert.Equal("OpenFeature", factory.ModeIdentifier);
     }
 
     #endregion

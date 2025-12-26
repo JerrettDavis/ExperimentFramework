@@ -224,7 +224,6 @@ public sealed class ExperimentAnalyzer : IExperimentAnalyzer
         var alternativeType = hypothesis?.Type switch
         {
             HypothesisType.Superiority => AlternativeHypothesisType.Greater,
-            HypothesisType.TwoSided => AlternativeHypothesisType.TwoSided,
             _ => AlternativeHypothesisType.TwoSided
         };
 

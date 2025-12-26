@@ -2,7 +2,6 @@ using ExperimentFramework.Data.Models;
 using ExperimentFramework.Data.Storage;
 using ExperimentFramework.Science.Analysis;
 using ExperimentFramework.Science.Builders;
-using ExperimentFramework.Science.Models.Results;
 using ExperimentFramework.Science.Power;
 using ExperimentFramework.Science.Reporting;
 
@@ -18,8 +17,8 @@ public class ExperimentAnalyzerTests
         double[] controlValues = null!,
         double[] treatmentValues = null!)
     {
-        controlValues ??= new double[] { 10, 12, 11, 13, 14, 10, 11, 12, 13, 12 };
-        treatmentValues ??= new double[] { 15, 16, 17, 14, 18, 16, 17, 15, 16, 17 };
+        controlValues ??= [10, 12, 11, 13, 14, 10, 11, 12, 13, 12];
+        treatmentValues ??= [15, 16, 17, 14, 18, 16, 17, 15, 16, 17];
 
         for (var i = 0; i < controlValues.Length; i++)
         {
@@ -288,8 +287,8 @@ public class ExperimentAnalyzerTests
     {
         // Seed data with clearly different means
         await SeedContinuousData(
-            controlValues: new double[] { 1, 2, 3, 4, 5, 1, 2, 3, 4, 5 },
-            treatmentValues: new double[] { 20, 21, 22, 23, 24, 20, 21, 22, 23, 24 });
+            controlValues: [1, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+            treatmentValues: [20, 21, 22, 23, 24, 20, 21, 22, 23, 24]);
         var analyzer = new ExperimentAnalyzer(_store);
         var options = new AnalysisOptions { MetricName = "metric" };
 
@@ -304,8 +303,8 @@ public class ExperimentAnalyzerTests
     {
         // Seed data with similar means
         await SeedContinuousData(
-            controlValues: new double[] { 10, 11, 12, 10, 11, 12, 10, 11, 12, 10 },
-            treatmentValues: new double[] { 10, 11, 12, 10, 11, 12, 10, 11, 12, 11 });
+            controlValues: [10, 11, 12, 10, 11, 12, 10, 11, 12, 10],
+            treatmentValues: [10, 11, 12, 10, 11, 12, 10, 11, 12, 11]);
         var analyzer = new ExperimentAnalyzer(_store);
         var options = new AnalysisOptions { MetricName = "metric" };
 
@@ -438,8 +437,8 @@ public class ExperimentAnalyzerTests
     public async Task AnalyzeAsync_WithSuperiorityHypothesis_ReturnsAppropriateConclusion()
     {
         await SeedContinuousData(
-            controlValues: new double[] { 1, 2, 3, 4, 5, 1, 2, 3, 4, 5 },
-            treatmentValues: new double[] { 20, 21, 22, 23, 24, 20, 21, 22, 23, 24 });
+            controlValues: [1, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+            treatmentValues: [20, 21, 22, 23, 24, 20, 21, 22, 23, 24]);
         var analyzer = new ExperimentAnalyzer(_store);
         var hypothesis = new HypothesisBuilder("test")
             .Superiority()
@@ -458,8 +457,8 @@ public class ExperimentAnalyzerTests
     public async Task AnalyzeAsync_GeneratesRecommendations()
     {
         await SeedContinuousData(
-            controlValues: new double[] { 1, 2, 3, 4, 5, 1, 2, 3, 4, 5 },
-            treatmentValues: new double[] { 20, 21, 22, 23, 24, 20, 21, 22, 23, 24 });
+            controlValues: [1, 2, 3, 4, 5, 1, 2, 3, 4, 5],
+            treatmentValues: [20, 21, 22, 23, 24, 20, 21, 22, 23, 24]);
         var analyzer = new ExperimentAnalyzer(_store);
         var options = new AnalysisOptions
         {
@@ -652,7 +651,7 @@ public class ExperimentAnalyzerTests
         var options = new AnalysisOptions
         {
             MetricName = "metric",
-            TreatmentConditions = new[] { "treatment" }
+            TreatmentConditions = ["treatment"]
         };
 
         var report = await analyzer.AnalyzeAsync("test-exp", options);
@@ -736,8 +735,8 @@ public class ExperimentAnalyzerTests
     public async Task AnalyzeAsync_ControlWinsConclusion()
     {
         await SeedContinuousData(
-            controlValues: new double[] { 20, 21, 22, 23, 24, 20, 21, 22, 23, 24 },
-            treatmentValues: new double[] { 1, 2, 3, 4, 5, 1, 2, 3, 4, 5 });
+            controlValues: [20, 21, 22, 23, 24, 20, 21, 22, 23, 24],
+            treatmentValues: [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]);
         var analyzer = new ExperimentAnalyzer(_store);
         var options = new AnalysisOptions { MetricName = "metric" };
 
@@ -781,8 +780,8 @@ public class ExperimentAnalyzerTests
     {
         // Use slightly different data to produce non-zero effect size
         await SeedContinuousData(
-            controlValues: new double[] { 10, 11, 12, 13, 14, 10, 11, 12, 13, 14 },
-            treatmentValues: new double[] { 11, 12, 13, 14, 15, 11, 12, 13, 14, 15 });
+            controlValues: [10, 11, 12, 13, 14, 10, 11, 12, 13, 14],
+            treatmentValues: [11, 12, 13, 14, 15, 11, 12, 13, 14, 15]);
         var analyzer = new ExperimentAnalyzer(_store);
         var hypothesis = new HypothesisBuilder("test")
             .NonInferiority()
@@ -801,8 +800,8 @@ public class ExperimentAnalyzerTests
     {
         // Use slightly different data to produce non-zero effect size
         await SeedContinuousData(
-            controlValues: new double[] { 10, 11, 12, 13, 14, 10, 11, 12, 13, 14 },
-            treatmentValues: new double[] { 10.1, 11.1, 12.1, 13.1, 14.1, 10.1, 11.1, 12.1, 13.1, 14.1 });
+            controlValues: [10, 11, 12, 13, 14, 10, 11, 12, 13, 14],
+            treatmentValues: [10.1, 11.1, 12.1, 13.1, 14.1, 10.1, 11.1, 12.1, 13.1, 14.1]);
         var analyzer = new ExperimentAnalyzer(_store);
         var hypothesis = new HypothesisBuilder("test")
             .Equivalence()

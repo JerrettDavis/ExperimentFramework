@@ -151,7 +151,7 @@ public sealed class PrometheusExperimentMetrics : IExperimentMetrics
                 sb.Append(',');
             sb.Append(tags[i].Key);
             sb.Append("=\"");
-            sb.Append(EscapePrometheusValue(tags[i].Value?.ToString() ?? ""));
+            sb.Append(EscapePrometheusValue(tags[i].Value.ToString() ?? ""));
             sb.Append('"');
         }
 

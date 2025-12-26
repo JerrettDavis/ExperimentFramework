@@ -262,7 +262,7 @@ public sealed class StickyRoutingProviderTests
         var factory = sp.GetService<ISelectionModeProviderFactory>();
 
         Assert.NotNull(factory);
-        Assert.Equal("StickyRouting", factory!.ModeIdentifier);
+        Assert.Equal("StickyRouting", factory.ModeIdentifier);
     }
 
     #endregion

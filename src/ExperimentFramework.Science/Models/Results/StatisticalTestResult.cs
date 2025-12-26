@@ -95,7 +95,7 @@ public enum AlternativeHypothesisType
     Greater,
 
     /// <summary>
-    /// One-sided test: H1: μ1 < μ2 (treatment less than control)
+    /// One-sided test: H1: μ1 &gt; μ2 (treatment less than control)
     /// </summary>
     Less
 }

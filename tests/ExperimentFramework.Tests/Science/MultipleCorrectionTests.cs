@@ -31,7 +31,7 @@ public class MultipleCorrectionTests
         public void AdjustPValues_MultipliesByNumberOfTests()
         {
             // Arrange
-            var pValues = new double[] { 0.01, 0.02, 0.03, 0.04, 0.05 };
+            var pValues = new[] { 0.01, 0.02, 0.03, 0.04, 0.05 };
 
             // Act
             var adjusted = BonferroniCorrection.Instance.AdjustPValues(pValues);
@@ -45,7 +45,7 @@ public class MultipleCorrectionTests
         public void AdjustPValues_CapsAtOne()
         {
             // Arrange
-            var pValues = new double[] { 0.30, 0.40, 0.50 };
+            var pValues = new[] { 0.30, 0.40, 0.50 };
 
             // Act
             var adjusted = BonferroniCorrection.Instance.AdjustPValues(pValues);
@@ -102,7 +102,7 @@ public class MultipleCorrectionTests
         public void DetermineSignificance_UsesDividedAlpha()
         {
             // Arrange
-            var pValues = new double[] { 0.005, 0.02, 0.03, 0.04, 0.05 };
+            var pValues = new[] { 0.005, 0.02, 0.03, 0.04, 0.05 };
 
             // Act - alpha/5 = 0.01
             var significant = BonferroniCorrection.Instance.DetermineSignificance(pValues, 0.05);
@@ -130,7 +130,7 @@ public class MultipleCorrectionTests
         [Fact]
         public void DetermineSignificance_AllNotSignificant()
         {
-            var pValues = new double[] { 0.5, 0.6, 0.7 };
+            var pValues = new[] { 0.5, 0.6, 0.7 };
 
             var significant = BonferroniCorrection.Instance.DetermineSignificance(pValues, 0.05);
 
@@ -165,7 +165,7 @@ public class MultipleCorrectionTests
         public void AdjustPValues_AppliesStepDownProcedure()
         {
             // Arrange - sorted p-values
-            var pValues = new double[] { 0.01, 0.02, 0.03 };
+            var pValues = new[] { 0.01, 0.02, 0.03 };
 
             // Act
             var adjusted = HolmBonferroniCorrection.Instance.AdjustPValues(pValues);
@@ -196,7 +196,7 @@ public class MultipleCorrectionTests
         public void AdjustPValues_HandlesUnsortedInput()
         {
             // Arrange - unsorted p-values
-            var pValues = new double[] { 0.03, 0.01, 0.02 };
+            var pValues = new[] { 0.03, 0.01, 0.02 };
 
             // Act
             var adjusted = HolmBonferroniCorrection.Instance.AdjustPValues(pValues);
@@ -209,7 +209,7 @@ public class MultipleCorrectionTests
         [Fact]
         public void AdjustPValues_CapsAtOne()
         {
-            var pValues = new double[] { 0.5, 0.6, 0.7 };
+            var pValues = new[] { 0.5, 0.6, 0.7 };
 
             var adjusted = HolmBonferroniCorrection.Instance.AdjustPValues(pValues);
 
@@ -247,7 +247,7 @@ public class MultipleCorrectionTests
         public void DetermineSignificance_StopsAtFirstNonSignificant()
         {
             // Arrange
-            var pValues = new double[] { 0.001, 0.02, 0.03 };
+            var pValues = new[] { 0.001, 0.02, 0.03 };
 
             // Act
             var significant = HolmBonferroniCorrection.Instance.DetermineSignificance(pValues, 0.05);
@@ -280,7 +280,7 @@ public class MultipleCorrectionTests
         public void DetermineSignificance_StopsCorrectly()
         {
             // Arrange - second p-value will fail the threshold
-            var pValues = new double[] { 0.001, 0.03, 0.04 };
+            var pValues = new[] { 0.001, 0.03, 0.04 };
 
             // Act
             var significant = HolmBonferroniCorrection.Instance.DetermineSignificance(pValues, 0.05);
@@ -320,7 +320,7 @@ public class MultipleCorrectionTests
         public void AdjustPValues_ProducesQValues()
         {
             // Arrange
-            var pValues = new double[] { 0.01, 0.02, 0.03, 0.04, 0.05 };
+            var pValues = new[] { 0.01, 0.02, 0.03, 0.04, 0.05 };
 
             // Act
             var adjusted = BenjaminiHochbergCorrection.Instance.AdjustPValues(pValues);
@@ -348,7 +348,7 @@ public class MultipleCorrectionTests
         [Fact]
         public void AdjustPValues_CapsAtOne()
         {
-            var pValues = new double[] { 0.5, 0.6, 0.7 };
+            var pValues = new[] { 0.5, 0.6, 0.7 };
 
             var adjusted = BenjaminiHochbergCorrection.Instance.AdjustPValues(pValues);
 
@@ -359,7 +359,7 @@ public class MultipleCorrectionTests
         public void AdjustPValues_EnforcesMonotonicity()
         {
             // Adjusted p-values should be monotonically non-decreasing in rank order
-            var pValues = new double[] { 0.01, 0.015, 0.03, 0.04 };
+            var pValues = new[] { 0.01, 0.015, 0.03, 0.04 };
 
             var adjusted = BenjaminiHochbergCorrection.Instance.AdjustPValues(pValues);
 
@@ -408,7 +408,7 @@ public class MultipleCorrectionTests
         public void DetermineSignificance_FindsLargestSignificantK()
         {
             // Arrange
-            var pValues = new double[] { 0.005, 0.02, 0.04 };
+            var pValues = new[] { 0.005, 0.02, 0.04 };
 
             // Act
             var significant = BenjaminiHochbergCorrection.Instance.DetermineSignificance(pValues, 0.05);
@@ -440,7 +440,7 @@ public class MultipleCorrectionTests
         [Fact]
         public void DetermineSignificance_NoSignificantResults()
         {
-            var pValues = new double[] { 0.5, 0.6, 0.7 };
+            var pValues = new[] { 0.5, 0.6, 0.7 };
 
             var significant = BenjaminiHochbergCorrection.Instance.DetermineSignificance(pValues, 0.05);
 
@@ -451,7 +451,7 @@ public class MultipleCorrectionTests
         public void DetermineSignificance_PartialSignificance()
         {
             // Only first two should be significant
-            var pValues = new double[] { 0.01, 0.03, 0.5 };
+            var pValues = new[] { 0.01, 0.03, 0.5 };
 
             var significant = BenjaminiHochbergCorrection.Instance.DetermineSignificance(pValues, 0.05);
 
@@ -467,7 +467,7 @@ public class MultipleCorrectionTests
         [Fact]
         public void DetermineSignificance_HandlesSinglePValue()
         {
-            var pValues = new double[] { 0.03 };
+            var pValues = new[] { 0.03 };
 
             var significant = BenjaminiHochbergCorrection.Instance.DetermineSignificance(pValues, 0.05);
 
@@ -479,7 +479,7 @@ public class MultipleCorrectionTests
         public void IsLessPowerfulThanBonferroni()
         {
             // BH should identify more significant results than Bonferroni
-            var pValues = new double[] { 0.005, 0.02, 0.03 };
+            var pValues = new[] { 0.005, 0.02, 0.03 };
 
             var bhSignificant = BenjaminiHochbergCorrection.Instance.DetermineSignificance(pValues, 0.05);
             var bonSignificant = BonferroniCorrection.Instance.DetermineSignificance(pValues, 0.05);

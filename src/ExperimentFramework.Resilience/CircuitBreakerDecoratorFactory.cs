@@ -35,12 +35,10 @@ public sealed class CircuitBreakerDecoratorFactory : IExperimentDecoratorFactory
     private sealed class CircuitBreakerDecorator : IExperimentDecorator
     {
         private readonly ResiliencePipeline _pipeline;
-        private readonly CircuitBreakerOptions _options;
         private readonly ILogger? _logger;
 
         public CircuitBreakerDecorator(CircuitBreakerOptions options, ILogger? logger)
         {
-            _options = options;
             _logger = logger;
 
             // Build Polly resilience pipeline with circuit breaker

@@ -89,7 +89,7 @@ public sealed class MannWhitneyUTest : IStatisticalTest
         {
             var n = n1 + n2;
             // Cast both operands to double before multiplication to avoid potential integer overflow
-            stdU = Math.Sqrt((double)n1 * (double)n2 / ((double)n * (double)(n - 1)) *
+            stdU = Math.Sqrt(n1 * (double)n2 / (n * (double)(n - 1)) *
                 ((Math.Pow(n, 3) - n) / 12 - tieCorrection));
         }
 

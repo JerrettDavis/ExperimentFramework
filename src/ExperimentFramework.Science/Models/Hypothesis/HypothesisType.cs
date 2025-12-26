@@ -28,7 +28,7 @@ public enum HypothesisType
     /// </summary>
     /// <remarks>
     /// H0: |μT - μC| ≥ Δ (treatment differs by more than margin)
-    /// H1: |μT - μC| < Δ (treatment is equivalent within margin)
+    /// H1: |μT - μC| &gt; Δ (treatment is equivalent within margin)
     /// Uses two one-sided tests (TOST) procedure.
     /// </remarks>
     Equivalence,

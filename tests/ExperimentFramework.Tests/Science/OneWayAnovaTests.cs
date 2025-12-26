@@ -10,9 +10,9 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 5, 5, 5, 5, 5 },
-            ["group2"] = new double[] { 5, 5, 5, 5, 5 },
-            ["group3"] = new double[] { 5, 5, 5, 5, 5 }
+            ["group1"] = [5, 5, 5, 5, 5],
+            ["group2"] = [5, 5, 5, 5, 5],
+            ["group3"] = [5, 5, 5, 5, 5]
         };
 
         // Act
@@ -29,9 +29,9 @@ public class OneWayAnovaTests
         // Arrange - groups with clearly different means
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3, 4, 5 },
-            ["group2"] = new double[] { 10, 11, 12, 13, 14 },
-            ["group3"] = new double[] { 20, 21, 22, 23, 24 }
+            ["group1"] = [1, 2, 3, 4, 5],
+            ["group2"] = [10, 11, 12, 13, 14],
+            ["group3"] = [20, 21, 22, 23, 24]
         };
 
         // Act
@@ -48,9 +48,9 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3, 4, 5 },
-            ["group2"] = new double[] { 6, 7, 8, 9, 10 },
-            ["group3"] = new double[] { 11, 12, 13, 14, 15 }
+            ["group1"] = [1, 2, 3, 4, 5],
+            ["group2"] = [6, 7, 8, 9, 10],
+            ["group3"] = [11, 12, 13, 14, 15]
         };
 
         // Act
@@ -66,9 +66,9 @@ public class OneWayAnovaTests
         // Arrange - 3 groups with 5 observations each
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3, 4, 5 },
-            ["group2"] = new double[] { 6, 7, 8, 9, 10 },
-            ["group3"] = new double[] { 11, 12, 13, 14, 15 }
+            ["group1"] = [1, 2, 3, 4, 5],
+            ["group2"] = [6, 7, 8, 9, 10],
+            ["group3"] = [11, 12, 13, 14, 15]
         };
 
         // Act
@@ -86,9 +86,9 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["control"] = new double[] { 1, 2, 3 },
-            ["variant-a"] = new double[] { 4, 5, 6, 7 },
-            ["variant-b"] = new double[] { 8, 9 }
+            ["control"] = [1, 2, 3],
+            ["variant-a"] = [4, 5, 6, 7],
+            ["variant-b"] = [8, 9]
         };
 
         // Act
@@ -106,7 +106,7 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3, 4, 5 }
+            ["group1"] = [1, 2, 3, 4, 5]
         };
 
         // Act & Assert
@@ -119,8 +119,8 @@ public class OneWayAnovaTests
         // Arrange - with only 1 observation per group, dfWithin = 0 which is invalid for F-distribution
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1 },
-            ["group2"] = new double[] { 5 }
+            ["group1"] = [1],
+            ["group2"] = [5]
         };
 
         // Act & Assert - F-distribution requires dfWithin > 0
@@ -133,8 +133,8 @@ public class OneWayAnovaTests
         // Arrange - minimum valid case: 2 groups with 2 observations each (dfWithin = 4 - 2 = 2)
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2 },
-            ["group2"] = new double[] { 5, 6 }
+            ["group1"] = [1, 2],
+            ["group2"] = [5, 6]
         };
 
         // Act
@@ -151,8 +151,8 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = Array.Empty<double>(),
-            ["group2"] = new double[] { 2, 3, 4 }
+            ["group1"] = [],
+            ["group2"] = [2, 3, 4]
         };
 
         // Act & Assert
@@ -182,8 +182,8 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["control"] = new double[] { 1, 2, 3, 4, 5 },
-            ["treatment"] = new double[] { 6, 7, 8, 9, 10 }
+            ["control"] = [1, 2, 3, 4, 5],
+            ["treatment"] = [6, 7, 8, 9, 10]
         };
 
         // Act
@@ -200,11 +200,11 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3 },
-            ["group2"] = new double[] { 4, 5, 6 },
-            ["group3"] = new double[] { 7, 8, 9 },
-            ["group4"] = new double[] { 10, 11, 12 },
-            ["group5"] = new double[] { 13, 14, 15 }
+            ["group1"] = [1, 2, 3],
+            ["group2"] = [4, 5, 6],
+            ["group3"] = [7, 8, 9],
+            ["group4"] = [10, 11, 12],
+            ["group5"] = [13, 14, 15]
         };
 
         // Act
@@ -221,8 +221,8 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3, 4, 5 },
-            ["group2"] = new double[] { 6, 7, 8, 9, 10 }
+            ["group1"] = [1, 2, 3, 4, 5],
+            ["group2"] = [6, 7, 8, 9, 10]
         };
 
         // Act
@@ -238,8 +238,8 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 1, 2, 3, 4, 5 },
-            ["group2"] = new double[] { 6, 7, 8, 9, 10 }
+            ["group1"] = [1, 2, 3, 4, 5],
+            ["group2"] = [6, 7, 8, 9, 10]
         };
 
         // Act
@@ -255,8 +255,8 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 2, 2, 2 }, // mean = 2
-            ["group2"] = new double[] { 4, 4, 4 }  // mean = 4
+            ["group1"] = [2, 2, 2], // mean = 2
+            ["group2"] = [4, 4, 4]  // mean = 4
         };
 
         // Act
@@ -276,8 +276,8 @@ public class OneWayAnovaTests
         // Arrange
         var groups = new Dictionary<string, IReadOnlyList<double>>
         {
-            ["group1"] = new double[] { 2, 2, 2 }, // mean = 2
-            ["group2"] = new double[] { 4, 4, 4 }  // mean = 4
+            ["group1"] = [2, 2, 2], // mean = 2
+            ["group2"] = [4, 4, 4]  // mean = 4
         };
 
         // Act

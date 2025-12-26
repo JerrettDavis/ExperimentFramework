@@ -146,7 +146,7 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         services.AddExperimentDataCollection();
 
-        var result = services.AddExperimentScience(opts => { });
+        var result = services.AddExperimentScience(_ => { });
 
         Assert.Same(services, result);
     }
