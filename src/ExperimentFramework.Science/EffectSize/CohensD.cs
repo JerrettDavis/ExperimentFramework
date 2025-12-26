@@ -63,8 +63,8 @@ public sealed class CohensD : IEffectSizeCalculator
         var d = (mean2 - mean1) / pooledSd;
 
         // Standard error of d (approximation)
-        // Cast n1 before multiplication to avoid potential integer overflow
-        var se = Math.Sqrt((n1 + n2) / ((double)n1 * (double)n2) + d * d / (2 * (n1 + n2)));
+        // Cast to double before multiplication to avoid potential integer overflow
+        var se = Math.Sqrt((n1 + n2) / ((double)n1 * n2) + d * d / (2.0 * (n1 + n2)));
 
         // 95% confidence interval
         var normal = new Normal(0, 1);

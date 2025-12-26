@@ -351,7 +351,7 @@ public class InMemoryOutcomeStoreTests
     public async Task RecordAsync_ThrowsOnCancellation()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         // Act & Assert

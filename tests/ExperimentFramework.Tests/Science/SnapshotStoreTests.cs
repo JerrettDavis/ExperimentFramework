@@ -216,7 +216,7 @@ public class SnapshotStoreTests
     public async Task SaveAsync_AcceptsCancellationToken()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         var snapshot = CreateSnapshot();
 
         // Act - should not throw (implementation doesn't check token but accepts it)
