@@ -16,6 +16,10 @@ dotnet run
 # Run the web API sample (sticky routing in web apps)
 cd samples/ExperimentFramework.SampleWebApp
 dotnet run
+
+# Run the scientific sample (statistical analysis)
+cd samples/ExperimentFramework.ScientificSample
+dotnet run
 ```
 
 ## Sample Projects
@@ -108,35 +112,74 @@ curl http://localhost:5000/api/checkout/flow
 
 ---
 
+### 4. ExperimentFramework.ScientificSample *(NEW)*
+
+**Location:** `samples/ExperimentFramework.ScientificSample/`
+
+A comprehensive sample demonstrating scientific experimentation capabilities for rigorous A/B testing.
+
+**Demonstrates:**
+- ✅ Power analysis and sample size calculation
+- ✅ Hypothesis definition with pre-registration
+- ✅ Outcome data collection (binary, continuous, duration)
+- ✅ Statistical tests (t-test, chi-square, ANOVA)
+- ✅ Effect size calculation (Cohen's d, odds ratio, relative risk)
+- ✅ Multiple comparison corrections (Bonferroni, Holm, Benjamini-Hochberg)
+- ✅ Publication-ready report generation (Markdown, JSON)
+
+**Required Packages:**
+```bash
+dotnet add package ExperimentFramework.Data
+dotnet add package ExperimentFramework.Science
+```
+
+**Run it:**
+```bash
+cd samples/ExperimentFramework.ScientificSample
+dotnet run
+```
+
+**Output:** Complete walkthrough of scientific experimentation workflow from hypothesis to publication-ready reports.
+
+---
+
 ## Feature Coverage Matrix
 
-| Feature | Comprehensive | Console | WebApp |
-|---------|:-------------:|:-------:|:------:|
-| **Selection Modes** | | | |
-| Boolean Feature Flag | ✅ | ✅ | ✅ |
-| Configuration | ✅ | ✅ | |
-| Variant Feature Flag | ✅ | | |
-| Sticky Routing | ✅ | | ✅ |
-| **Error Policies** | | | |
-| Throw | ✅ | | |
-| RedirectAndReplayDefault | ✅ | ✅ | ✅ |
-| RedirectAndReplayAny | ✅ | ✅ | |
-| RedirectAndReplay | ✅ | | |
-| RedirectAndReplayOrdered | ✅ | | |
-| **Return Types** | | | |
-| void | ✅ | | |
-| Task | ✅ | ✅ | ✅ |
-| Task\<T> | ✅ | ✅ | ✅ |
-| ValueTask | ✅ | | |
-| ValueTask\<T> | ✅ | | |
-| **Advanced Features** | | | |
-| Custom Decorators | ✅ | | |
-| OpenTelemetry | ✅ | | |
-| Built-in Decorators | | ✅ | |
-| Session Identity Provider | | | ✅ |
-| **Triggers** | | | |
-| [ExperimentCompositionRoot] | ✅ | ✅ | |
-| .UseSourceGenerators() | | | ✅ |
+| Feature | Comprehensive | Console | WebApp | Scientific |
+|---------|:-------------:|:-------:|:------:|:----------:|
+| **Selection Modes** | | | | |
+| Boolean Feature Flag | ✅ | ✅ | ✅ | |
+| Configuration | ✅ | ✅ | | |
+| Variant Feature Flag | ✅ | | | |
+| Sticky Routing | ✅ | | ✅ | |
+| **Error Policies** | | | | |
+| Throw | ✅ | | | |
+| RedirectAndReplayDefault | ✅ | ✅ | ✅ | |
+| RedirectAndReplayAny | ✅ | ✅ | | |
+| RedirectAndReplay | ✅ | | | |
+| RedirectAndReplayOrdered | ✅ | | | |
+| **Return Types** | | | | |
+| void | ✅ | | | |
+| Task | ✅ | ✅ | ✅ | ✅ |
+| Task\<T> | ✅ | ✅ | ✅ | ✅ |
+| ValueTask | ✅ | | | ✅ |
+| ValueTask\<T> | ✅ | | | ✅ |
+| **Advanced Features** | | | | |
+| Custom Decorators | ✅ | | | |
+| OpenTelemetry | ✅ | | | |
+| Built-in Decorators | | ✅ | | |
+| Session Identity Provider | | | ✅ | |
+| **Scientific Features** | | | | |
+| Power Analysis | | | | ✅ |
+| Hypothesis Definition | | | | ✅ |
+| Data Collection | | | | ✅ |
+| Statistical Tests | | | | ✅ |
+| Effect Size Calculation | | | | ✅ |
+| Multiple Comparisons | | | | ✅ |
+| Report Generation | | | | ✅ |
+| **Triggers** | | | | |
+| [ExperimentCompositionRoot] | ✅ | ✅ | | |
+| .UseSourceGenerators() | | | ✅ | ✅ |
 
 ---
 
@@ -520,6 +563,9 @@ dotnet run --project samples/ExperimentFramework.SampleConsole
 
 # Web API sample
 dotnet run --project samples/ExperimentFramework.SampleWebApp
+
+# Scientific sample (statistical analysis)
+dotnet run --project samples/ExperimentFramework.ScientificSample
 ```
 
 ### Run Tests
@@ -535,7 +581,8 @@ dotnet test
 1. **Start with:** `ExperimentFramework.ComprehensiveSample` to see all features
 2. **Learn from:** `ExperimentFramework.SampleConsole` for basic usage patterns
 3. **Build web apps:** Use `ExperimentFramework.SampleWebApp` as a template for ASP.NET Core
-4. **Customize:** Create your own experiments based on these examples
+4. **Add rigor:** Use `ExperimentFramework.ScientificSample` for statistical analysis
+5. **Customize:** Create your own experiments based on these examples
 
 ---
 

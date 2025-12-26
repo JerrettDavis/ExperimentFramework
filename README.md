@@ -50,6 +50,18 @@ All of these are functionally equivalent—use whichever reads most naturally fo
 - Decorator pipeline for cross-cutting concerns
 - Dependency injection integration
 
+**Scientific Experimentation** *(NEW)*
+- **Data Collection** (`ExperimentFramework.Data`)
+  - Automatic outcome recording (binary, continuous, count, duration)
+  - Thread-safe in-memory storage with aggregation
+  - Decorator-based collection for zero-code integration
+- **Statistical Analysis** (`ExperimentFramework.Science`)
+  - Hypothesis testing (t-test, chi-square, Mann-Whitney U, ANOVA)
+  - Effect size calculation (Cohen's d, odds ratio, relative risk)
+  - Power analysis and sample size calculation
+  - Multiple comparison corrections (Bonferroni, Holm, Benjamini-Hochberg)
+  - Publication-ready reports (Markdown, JSON)
+
 ## Quick Start
 
 ### 1. Install Packages
@@ -738,6 +750,203 @@ All async and generic scenarios validated with comprehensive tests:
 - Runtime proxies use `DispatchProxy` with reflection (~800ns per call).
 - Variant feature flag support requires reflection to access internal Microsoft.FeatureManagement APIs and may require updates for future versions.
 
+## Scientific Experimentation
+
+ExperimentFramework includes comprehensive scientific experimentation capabilities for running rigorous, reproducible experiments.
+
+### Data Collection
+
+Automatically record experiment outcomes for statistical analysis:
+
+```bash
+dotnet add package ExperimentFramework.Data
+```
+
+```csharp
+// 1. Register data collection services
+services.AddExperimentDataCollection();
+
+// 2. Enable automatic outcome collection
+var experiments = ExperimentFrameworkBuilder.Create()
+    .WithOutcomeCollection(opts =>
+    {
+        opts.CollectDuration = true;
+        opts.CollectErrors = true;
+    })
+    .Trial<ICheckout>(t => t
+        .UsingFeatureFlag("NewCheckout")
+        .AddControl<OldCheckout>()
+        .AddCondition<NewCheckout>("true")
+        .OnErrorFallbackToControl())
+    .UseSourceGenerators();
+
+// 3. Record custom outcomes
+public class CheckoutService
+{
+    private readonly IOutcomeRecorder _recorder;
+
+    public async Task<bool> CompleteCheckout(string userId)
+    {
+        var success = await ProcessPayment();
+
+        // Record binary outcome (conversion)
+        await _recorder.RecordBinaryAsync(
+            experimentName: "checkout-test",
+            trialKey: "new",
+            subjectId: userId,
+            metricName: "purchase_completed",
+            success: success);
+
+        return success;
+    }
+}
+```
+
+### Statistical Analysis
+
+Perform rigorous statistical analysis on experiment data:
+
+```bash
+dotnet add package ExperimentFramework.Science
+```
+
+```csharp
+// 1. Register science services
+services.AddExperimentScience();
+
+// 2. Define a hypothesis
+var hypothesis = new HypothesisBuilder("checkout-conversion")
+    .Superiority()
+    .NullHypothesis("New checkout has no effect on conversion")
+    .AlternativeHypothesis("New checkout improves conversion rate")
+    .PrimaryEndpoint("purchase_completed", OutcomeType.Binary, ep => ep
+        .Description("Purchase completion rate")
+        .HigherIsBetter())
+    .ExpectedEffectSize(0.05) // 5% improvement
+    .WithSuccessCriteria(c => c
+        .Alpha(0.05)
+        .Power(0.80)
+        .MinimumSampleSize(1000))
+    .Build();
+
+// 3. Analyze experiment
+var analyzer = serviceProvider.GetRequiredService<IExperimentAnalyzer>();
+var report = await analyzer.AnalyzeAsync("checkout-test", hypothesis);
+
+// 4. Generate report
+var reporter = new MarkdownReporter();
+var markdown = await reporter.GenerateAsync(report);
+Console.WriteLine(markdown);
+```
+
+### Statistical Tests Available
+
+| Test | Use Case | Interface |
+|------|----------|-----------|
+| Welch's t-test | Compare means of two groups | `IStatisticalTest` |
+| Paired t-test | Compare before/after measurements | `IPairedStatisticalTest` |
+| Chi-square test | Compare proportions (binary outcomes) | `IStatisticalTest` |
+| Mann-Whitney U | Non-parametric comparison | `IStatisticalTest` |
+| One-way ANOVA | Compare 3+ groups | `IMultiGroupStatisticalTest` |
+
+### Power Analysis
+
+Calculate required sample sizes before running experiments:
+
+```csharp
+var powerAnalyzer = PowerAnalyzer.Instance;
+
+// How many samples do I need?
+var requiredN = powerAnalyzer.CalculateSampleSize(
+    effectSize: 0.05,    // Expected 5% improvement
+    power: 0.80,         // 80% power
+    alpha: 0.05);        // 5% significance
+
+// What power do I have with current samples?
+var achievedPower = powerAnalyzer.CalculatePower(
+    sampleSizePerGroup: 500,
+    effectSize: 0.05,
+    alpha: 0.05);
+
+// What effect can I detect?
+var mde = powerAnalyzer.CalculateMinimumDetectableEffect(
+    sampleSizePerGroup: 500,
+    power: 0.80,
+    alpha: 0.05);
+```
+
+### Effect Size Calculators
+
+Quantify the magnitude of treatment effects:
+
+```csharp
+// For continuous outcomes (Cohen's d)
+var cohensD = CohensD.Instance.Calculate(controlData, treatmentData);
+// d = 0.5 → Medium effect
+
+// For binary outcomes (relative risk)
+var rr = RelativeRisk.Instance.Calculate(
+    controlSuccesses: 50, controlTotal: 200,
+    treatmentSuccesses: 75, treatmentTotal: 200);
+// RR = 1.5 → 50% relative improvement
+
+// For binary outcomes (odds ratio)
+var or = OddsRatio.Instance.Calculate(
+    controlSuccesses: 50, controlTotal: 200,
+    treatmentSuccesses: 75, treatmentTotal: 200);
+```
+
+### Multiple Comparison Corrections
+
+When testing multiple hypotheses, apply corrections to control false discovery:
+
+```csharp
+var pValues = new double[] { 0.01, 0.02, 0.03, 0.04, 0.05 };
+
+// Bonferroni (most conservative, controls FWER)
+var bonferroni = BonferroniCorrection.Instance.AdjustPValues(pValues);
+
+// Holm-Bonferroni (less conservative, controls FWER)
+var holm = HolmBonferroniCorrection.Instance.AdjustPValues(pValues);
+
+// Benjamini-Hochberg (controls FDR, more power)
+var bh = BenjaminiHochbergCorrection.Instance.AdjustPValues(pValues);
+```
+
+### Example Report Output
+
+```markdown
+# Experiment Report: checkout-test
+
+## Summary
+| Property | Value |
+|----------|-------|
+| **Status** | ✅ Completed |
+| **Conclusion** | 🏆 Treatment wins |
+| **Total Samples** | 2,500 |
+
+## Primary Analysis
+**Test:** Chi-Square Test for Independence
+
+| Statistic | Value |
+|-----------|-------|
+| Test Statistic | 12.5432 |
+| p-value | < 0.001 |
+| Significant | **Yes** |
+| Point Estimate | 0.048 |
+| 95% CI | [0.021, 0.075] |
+
+## Effect Size
+- **Measure:** Relative Risk
+- **Value:** 1.24
+- **Magnitude:** Small
+
+## Recommendations
+- Consider rolling out the treatment to all users.
+```
+
+See the [Scientific Analysis Guide](docs/user-guide/statistical-analysis.md) for detailed documentation.
+
 ## API Reference
 
 ### Builder Methods
@@ -796,6 +1005,34 @@ All async and generic scenarios validated with comprehensive tests:
 | `AddExperimentFramework(ExperimentFrameworkBuilder)` | Registers framework in DI |
 | `AddOpenTelemetryExperimentTracking()` | Enables OpenTelemetry tracing |
 | `AddSelectionModeProvider<TProvider>()` | Registers a custom selection mode provider |
+
+### Data Collection Methods (ExperimentFramework.Data)
+
+| Method | Description |
+|--------|-------------|
+| `services.AddExperimentDataCollection()` | Registers outcome storage and recording services |
+| `services.AddExperimentDataCollection<TStore>()` | Registers with custom storage implementation |
+| `services.AddExperimentDataCollectionNoop()` | Registers no-op storage (zero overhead) |
+| `builder.WithOutcomeCollection()` | Enables automatic outcome collection via decorators |
+
+### Science Methods (ExperimentFramework.Science)
+
+| Method | Description |
+|--------|-------------|
+| `services.AddExperimentScience()` | Registers all statistical analysis services |
+| `TwoSampleTTest.Instance.Perform()` | Welch's two-sample t-test |
+| `PairedTTest.Instance.Perform()` | Paired samples t-test |
+| `ChiSquareTest.Instance.Perform()` | Chi-square test for proportions |
+| `MannWhitneyUTest.Instance.Perform()` | Mann-Whitney U (non-parametric) |
+| `OneWayAnova.Instance.Perform()` | One-way ANOVA for 3+ groups |
+| `PowerAnalyzer.Instance.CalculateSampleSize()` | Calculate required sample size |
+| `PowerAnalyzer.Instance.CalculatePower()` | Calculate achieved power |
+| `CohensD.Instance.Calculate()` | Cohen's d effect size |
+| `OddsRatio.Instance.Calculate()` | Odds ratio for binary outcomes |
+| `RelativeRisk.Instance.Calculate()` | Relative risk for binary outcomes |
+| `BonferroniCorrection.Instance.AdjustPValues()` | Bonferroni p-value correction |
+| `HolmBonferroniCorrection.Instance.AdjustPValues()` | Holm step-down correction |
+| `BenjaminiHochbergCorrection.Instance.AdjustPValues()` | FDR correction |
 
 ## License
 

@@ -18,6 +18,8 @@ ExperimentFramework is designed for scenarios where you need to:
 - **Implement A/B testing** for features that affect backend behavior
 - **Support multi-variant experiments** with more than two options
 - **Provide fallback mechanisms** when experimental code fails
+- **Conduct rigorous scientific experiments** with statistical analysis *(NEW)*
+- **Generate publication-ready reports** with effect sizes and confidence intervals *(NEW)*
 
 ## When Not to Use ExperimentFramework
 
@@ -127,7 +129,28 @@ The framework follows these design principles:
 
 ## Next Steps
 
+### Getting Started
 - [Getting Started](getting-started.md) - Install the framework and create your first experiment
 - [Core Concepts](core-concepts.md) - Detailed explanation of trials, proxies, and decorators
+
+### Traffic Routing & Selection
 - [Selection Modes](selection-modes.md) - Learn about the different ways to select trials
 - [OpenFeature Integration](openfeature.md) - Use OpenFeature providers for flag management
+
+### Observability & Resilience
+- [Telemetry](telemetry.md) - OpenTelemetry distributed tracing
+- [Metrics](metrics.md) - Prometheus and OpenTelemetry metrics
+- [Error Handling](error-handling.md) - Error policies and fallback strategies
+- [Circuit Breaker](circuit-breaker.md) - Automatic failure isolation
+- [Timeout Enforcement](timeout-enforcement.md) - Prevent runaway operations
+
+### Scientific Experimentation *(NEW)*
+- [Data Collection](data-collection.md) - Collect experiment outcomes
+- [Statistical Analysis](statistical-analysis.md) - Analyze results with statistical tests
+- [Hypothesis Testing](hypothesis-testing.md) - Define and test hypotheses
+- [Power Analysis](power-analysis.md) - Calculate required sample sizes
+
+### Reference
+- [Naming Conventions](naming-conventions.md) - Naming patterns and conventions
+- [Extensibility](extensibility.md) - Custom decorators and providers
+- [Advanced Topics](advanced.md) - Advanced configuration and patterns
