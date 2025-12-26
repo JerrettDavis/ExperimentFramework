@@ -288,7 +288,6 @@ public sealed class ExperimentAnalyzer : IExperimentAnalyzer
         if (primary != null) allPValues.Add(primary.PValue);
         allPValues.AddRange(secondary.Values.Select(r => r.PValue));
 
-        var adjusted = correction.AdjustPValues(allPValues);
         var significant = correction.DetermineSignificance(allPValues, alpha);
 
         // Log if any significances changed

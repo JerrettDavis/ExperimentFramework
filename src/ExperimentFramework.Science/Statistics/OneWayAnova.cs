@@ -112,6 +112,7 @@ public sealed class OneWayAnova : IMultiGroupStatisticalTest
                 ["ss_total"] = sst,
                 ["df_between"] = dfBetween,
                 ["df_within"] = dfWithin,
+                ["df_total"] = dfTotal,
                 ["ms_between"] = msBetween,
                 ["ms_within"] = msWithin,
                 ["eta_squared"] = etaSquared,

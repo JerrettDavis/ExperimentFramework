@@ -67,7 +67,8 @@ public sealed class OddsRatio : IBinaryEffectSizeCalculator
         }
         else
         {
-            or = (double)(a * d) / (b * c);
+            // Cast before multiplication to avoid potential integer overflow
+            or = ((double)a * d) / ((double)b * c);
             logOrSe = Math.Sqrt(1.0 / a + 1.0 / b + 1.0 / c + 1.0 / d);
         }
 

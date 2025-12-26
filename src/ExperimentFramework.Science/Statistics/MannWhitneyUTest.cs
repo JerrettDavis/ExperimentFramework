@@ -88,7 +88,8 @@ public sealed class MannWhitneyUTest : IStatisticalTest
         if (tieCorrection > 0)
         {
             var n = n1 + n2;
-            stdU = Math.Sqrt((double)n1 * n2 / (n * (n - 1)) *
+            // Cast to double before multiplication to avoid potential integer overflow
+            stdU = Math.Sqrt((double)n1 * n2 / ((double)n * (n - 1)) *
                 ((Math.Pow(n, 3) - n) / 12 - tieCorrection));
         }
 
