@@ -4,7 +4,16 @@ namespace ExperimentFramework.SampleWebApp;
 
 /// <summary>
 /// Configures all experiments for the web application.
-/// Demonstrates using .UseSourceGenerators() fluent API to trigger source generation.
+///
+/// This sample demonstrates using SOURCE GENERATORS via the fluent API.
+/// The .UseSourceGenerators() call triggers compile-time proxy generation.
+///
+/// Two ways to enable source generators:
+///   1. [ExperimentCompositionRoot] attribute (see ComprehensiveSample)
+///   2. .UseSourceGenerators() fluent API (this sample)
+///
+/// For runtime proxy generation (no source generators), see:
+///   - SampleConsole: Uses .UseDispatchProxy() fluent API
 /// </summary>
 public static class ExperimentConfiguration
 {

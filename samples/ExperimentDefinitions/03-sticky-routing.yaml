@@ -1,0 +1,45 @@
+# Sticky Routing Example
+#
+# This example shows deterministic user-based routing for A/B tests.
+# Each user always sees the same variant, ensuring consistent experience
+# and enabling accurate measurement of treatment effects.
+#
+# Requirements:
+#   - ExperimentFramework.StickyRouting package
+#   - IExperimentIdentityProvider implementation registered in DI
+#
+# The routing algorithm:
+#   1. Gets user identity from IExperimentIdentityProvider
+#   2. Computes SHA256 hash of "{identity}:{selectorName}"
+#   3. Maps hash to variant via modulo operation
+#   4. Same user always gets same variant
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  decorators:
+    - type: logging
+      options:
+        benchmarks: true
+        errorLogging: true
+    - type: outcomeCollection
+      options:
+        collectDuration: true
+        collectErrors: true
+
+  trials:
+    - serviceType: ICheckoutFlow
+      selectionMode:
+        type: stickyRouting
+        selectorName: checkout-experiment
+      control:
+        key: legacy
+        implementationType: LegacyCheckout
+      conditions:
+        - key: streamlined
+          implementationType: StreamlinedCheckout
+        - key: express
+          implementationType: ExpressCheckout
+      errorPolicy:
+        type: fallbackToControl

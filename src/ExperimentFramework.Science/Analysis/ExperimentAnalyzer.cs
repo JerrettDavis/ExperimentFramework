@@ -356,7 +356,7 @@ public sealed class ExperimentAnalyzer : IExperimentAnalyzer
         {
             case ExperimentConclusion.TreatmentWins:
                 recommendations.Add("Consider rolling out the treatment to all users.");
-                if (effectSize != null && effectSize.Magnitude == EffectSizeMagnitude.Small)
+                if (effectSize is { Magnitude: EffectSizeMagnitude.Small })
                 {
                     recommendations.Add("Effect size is small - ensure the improvement justifies implementation costs.");
                 }

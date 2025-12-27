@@ -8,12 +8,24 @@ using ExperimentFramework.ComprehensiveSample.Services.Variant;
 namespace ExperimentFramework.ComprehensiveSample;
 
 /// <summary>
-/// Comprehensive experiment configuration demonstrating all features
+/// Comprehensive experiment configuration demonstrating all features.
+///
+/// This sample demonstrates using SOURCE GENERATORS for compile-time proxy generation.
+/// The [ExperimentCompositionRoot] attribute triggers the source generator at build time.
+///
+/// Source generators provide:
+///   - Zero runtime overhead (proxies compiled into assembly)
+///   - AOT/NativeAOT compatibility
+///   - Better IDE support and compile-time validation
+///
+/// For runtime proxy generation (simpler setup), see:
+///   - SampleConsole: Uses .UseDispatchProxy() fluent API
 /// </summary>
 public static class ExperimentConfiguration
 {
     /// <summary>
-    /// Configures all experiment demos using the [ExperimentCompositionRoot] attribute
+    /// Configures all experiment demos.
+    /// The [ExperimentCompositionRoot] attribute triggers compile-time source generation.
     /// </summary>
     [ExperimentCompositionRoot]
     public static ExperimentFrameworkBuilder ConfigureAllExperiments()

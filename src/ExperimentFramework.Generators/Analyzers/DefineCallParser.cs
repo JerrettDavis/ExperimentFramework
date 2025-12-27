@@ -294,8 +294,7 @@ internal static class DefineCallParser
     {
         GenericNameSyntax? genericName = null;
 
-        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-            memberAccess.Name is GenericNameSyntax generic)
+        if (invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax generic })
         {
             genericName = generic;
         }

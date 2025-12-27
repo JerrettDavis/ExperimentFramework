@@ -39,7 +39,7 @@ public sealed class PowerAnalyzer : IPowerAnalyzer
         var zBeta = normal.InverseCumulativeDistribution(power);
 
         // Sample size calculation: binary proportions vs continuous means
-        var n = options.OutcomeType == PowerOutcomeType.Binary && options.BaselineProportion.HasValue
+        var n = options is { OutcomeType: PowerOutcomeType.Binary, BaselineProportion: not null }
             ? CalculateBinarySampleSize(effectSize, options.BaselineProportion.Value, zAlpha, zBeta, options.AllocationRatio)
             : CalculateContinuousSampleSize(effectSize, zAlpha, zBeta, options.AllocationRatio);
 
@@ -66,7 +66,7 @@ public sealed class PowerAnalyzer : IPowerAnalyzer
             : normal.InverseCumulativeDistribution(1 - alpha / 2);
 
         // Power calculation: binary proportions vs continuous means
-        var power = options.OutcomeType == PowerOutcomeType.Binary && options.BaselineProportion.HasValue
+        var power = options is { OutcomeType: PowerOutcomeType.Binary, BaselineProportion: not null }
             ? CalculateBinaryPower(sampleSizePerGroup, effectSize, options.BaselineProportion.Value, zAlpha, options.AllocationRatio)
             : CalculateContinuousPower(sampleSizePerGroup, effectSize, zAlpha, options.AllocationRatio);
 

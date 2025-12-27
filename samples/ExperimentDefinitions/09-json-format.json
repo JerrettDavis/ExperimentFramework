@@ -1,0 +1,121 @@
+{
+  "ExperimentFramework": {
+    "Settings": {
+      "ProxyStrategy": "dispatchProxy"
+    },
+    "Decorators": [
+      {
+        "Type": "logging",
+        "Options": {
+          "Benchmarks": true,
+          "ErrorLogging": true
+        }
+      },
+      {
+        "Type": "outcomeCollection",
+        "Options": {
+          "CollectDuration": true,
+          "CollectErrors": true
+        }
+      }
+    ],
+    "Trials": [
+      {
+        "ServiceType": "IRecommendationService",
+        "SelectionMode": {
+          "Type": "featureFlag",
+          "FlagName": "UseMLRecommendations"
+        },
+        "Control": {
+          "Key": "control",
+          "ImplementationType": "RuleBasedRecommendations"
+        },
+        "Conditions": [
+          {
+            "Key": "true",
+            "ImplementationType": "MLRecommendations"
+          }
+        ],
+        "ErrorPolicy": {
+          "Type": "fallbackToControl"
+        }
+      },
+      {
+        "ServiceType": "IPaymentProcessor",
+        "SelectionMode": {
+          "Type": "configurationKey",
+          "Key": "Payments:Processor"
+        },
+        "Control": {
+          "Key": "stripe",
+          "ImplementationType": "StripeProcessor"
+        },
+        "Conditions": [
+          {
+            "Key": "paypal",
+            "ImplementationType": "PayPalProcessor"
+          },
+          {
+            "Key": "square",
+            "ImplementationType": "SquareProcessor"
+          }
+        ],
+        "ErrorPolicy": {
+          "Type": "tryInOrder",
+          "FallbackKeys": ["stripe"]
+        }
+      }
+    ],
+    "Experiments": [
+      {
+        "Name": "checkout-optimization-q1",
+        "Metadata": {
+          "Owner": "growth-team",
+          "Ticket": "GROWTH-789"
+        },
+        "Activation": {
+          "From": "2025-01-15T00:00:00Z",
+          "Until": "2025-03-31T23:59:59Z"
+        },
+        "Trials": [
+          {
+            "ServiceType": "ICheckoutFlow",
+            "SelectionMode": {
+              "Type": "stickyRouting"
+            },
+            "Control": {
+              "Key": "legacy",
+              "ImplementationType": "LegacyCheckout"
+            },
+            "Conditions": [
+              {
+                "Key": "streamlined",
+                "ImplementationType": "StreamlinedCheckout"
+              }
+            ],
+            "ErrorPolicy": {
+              "Type": "fallbackToControl"
+            }
+          }
+        ],
+        "Hypothesis": {
+          "Name": "checkout-conversion",
+          "Type": "superiority",
+          "NullHypothesis": "No difference in checkout completion rate",
+          "AlternativeHypothesis": "Streamlined checkout improves completion rate",
+          "PrimaryEndpoint": {
+            "Name": "checkout_completed",
+            "OutcomeType": "binary",
+            "HigherIsBetter": true
+          },
+          "ExpectedEffectSize": 0.03,
+          "SuccessCriteria": {
+            "Alpha": 0.05,
+            "Power": 0.80,
+            "MinimumSampleSize": 5000
+          }
+        }
+      }
+    ]
+  }
+}

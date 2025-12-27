@@ -394,7 +394,7 @@ var report = new ExperimentReport
     StartedAt = DateTimeOffset.UtcNow.AddDays(-14),
     Duration = TimeSpan.FromDays(14),
     Status = ExperimentStatus.Completed,
-    Conclusion = chiSquareResult.IsSignificant && chiSquareResult.PointEstimate > 0
+    Conclusion = chiSquareResult is { IsSignificant: true, PointEstimate: > 0 }
         ? ExperimentConclusion.TreatmentWins
         : ExperimentConclusion.NoSignificantDifference,
     SampleSizes = new Dictionary<string, int>

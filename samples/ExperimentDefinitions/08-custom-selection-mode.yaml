@@ -1,0 +1,71 @@
+# Custom Selection Mode Example
+#
+# This example shows how to reference custom selection modes.
+# Custom modes allow integration with any external system for
+# trial selection (Redis, database, ML models, etc.)
+#
+# Setup:
+#   1. Create a provider class with [SelectionMode("MyMode")] attribute
+#   2. Register it: services.AddSelectionModeProvider<MyModeProvider>()
+#   3. Reference in YAML using type: custom and modeIdentifier
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  trials:
+    # Redis-based selection
+    # Requires a registered provider: [SelectionMode("Redis")]
+    - serviceType: ICacheService
+      selectionMode:
+        type: custom
+        modeIdentifier: Redis
+        selectorName: "cache:provider"
+      control:
+        key: memory
+        implementationType: MemoryCacheService
+      conditions:
+        - key: redis
+          implementationType: RedisCacheService
+        - key: distributed
+          implementationType: DistributedCacheService
+      errorPolicy:
+        type: fallbackToControl
+
+    # Database-based selection
+    # Requires a registered provider: [SelectionMode("Database")]
+    - serviceType: IFeatureService
+      selectionMode:
+        type: custom
+        modeIdentifier: Database
+        selectorName: "feature-routing"
+      control:
+        key: default
+        implementationType: DefaultFeatureService
+      conditions:
+        - key: beta
+          implementationType: BetaFeatureService
+        - key: preview
+          implementationType: PreviewFeatureService
+      errorPolicy:
+        type: fallbackToControl
+
+    # ML-based selection (route based on model prediction)
+    # Requires a registered provider: [SelectionMode("MLRouter")]
+    - serviceType: IPersonalizationService
+      selectionMode:
+        type: custom
+        modeIdentifier: MLRouter
+        selectorName: "personalization-model"
+      control:
+        key: generic
+        implementationType: GenericPersonalization
+      conditions:
+        - key: segment-a
+          implementationType: SegmentAPersonalization
+        - key: segment-b
+          implementationType: SegmentBPersonalization
+        - key: segment-c
+          implementationType: SegmentCPersonalization
+      errorPolicy:
+        type: fallbackToControl

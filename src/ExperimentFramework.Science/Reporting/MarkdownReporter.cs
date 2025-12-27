@@ -233,7 +233,7 @@ public sealed class MarkdownReporter : IExperimentReporter
         sb.AppendLine($"- **Value:** {effect.Value.ToString($"F{_options.DecimalPlaces}")}");
         sb.AppendLine($"- **Magnitude:** {effect.Magnitude}");
 
-        if (effect.ConfidenceIntervalLower.HasValue && effect.ConfidenceIntervalUpper.HasValue)
+        if (effect is { ConfidenceIntervalLower: not null, ConfidenceIntervalUpper: not null })
         {
             sb.AppendLine($"- **95% CI:** [{FormatNumber(effect.ConfidenceIntervalLower)}, {FormatNumber(effect.ConfidenceIntervalUpper)}]");
         }
