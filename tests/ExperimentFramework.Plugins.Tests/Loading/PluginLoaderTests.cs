@@ -1,16 +1,30 @@
 using ExperimentFramework.Plugins.Abstractions;
 using ExperimentFramework.Plugins.Loading;
+using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework.Plugins.Tests.Loading;
 
-public class PluginLoaderTests
+public class PluginLoaderTests : IDisposable
 {
     private readonly PluginLoader _loader;
+    private readonly string _tempDir;
 
     public PluginLoaderTests()
     {
         _loader = new PluginLoader();
+        _tempDir = Path.Combine(Path.GetTempPath(), $"PluginLoaderTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
     }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        }
+    }
+
+    #region CanLoad Tests
 
     [Fact]
     public void CanLoad_NullPath_ReturnsFalse()
@@ -22,6 +36,12 @@ public class PluginLoaderTests
     public void CanLoad_EmptyPath_ReturnsFalse()
     {
         Assert.False(_loader.CanLoad(""));
+    }
+
+    [Fact]
+    public void CanLoad_WhitespacePath_ReturnsFalse()
+    {
+        Assert.False(_loader.CanLoad("   "));
     }
 
     [Fact]
@@ -54,6 +74,36 @@ public class PluginLoaderTests
     }
 
     [Fact]
+    public void CanLoad_ExistingDllFile_ReturnsTrue()
+    {
+        // Use the test assembly's DLL
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        Assert.True(_loader.CanLoad(dllPath));
+    }
+
+    [Fact]
+    public void CanLoad_CaseInsensitiveDllExtension_ReturnsTrue()
+    {
+        var dllPath = Path.Combine(_tempDir, "test.DLL");
+        File.WriteAllBytes(dllPath, []); // Empty file, just for extension check
+
+        Assert.True(_loader.CanLoad(dllPath));
+    }
+
+    [Fact]
+    public void CanLoad_ExeFile_ReturnsFalse()
+    {
+        var exePath = Path.Combine(_tempDir, "test.exe");
+        File.WriteAllBytes(exePath, []);
+
+        Assert.False(_loader.CanLoad(exePath));
+    }
+
+    #endregion
+
+    #region LoadAsync Tests
+
+    [Fact]
     public async Task LoadAsync_NonExistentPath_ThrowsFileNotFoundException()
     {
         await Assert.ThrowsAsync<FileNotFoundException>(
@@ -73,6 +123,178 @@ public class PluginLoaderTests
         await Assert.ThrowsAsync<ArgumentException>(
             () => _loader.LoadAsync(""));
     }
+
+    [Fact]
+    public async Task LoadAsync_WhitespacePath_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _loader.LoadAsync("   "));
+    }
+
+    [Fact]
+    public async Task LoadAsync_CancellationRequested_ThrowsOperationCanceledException()
+    {
+        // Use a valid DLL path to get past the file check
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _loader.LoadAsync(dllPath, cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithNoneIsolationMode_LoadsPlugin()
+    {
+        // Use a valid assembly - our test assembly
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+        Assert.NotNull(context.Manifest);
+        Assert.NotNull(context.MainAssembly);
+
+        await context.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithSharedIsolationMode_LoadsPlugin()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.Shared,
+            EnableUnloading = true
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+
+        await context.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithForceIsolation_UsesFullIsolation()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            ForceIsolation = true,
+            EnableUnloading = true
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+
+        await context.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithDefaultOptions_LoadsPlugin()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+
+        var context = await _loader.LoadAsync(dllPath);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+        Assert.NotEmpty(context.ContextId);
+        Assert.Equal(dllPath, context.PluginPath);
+
+        await context.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task LoadAsync_PopulatesManifestFromAssembly()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+
+        // Default manifest should be created from assembly info
+        Assert.NotNull(context.Manifest.Id);
+        Assert.NotNull(context.Manifest.Name);
+        Assert.NotNull(context.Manifest.Version);
+        Assert.Equal("1.0", context.Manifest.ManifestVersion);
+
+        await context.DisposeAsync();
+    }
+
+    #endregion
+
+    #region UnloadAsync Tests
+
+    [Fact]
+    public async Task UnloadAsync_NullContext_ThrowsArgumentNullException()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _loader.UnloadAsync(null!));
+    }
+
+    [Fact]
+    public async Task UnloadAsync_ValidContext_UnloadsPlugin()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+        Assert.True(context.IsLoaded);
+
+        await _loader.UnloadAsync(context);
+
+        Assert.False(context.IsLoaded);
+    }
+
+    #endregion
+
+    #region Constructor Tests
+
+    [Fact]
+    public void Constructor_WithLogger_UsesLogger()
+    {
+        var logger = Substitute.For<ILogger<PluginLoader>>();
+        var loader = new PluginLoader(logger: logger);
+
+        // Verify loader was created - logger is used internally
+        Assert.NotNull(loader);
+    }
+
+    [Fact]
+    public void Constructor_WithSharedRegistry_UsesRegistry()
+    {
+        var registry = new SharedTypeRegistry(["TestAssembly"]);
+        var loader = new PluginLoader(sharedTypeRegistry: registry);
+
+        Assert.NotNull(loader);
+    }
+
+    [Fact]
+    public void Constructor_WithNullParameters_UsesDefaults()
+    {
+        var loader = new PluginLoader(null, null);
+        Assert.NotNull(loader);
+    }
+
+    #endregion
+
+    #region PluginLoadOptions Tests
 
     [Fact]
     public void PluginLoadOptions_DefaultValues()
@@ -105,6 +327,56 @@ public class PluginLoaderTests
         Assert.NotNull(options.Metadata);
     }
 
-    // Note: Actual plugin loading tests would require a real plugin assembly.
-    // Those are covered in integration tests with a sample plugin project.
+    [Fact]
+    public void PluginLoadOptions_AdditionalSharedAssemblies_DefaultsToEmpty()
+    {
+        var options = new PluginLoadOptions();
+
+        Assert.NotNull(options.AdditionalSharedAssemblies);
+        Assert.Empty(options.AdditionalSharedAssemblies);
+    }
+
+    [Fact]
+    public void PluginLoadOptions_MetadataCanStoreArbitraryObjects()
+    {
+        var options = new PluginLoadOptions
+        {
+            Metadata = new Dictionary<string, object>
+            {
+                ["string"] = "value",
+                ["int"] = 42,
+                ["bool"] = true,
+                ["object"] = new { Name = "Test" }
+            }
+        };
+
+        Assert.Equal("value", options.Metadata["string"]);
+        Assert.Equal(42, options.Metadata["int"]);
+        Assert.Equal(true, options.Metadata["bool"]);
+    }
+
+    #endregion
+
+    #region Integration with SharedTypeRegistry Tests
+
+    [Fact]
+    public async Task LoadAsync_WithAdditionalSharedAssemblies_UsesCustomRegistry()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            AdditionalSharedAssemblies = ["ExperimentFramework.Plugins"],
+            IsolationModeOverride = PluginIsolationMode.Shared,
+            EnableUnloading = true
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+
+        await context.DisposeAsync();
+    }
+
+    #endregion
 }

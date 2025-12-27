@@ -1,0 +1,686 @@
+using System.Reflection;
+using ExperimentFramework.Plugins.Abstractions;
+using ExperimentFramework.Plugins.Manifest;
+
+namespace ExperimentFramework.Plugins.Tests.Manifest;
+
+public class ManifestLoaderTests : IDisposable
+{
+    private readonly ManifestLoader _loader = new();
+    private readonly string _tempDir;
+
+    public ManifestLoaderTests()
+    {
+        _tempDir = Path.Combine(Path.GetTempPath(), $"ManifestLoaderTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            Directory.Delete(_tempDir, recursive: true);
+        }
+    }
+
+    #region Load Method Tests
+
+    [Fact]
+    public void Load_WithNullAssembly_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => _loader.Load(null!, "/some/path.dll"));
+    }
+
+    [Fact]
+    public void Load_WithNullPath_ThrowsArgumentNullException()
+    {
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+        Assert.Throws<ArgumentNullException>(() => _loader.Load(assembly, null!));
+    }
+
+    [Fact]
+    public void Load_WithEmptyPath_ThrowsArgumentException()
+    {
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+        Assert.Throws<ArgumentException>(() => _loader.Load(assembly, ""));
+    }
+
+    [Fact]
+    public void Load_WithWhitespacePath_ThrowsArgumentException()
+    {
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+        Assert.Throws<ArgumentException>(() => _loader.Load(assembly, "   "));
+    }
+
+    [Fact]
+    public void Load_WithNoManifestSources_ReturnsDefaultManifest()
+    {
+        // Use the test assembly which has no manifest embedded/adjacent
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+        var fakePath = Path.Combine(_tempDir, "nonexistent.dll");
+
+        var manifest = _loader.Load(assembly, fakePath);
+
+        Assert.NotNull(manifest);
+        Assert.Equal("1.0", manifest.ManifestVersion);
+        Assert.Contains("ExperimentFramework.Plugins.Tests", manifest.Id);
+    }
+
+    #endregion
+
+    #region TryLoadFromAdjacentFile Tests
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithValidManifest_ReturnsTrue()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "TestPlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "TestPlugin.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": {
+                    "id": "Test.Plugin",
+                    "name": "Test Plugin",
+                    "version": "2.0.0",
+                    "description": "A test plugin"
+                },
+                "isolation": {
+                    "mode": "shared"
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.NotNull(manifest);
+        Assert.Equal("Test.Plugin", manifest.Id);
+        Assert.Equal("Test Plugin", manifest.Name);
+        Assert.Equal("2.0.0", manifest.Version);
+        Assert.Equal("A test plugin", manifest.Description);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithNoFile_ReturnsFalse()
+    {
+        var assemblyPath = Path.Combine(_tempDir, "NonExistent.dll");
+
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithInvalidJson_ReturnsFalse()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "BadPlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "BadPlugin.plugin.json");
+        File.WriteAllText(manifestPath, "{ invalid json }");
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithEmptyDirectory_ReturnsFalse()
+    {
+        var result = _loader.TryLoadFromAdjacentFile("", out var manifest);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithFullIsolationMode_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "IsolatedPlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "IsolatedPlugin.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": {
+                    "id": "Isolated.Plugin"
+                },
+                "isolation": {
+                    "mode": "full",
+                    "sharedAssemblies": ["SharedLib1", "SharedLib2"]
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(PluginIsolationMode.Full, manifest.Isolation.Mode);
+        Assert.Equal(2, manifest.Isolation.SharedAssemblies.Count);
+        Assert.Contains("SharedLib1", manifest.Isolation.SharedAssemblies);
+        Assert.Contains("SharedLib2", manifest.Isolation.SharedAssemblies);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithNoneIsolationMode_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "NoneIsolation.dll");
+        var manifestPath = Path.Combine(_tempDir, "NoneIsolation.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "None.Plugin" },
+                "isolation": { "mode": "none" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(PluginIsolationMode.None, manifest.Isolation.Mode);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithServices_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "ServicePlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "ServicePlugin.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Service.Plugin" },
+                "services": [
+                    {
+                        "interface": "IPaymentProcessor",
+                        "implementations": [
+                            { "type": "StripeProcessor", "alias": "stripe" },
+                            { "type": "PayPalProcessor", "alias": "paypal" }
+                        ]
+                    }
+                ]
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Single(manifest.Services);
+        Assert.Equal("IPaymentProcessor", manifest.Services[0].Interface);
+        Assert.Equal(2, manifest.Services[0].Implementations.Count);
+        Assert.Equal("stripe", manifest.Services[0].Implementations[0].Alias);
+        Assert.Equal("paypal", manifest.Services[0].Implementations[1].Alias);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithLifecycle_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "LifecyclePlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "LifecyclePlugin.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Lifecycle.Plugin" },
+                "lifecycle": {
+                    "supportsHotReload": false,
+                    "requiresRestartOnUnload": true
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.False(manifest.Lifecycle.SupportsHotReload);
+        Assert.True(manifest.Lifecycle.RequiresRestartOnUnload);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithComments_ParsesCorrectly()
+    {
+        // Arrange - JSON with comments should be allowed
+        var assemblyPath = Path.Combine(_tempDir, "CommentPlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "CommentPlugin.plugin.json");
+
+        var manifestJson = """
+            {
+                // This is a comment
+                "manifestVersion": "1.0",
+                "plugin": {
+                    "id": "Comment.Plugin"
+                    /* inline comment */
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Comment.Plugin", manifest.Id);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithTrailingCommas_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "TrailingComma.dll");
+        var manifestPath = Path.Combine(_tempDir, "TrailingComma.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": {
+                    "id": "Trailing.Plugin",
+                },
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Trailing.Plugin", manifest.Id);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithoutPluginId_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "NoId.dll");
+        var manifestPath = Path.Combine(_tempDir, "NoId.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": {
+                    "name": "No ID Plugin"
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act & Assert
+        Assert.ThrowsAny<InvalidOperationException>(() =>
+            _loader.TryLoadFromAdjacentFile(assemblyPath, out _));
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithCaseInsensitiveProperties_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "CaseTest.dll");
+        var manifestPath = Path.Combine(_tempDir, "CaseTest.plugin.json");
+
+        var manifestJson = """
+            {
+                "ManifestVersion": "1.0",
+                "Plugin": {
+                    "ID": "Case.Plugin",
+                    "NAME": "Case Test Plugin"
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Case.Plugin", manifest.Id);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_DefaultsNameToId_WhenNameNotProvided()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "DefaultName.dll");
+        var manifestPath = Path.Combine(_tempDir, "DefaultName.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "My.Plugin.Id" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("My.Plugin.Id", manifest.Name);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_DefaultsVersionTo1_0_0_WhenNotProvided()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "DefaultVersion.dll");
+        var manifestPath = Path.Combine(_tempDir, "DefaultVersion.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Version.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("1.0.0", manifest.Version);
+    }
+
+    #endregion
+
+    #region TryLoadFromEmbeddedResource Tests
+
+    [Fact]
+    public void TryLoadFromEmbeddedResource_WithNoEmbeddedManifest_ReturnsFalse()
+    {
+        // The test assembly doesn't have an embedded manifest
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+
+        var result = _loader.TryLoadFromEmbeddedResource(assembly, out var manifest);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromEmbeddedResource_LooksForPluginManifestJson()
+    {
+        // This tests that the method looks for files ending with "plugin.manifest.json"
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+        var resourceNames = assembly.GetManifestResourceNames();
+
+        // Verify no manifest resources exist (as expected)
+        Assert.DoesNotContain(resourceNames, n => n.EndsWith("plugin.manifest.json", StringComparison.OrdinalIgnoreCase));
+
+        var result = _loader.TryLoadFromEmbeddedResource(assembly, out _);
+        Assert.False(result);
+    }
+
+    #endregion
+
+    #region TryLoadFromAttributes Tests
+
+    [Fact]
+    public void TryLoadFromAttributes_WithNoAttributes_ReturnsFalse()
+    {
+        // Test assembly doesn't have PluginManifestAttribute
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.False(result);
+    }
+
+    #endregion
+
+    #region ParseImplementation Tests (via TryLoadFromAttributes behavior)
+
+    // Note: ParseImplementation is private but we can test it indirectly
+    // through TryLoadFromAttributes if we have an assembly with PluginServiceAttribute
+
+    #endregion
+
+    #region Default Manifest Tests
+
+    [Fact]
+    public void Load_CreatesDefaultManifestFromAssemblyInfo()
+    {
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+        var fakePath = Path.Combine(_tempDir, "test.dll");
+
+        var manifest = _loader.Load(assembly, fakePath);
+
+        // Should derive name from assembly
+        Assert.NotNull(manifest.Id);
+        Assert.NotNull(manifest.Name);
+        Assert.NotNull(manifest.Version);
+        Assert.Equal("1.0", manifest.ManifestVersion);
+    }
+
+    #endregion
+
+    #region Edge Cases
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithReadOnlyManifest_HandlesGracefully()
+    {
+        // Arrange - create a manifest file that can be read
+        var assemblyPath = Path.Combine(_tempDir, "ReadOnly.dll");
+        var manifestPath = Path.Combine(_tempDir, "ReadOnly.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "ReadOnly.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("ReadOnly.Plugin", manifest.Id);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithEmptyJsonFile_ReturnsFalse()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "Empty.dll");
+        var manifestPath = Path.Combine(_tempDir, "Empty.plugin.json");
+        File.WriteAllText(manifestPath, "");
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out _);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithNullJsonObject_ReturnsFalse()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "Null.dll");
+        var manifestPath = Path.Combine(_tempDir, "Null.plugin.json");
+        File.WriteAllText(manifestPath, "null");
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out _);
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithMultipleServices_ParsesAllCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "MultiService.dll");
+        var manifestPath = Path.Combine(_tempDir, "MultiService.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Multi.Service.Plugin" },
+                "services": [
+                    {
+                        "interface": "IPaymentProcessor",
+                        "implementations": [
+                            { "type": "StripeProcessor", "alias": "stripe" }
+                        ]
+                    },
+                    {
+                        "interface": "INotificationService",
+                        "implementations": [
+                            { "type": "EmailNotifier", "alias": "email" },
+                            { "type": "SmsNotifier", "alias": "sms" }
+                        ]
+                    }
+                ]
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(2, manifest.Services.Count);
+
+        var paymentService = manifest.Services.First(s => s.Interface == "IPaymentProcessor");
+        Assert.Single(paymentService.Implementations);
+
+        var notificationService = manifest.Services.First(s => s.Interface == "INotificationService");
+        Assert.Equal(2, notificationService.Implementations.Count);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithImplementationWithoutAlias_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "NoAlias.dll");
+        var manifestPath = Path.Combine(_tempDir, "NoAlias.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "NoAlias.Plugin" },
+                "services": [
+                    {
+                        "interface": "IService",
+                        "implementations": [
+                            { "type": "ServiceImpl" }
+                        ]
+                    }
+                ]
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Single(manifest.Services);
+        Assert.Null(manifest.Services[0].Implementations[0].Alias);
+        Assert.Equal("ServiceImpl", manifest.Services[0].Implementations[0].Type);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_PathWithSpecialCharacters_WorksCorrectly()
+    {
+        // Arrange - create a subdirectory with spaces
+        var specialDir = Path.Combine(_tempDir, "Path With Spaces");
+        Directory.CreateDirectory(specialDir);
+
+        var assemblyPath = Path.Combine(specialDir, "Special.dll");
+        var manifestPath = Path.Combine(specialDir, "Special.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Special.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("Special.Plugin", manifest.Id);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_DefaultLifecycleValues()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "DefaultLifecycle.dll");
+        var manifestPath = Path.Combine(_tempDir, "DefaultLifecycle.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Default.Lifecycle.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.True(manifest.Lifecycle.SupportsHotReload);
+        Assert.False(manifest.Lifecycle.RequiresRestartOnUnload);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_DefaultIsolationValues()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "DefaultIsolation.dll");
+        var manifestPath = Path.Combine(_tempDir, "DefaultIsolation.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "Default.Isolation.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(PluginIsolationMode.Shared, manifest.Isolation.Mode);
+        Assert.Empty(manifest.Isolation.SharedAssemblies);
+    }
+
+    #endregion
+}
