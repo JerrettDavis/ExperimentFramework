@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExperimentFramework.Plugins\ExperimentFramework.Plugins.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Plugins.TestFixtures\ExperimentFramework.Plugins.TestFixtures.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,7 @@
 using System.Reflection;
 using ExperimentFramework.Plugins.Abstractions;
 using ExperimentFramework.Plugins.Manifest;
+using ExperimentFramework.Plugins.TestFixtures;
 
 namespace ExperimentFramework.Plugins.Tests.Manifest;
 
@@ -433,6 +434,63 @@ public class ManifestLoaderTests : IDisposable
         Assert.False(result);
     }
 
+    [Fact]
+    public void TryLoadFromEmbeddedResource_WithEmbeddedManifest_ReturnsTrue()
+    {
+        // Use the test fixtures assembly which has an embedded manifest
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromEmbeddedResource(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.NotNull(manifest);
+        Assert.Equal("TestFixtures.EmbeddedPlugin", manifest.Id);
+        Assert.Equal("Embedded Plugin from Resource", manifest.Name);
+        Assert.Equal("2.0.0", manifest.Version);
+        Assert.Equal("A test plugin with embedded manifest", manifest.Description);
+    }
+
+    [Fact]
+    public void TryLoadFromEmbeddedResource_ParsesIsolationConfig()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromEmbeddedResource(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.Equal(PluginIsolationMode.Shared, manifest.Isolation.Mode);
+        Assert.Equal(2, manifest.Isolation.SharedAssemblies.Count);
+        Assert.Contains("TestAssembly1", manifest.Isolation.SharedAssemblies);
+        Assert.Contains("TestAssembly2", manifest.Isolation.SharedAssemblies);
+    }
+
+    [Fact]
+    public void TryLoadFromEmbeddedResource_ParsesServices()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromEmbeddedResource(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.Single(manifest.Services);
+        Assert.Equal("ITestService", manifest.Services[0].Interface);
+        Assert.Single(manifest.Services[0].Implementations);
+        Assert.Equal("TestServiceImpl", manifest.Services[0].Implementations[0].Type);
+        Assert.Equal("test-impl", manifest.Services[0].Implementations[0].Alias);
+    }
+
+    [Fact]
+    public void TryLoadFromEmbeddedResource_ParsesLifecycle()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromEmbeddedResource(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.True(manifest.Lifecycle.SupportsHotReload);
+        Assert.False(manifest.Lifecycle.RequiresRestartOnUnload);
+    }
+
     #endregion
 
     #region TryLoadFromAttributes Tests
@@ -448,12 +506,112 @@ public class ManifestLoaderTests : IDisposable
         Assert.False(result);
     }
 
+    [Fact]
+    public void TryLoadFromAttributes_WithPluginManifestAttribute_ReturnsTrue()
+    {
+        // Use the test fixtures assembly which has plugin attributes
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.NotNull(manifest);
+        Assert.Equal("TestFixtures.AttributePlugin", manifest.Id);
+        Assert.Equal("Attribute Plugin", manifest.Name);
+        Assert.Equal("3.0.0", manifest.Version);
+        Assert.Equal("A test plugin defined via attributes", manifest.Description);
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_ReadsIsolationAttribute()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.Equal(PluginIsolationMode.Full, manifest.Isolation.Mode);
+        Assert.Equal(2, manifest.Isolation.SharedAssemblies.Count);
+        Assert.Contains("SharedLib1", manifest.Isolation.SharedAssemblies);
+        Assert.Contains("SharedLib2", manifest.Isolation.SharedAssemblies);
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_ReadsServiceAttributes()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.Equal(2, manifest.Services.Count);
+
+        var paymentService = manifest.Services.First(s => s.Interface == "IPaymentProcessor");
+        Assert.Equal(2, paymentService.Implementations.Count);
+        Assert.Contains(paymentService.Implementations, i => i.Type == "StripeProcessor" && i.Alias == "stripe");
+        Assert.Contains(paymentService.Implementations, i => i.Type == "PayPalProcessor" && i.Alias == "paypal");
+
+        var notificationService = manifest.Services.First(s => s.Interface == "INotificationService");
+        Assert.Equal(2, notificationService.Implementations.Count);
+        Assert.Contains(notificationService.Implementations, i => i.Type == "EmailNotifier" && i.Alias == "email");
+        Assert.Contains(notificationService.Implementations, i => i.Type == "SmsNotifier" && i.Alias == null);
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_ReadsSupportsHotReload()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        Assert.False(manifest.Lifecycle.SupportsHotReload); // Set to false in AssemblyInfo.cs
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_ParsesImplementationWithAlias()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        var paymentService = manifest.Services.First(s => s.Interface == "IPaymentProcessor");
+        var stripe = paymentService.Implementations.First(i => i.Type == "StripeProcessor");
+
+        Assert.Equal("stripe", stripe.Alias);
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_ParsesImplementationWithoutAlias()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        var notificationService = manifest.Services.First(s => s.Interface == "INotificationService");
+        var sms = notificationService.Implementations.First(i => i.Type == "SmsNotifier");
+
+        Assert.Null(sms.Alias);
+    }
+
     #endregion
 
-    #region ParseImplementation Tests (via TryLoadFromAttributes behavior)
+    #region Load Method Integration Tests
 
-    // Note: ParseImplementation is private but we can test it indirectly
-    // through TryLoadFromAttributes if we have an assembly with PluginServiceAttribute
+    [Fact]
+    public void Load_WithEmbeddedManifest_ReturnsEmbeddedManifest()
+    {
+        // The test fixtures assembly has an embedded manifest which should take priority
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+        var fakePath = Path.Combine(_tempDir, "testfixtures.dll");
+
+        var manifest = _loader.Load(assembly, fakePath);
+
+        // Embedded resource takes priority over attributes
+        Assert.Equal("TestFixtures.EmbeddedPlugin", manifest.Id);
+    }
 
     #endregion
 
