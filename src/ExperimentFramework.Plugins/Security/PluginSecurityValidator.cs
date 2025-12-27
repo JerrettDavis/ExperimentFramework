@@ -45,15 +45,16 @@ public sealed class PluginSecurityValidator
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginPath);
 
-        var fullPath = Path.GetFullPath(pluginPath);
-
-        // Check for UNC paths
-        if (IsUncPath(fullPath) && !_options.AllowUncPaths)
+        // Check for UNC paths on the original input (before normalization)
+        // This ensures cross-platform detection since Path.GetFullPath may normalize away UNC patterns on non-Windows
+        if (IsUncPath(pluginPath) && !_options.AllowUncPaths)
         {
-            _logger.LogWarning("Blocked UNC path for plugin: {Path}", fullPath);
+            _logger.LogWarning("Blocked UNC path for plugin: {Path}", pluginPath);
             throw new SecurityException(
                 $"UNC paths are not allowed for plugin loading. Path: {pluginPath}");
         }
+
+        var fullPath = Path.GetFullPath(pluginPath);
 
         // Check for path traversal attempts
         if (ContainsPathTraversal(pluginPath))

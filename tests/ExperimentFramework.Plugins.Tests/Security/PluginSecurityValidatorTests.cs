@@ -71,6 +71,7 @@ public class PluginSecurityValidatorTests : IDisposable
         var options = new PluginConfigurationOptions { AllowUncPaths = false };
         var validator = new PluginSecurityValidator(options);
 
+        // Both Windows-style and Unix-style UNC paths should be blocked
         Assert.Throws<SecurityException>(() => validator.ValidatePath(@"\\server\share\plugin.dll"));
         Assert.Throws<SecurityException>(() => validator.ValidatePath("//server/share/plugin.dll"));
     }
@@ -81,8 +82,9 @@ public class PluginSecurityValidatorTests : IDisposable
         var options = new PluginConfigurationOptions { AllowUncPaths = true };
         var validator = new PluginSecurityValidator(options);
 
-        // Should not throw - just validates path format
+        // Should not throw - UNC paths are allowed
         validator.ValidatePath(@"\\server\share\plugin.dll");
+        validator.ValidatePath("//server/share/plugin.dll");
     }
 
     [Fact]
