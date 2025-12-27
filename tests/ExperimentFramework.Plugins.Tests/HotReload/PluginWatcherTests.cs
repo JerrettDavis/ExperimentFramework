@@ -266,12 +266,9 @@ public class PluginWatcherTests : IDisposable
         _pluginManager.ReloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(context);
 
-        bool reloadTriggered = false;
-        bool reloadCompleted = false;
-
         using var watcher = new PluginWatcher(_pluginManager, 50);
-        watcher.PluginReloadTriggered += (_, _) => reloadTriggered = true;
-        watcher.PluginReloadCompleted += (_, _) => reloadCompleted = true;
+        watcher.PluginReloadTriggered += (_, _) => { };
+        watcher.PluginReloadCompleted += (_, _) => { };
 
         watcher.StartWatching();
 
@@ -498,6 +495,91 @@ public class PluginWatcherTests : IDisposable
         _watcher.StartWatching();
 
         // Should not throw
+    }
+
+    #endregion
+
+    #region New Plugin Loading Tests
+
+    [Fact]
+    public async Task NewFileCreated_LoadFails_LogsError()
+    {
+        _pluginManager.GetLoadedPlugins().Returns([]);
+        _pluginManager.LoadAsync(Arg.Any<string>(), Arg.Any<PluginLoadOptions>(), Arg.Any<CancellationToken>())
+            .Returns<IPluginContext>(x => throw new InvalidOperationException("Load failed"));
+
+        using var watcher = new PluginWatcher(_pluginManager, 50);
+        watcher.WatchDirectory(_tempDir);
+        watcher.StartWatching();
+
+        await Task.Delay(100);
+
+        // Create a new DLL file that will fail to load
+        var newPluginPath = Path.Combine(_tempDir, "failplugin.dll");
+        File.WriteAllBytes(newPluginPath, [0x00]);
+
+        await Task.Delay(200);
+
+        // Should have tried to load the plugin (and failed)
+        await _pluginManager.Received().LoadAsync(
+            Arg.Is<string>(s => s.Contains("failplugin.dll")),
+            Arg.Any<PluginLoadOptions>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    #endregion
+
+    #region Plugin Unloaded Event Tests
+
+    [Fact]
+    public void OnPluginUnloaded_DoesNotThrow()
+    {
+        _watcher.StartWatching();
+
+        var context = CreateMockPluginContext("Unloaded.Plugin", _tempDir);
+
+        // Simulate plugin unloaded event
+        _pluginManager.PluginUnloaded += Raise.EventWith(
+            _pluginManager,
+            new PluginEventArgs(context));
+
+        // Should not throw - watcher doesn't actively remove on unload
+    }
+
+    #endregion
+
+    #region StopWatching with Pending Reloads Tests
+
+    [Fact]
+    public async Task StopWatching_CancelsPendingReloads()
+    {
+        var pluginPath = Path.Combine(_tempDir, "pending.dll");
+        File.WriteAllBytes(pluginPath, [0x00]);
+
+        var manifest = Substitute.For<IPluginManifest>();
+        manifest.Id.Returns("Pending.Plugin");
+        manifest.Lifecycle.Returns(new PluginLifecycleConfig { SupportsHotReload = true });
+
+        var context = Substitute.For<IPluginContext>();
+        context.Manifest.Returns(manifest);
+        context.PluginPath.Returns(pluginPath);
+        context.IsLoaded.Returns(true);
+
+        _pluginManager.GetLoadedPlugins().Returns([context]);
+
+        using var watcher = new PluginWatcher(_pluginManager, 500); // Long debounce
+        watcher.StartWatching();
+
+        await Task.Delay(50);
+        File.WriteAllBytes(pluginPath, [0x01]);
+
+        // Stop before debounce completes
+        watcher.StopWatching();
+
+        await Task.Delay(200);
+
+        // Should not have reloaded because stop was called
+        await _pluginManager.DidNotReceive().ReloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     #endregion

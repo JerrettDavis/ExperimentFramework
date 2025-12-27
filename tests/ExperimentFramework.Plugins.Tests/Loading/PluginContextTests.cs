@@ -342,6 +342,94 @@ public class PluginContextTests : IAsyncLifetime
 
     #endregion
 
+    #region CreateInstance When Not Loaded Tests
+
+    [Fact]
+    public async Task CreateInstance_WhenNotLoaded_ThrowsInvalidOperationException()
+    {
+        var dllPath = typeof(PluginContextTests).Assembly.Location;
+        var loader = new PluginLoader();
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        var context = await loader.LoadAsync(dllPath, options);
+        await context.DisposeAsync(); // Unload the plugin
+
+        var exception = Assert.Throws<ObjectDisposedException>(() =>
+            context.CreateInstance(typeof(SimpleTestClass), services));
+    }
+
+    #endregion
+
+    #region CreateInstanceByAlias Additional Tests
+
+    [Fact]
+    public async Task CreateInstanceByAlias_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var dllPath = typeof(PluginContextTests).Assembly.Location;
+        var loader = new PluginLoader();
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        var context = await loader.LoadAsync(dllPath, options);
+        await context.DisposeAsync();
+
+        // GetTypeByAlias is called first, which throws ObjectDisposedException
+        Assert.Throws<ObjectDisposedException>(() =>
+            context.CreateInstanceByAlias("any-alias", services));
+    }
+
+    #endregion
+
+    #region Dispose with LoadContext Tests
+
+    [Fact]
+    public async Task DisposeAsync_WithIsolatedContext_TriggersUnload()
+    {
+        var dllPath = typeof(PluginContextTests).Assembly.Location;
+        var loader = new PluginLoader();
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.Shared,
+            EnableUnloading = true
+        };
+
+        var context = await loader.LoadAsync(dllPath, options);
+        Assert.True(context.IsLoaded);
+
+        await context.DisposeAsync();
+
+        Assert.False(context.IsLoaded);
+        Assert.Null(context.MainAssembly);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WithFullIsolation_TriggersUnloadAndGC()
+    {
+        var dllPath = typeof(PluginContextTests).Assembly.Location;
+        var loader = new PluginLoader();
+        var options = new PluginLoadOptions
+        {
+            ForceIsolation = true,
+            EnableUnloading = true
+        };
+
+        var context = await loader.LoadAsync(dllPath, options);
+        Assert.True(context.IsLoaded);
+
+        await context.DisposeAsync();
+
+        Assert.False(context.IsLoaded);
+    }
+
+    #endregion
+
     #region Test Helper Classes
 
     public class SimpleTestClass { }

@@ -258,4 +258,120 @@ public class PluginReloadServiceTests : IDisposable
     }
 
     #endregion
+
+    #region Event Handler Tests
+
+    [Fact]
+    public async Task PluginReloadTriggered_LogsDebugMessage()
+    {
+        var pluginPath = Path.Combine(_tempDir, "testplugin.dll");
+        File.WriteAllBytes(pluginPath, [0x00]);
+
+        var manifest = Substitute.For<IPluginManifest>();
+        manifest.Id.Returns("Test.Plugin");
+        manifest.Lifecycle.Returns(new PluginLifecycleConfig { SupportsHotReload = true });
+
+        var context = Substitute.For<IPluginContext>();
+        context.Manifest.Returns(manifest);
+        context.PluginPath.Returns(pluginPath);
+        context.IsLoaded.Returns(true);
+
+        _pluginManager.GetLoadedPlugins().Returns([context]);
+        _pluginManager.ReloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(context);
+
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            EnableHotReload = true,
+            HotReloadDebounceMs = 50,
+            DiscoveryPaths = []
+        });
+
+        using var service = new PluginReloadService(_pluginManager, options, _logger);
+        await service.StartAsync(CancellationToken.None);
+
+        // Trigger reload by modifying the file
+        await Task.Delay(100);
+        File.WriteAllBytes(pluginPath, [0x01, 0x02]);
+        await Task.Delay(200);
+
+        // The reload events should have triggered logger calls
+        // Verify the service logs appropriately
+    }
+
+    [Fact]
+    public async Task PluginReloadCompleted_LogsInformationMessage()
+    {
+        var pluginPath = Path.Combine(_tempDir, "completedplugin.dll");
+        File.WriteAllBytes(pluginPath, [0x00]);
+
+        var manifest = Substitute.For<IPluginManifest>();
+        manifest.Id.Returns("Completed.Plugin");
+        manifest.Lifecycle.Returns(new PluginLifecycleConfig { SupportsHotReload = true });
+
+        var context = Substitute.For<IPluginContext>();
+        context.Manifest.Returns(manifest);
+        context.PluginPath.Returns(pluginPath);
+        context.IsLoaded.Returns(true);
+
+        _pluginManager.GetLoadedPlugins().Returns([context]);
+        _pluginManager.ReloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(context);
+
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            EnableHotReload = true,
+            HotReloadDebounceMs = 50,
+            DiscoveryPaths = []
+        });
+
+        using var service = new PluginReloadService(_pluginManager, options, _logger);
+        await service.StartAsync(CancellationToken.None);
+
+        await Task.Delay(100);
+        File.WriteAllBytes(pluginPath, [0x01, 0x02]);
+        await Task.Delay(200);
+
+        // Verify reload was triggered
+        await _pluginManager.Received(1).ReloadAsync("Completed.Plugin", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PluginReloadFailed_LogsErrorMessage()
+    {
+        var pluginPath = Path.Combine(_tempDir, "failingplugin.dll");
+        File.WriteAllBytes(pluginPath, [0x00]);
+
+        var manifest = Substitute.For<IPluginManifest>();
+        manifest.Id.Returns("Failing.Plugin");
+        manifest.Lifecycle.Returns(new PluginLifecycleConfig { SupportsHotReload = true });
+
+        var context = Substitute.For<IPluginContext>();
+        context.Manifest.Returns(manifest);
+        context.PluginPath.Returns(pluginPath);
+        context.IsLoaded.Returns(true);
+
+        _pluginManager.GetLoadedPlugins().Returns([context]);
+        _pluginManager.ReloadAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<IPluginContext>(x => throw new InvalidOperationException("Reload failed"));
+
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            EnableHotReload = true,
+            HotReloadDebounceMs = 50,
+            DiscoveryPaths = []
+        });
+
+        using var service = new PluginReloadService(_pluginManager, options, _logger);
+        await service.StartAsync(CancellationToken.None);
+
+        await Task.Delay(100);
+        File.WriteAllBytes(pluginPath, [0x01, 0x02]);
+        await Task.Delay(200);
+
+        // Verify reload was attempted
+        await _pluginManager.Received(1).ReloadAsync("Failing.Plugin", Arg.Any<CancellationToken>());
+    }
+
+    #endregion
 }

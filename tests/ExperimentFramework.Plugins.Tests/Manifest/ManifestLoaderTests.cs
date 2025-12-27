@@ -841,4 +841,203 @@ public class ManifestLoaderTests : IDisposable
     }
 
     #endregion
+
+    #region Error Path Tests
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithMissingServiceInterface_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "NoInterface.dll");
+        var manifestPath = Path.Combine(_tempDir, "NoInterface.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "NoInterface.Plugin" },
+                "services": [
+                    {
+                        "implementations": [
+                            { "type": "SomeType" }
+                        ]
+                    }
+                ]
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act & Assert
+        Assert.ThrowsAny<InvalidOperationException>(() =>
+            _loader.TryLoadFromAdjacentFile(assemblyPath, out _));
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithMissingImplementationType_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "NoImplType.dll");
+        var manifestPath = Path.Combine(_tempDir, "NoImplType.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "NoImplType.Plugin" },
+                "services": [
+                    {
+                        "interface": "ITestService",
+                        "implementations": [
+                            { "alias": "test" }
+                        ]
+                    }
+                ]
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act & Assert
+        Assert.ThrowsAny<InvalidOperationException>(() =>
+            _loader.TryLoadFromAdjacentFile(assemblyPath, out _));
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithNoPluginSection_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "NoPlugin.dll");
+        var manifestPath = Path.Combine(_tempDir, "NoPlugin.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0"
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act & Assert
+        Assert.ThrowsAny<InvalidOperationException>(() =>
+            _loader.TryLoadFromAdjacentFile(assemblyPath, out _));
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithEmptyServices_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "EmptyServices.dll");
+        var manifestPath = Path.Combine(_tempDir, "EmptyServices.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "EmptyServices.Plugin" },
+                "services": []
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Empty(manifest.Services);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithEmptyImplementations_ParsesCorrectly()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "EmptyImpls.dll");
+        var manifestPath = Path.Combine(_tempDir, "EmptyImpls.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "EmptyImpls.Plugin" },
+                "services": [
+                    {
+                        "interface": "ITestService",
+                        "implementations": []
+                    }
+                ]
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Single(manifest.Services);
+        Assert.Empty(manifest.Services[0].Implementations);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithUnknownIsolationMode_DefaultsToShared()
+    {
+        // Arrange
+        var assemblyPath = Path.Combine(_tempDir, "UnknownMode.dll");
+        var manifestPath = Path.Combine(_tempDir, "UnknownMode.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "UnknownMode.Plugin" },
+                "isolation": { "mode": "custom-mode" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = _loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(PluginIsolationMode.Shared, manifest.Isolation.Mode);
+    }
+
+    #endregion
+
+    #region TryLoadFromAttributes Additional Tests
+
+    [Fact]
+    public void TryLoadFromAttributes_WithNoIsolationAttribute_UsesDefaults()
+    {
+        // The test fixtures assembly has isolation attribute, use a different assembly
+        // The test assembly itself doesn't have PluginManifestAttribute
+        var assembly = typeof(ManifestLoaderTests).Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        // Should return false because no PluginManifestAttribute
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_ParsesColonNotation()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        // Verify colon notation was parsed - "StripeProcessor:stripe" -> Type=StripeProcessor, Alias=stripe
+        var paymentService = manifest.Services.First(s => s.Interface == "IPaymentProcessor");
+        Assert.Contains(paymentService.Implementations, i => i.Type == "StripeProcessor" && i.Alias == "stripe");
+    }
+
+    [Fact]
+    public void TryLoadFromAttributes_HandlesImplementationWithoutColon()
+    {
+        var assembly = TestFixtures.TestFixtureMarker.Assembly;
+
+        var result = _loader.TryLoadFromAttributes(assembly, out var manifest);
+
+        Assert.True(result);
+        // SmsNotifier without colon -> Type=SmsNotifier, Alias=null
+        var notificationService = manifest.Services.First(s => s.Interface == "INotificationService");
+        Assert.Contains(notificationService.Implementations, i => i.Type == "SmsNotifier" && i.Alias == null);
+    }
+
+    #endregion
 }
