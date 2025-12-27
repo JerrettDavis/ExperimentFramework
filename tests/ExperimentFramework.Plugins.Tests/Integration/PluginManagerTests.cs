@@ -441,6 +441,122 @@ public class PluginManagerTests : IAsyncDisposable
     }
 
     #endregion
+
+    #region GetHealthAsync Tests
+
+    [Fact]
+    public async Task GetHealthAsync_NoPlugins_ReturnsHealthyState()
+    {
+        var health = await _manager.GetHealthAsync();
+
+        Assert.Equal(PluginSystemHealthState.Healthy, health.State);
+        Assert.Equal(0, health.TotalPlugins);
+        Assert.Equal(0, health.HealthyPlugins);
+        Assert.Empty(health.Plugins);
+        Assert.Empty(health.FailedLoads);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_WithLoadedPlugin_ReturnsPluginDetails()
+    {
+        var dllPath = typeof(PluginManagerTests).Assembly.Location;
+        var options = new PluginLoadOptions { IsolationModeOverride = PluginIsolationMode.None };
+
+        var context = await _manager.LoadAsync(dllPath, options);
+        var health = await _manager.GetHealthAsync();
+
+        Assert.Equal(PluginSystemHealthState.Healthy, health.State);
+        Assert.Equal(1, health.TotalPlugins);
+        Assert.Equal(1, health.HealthyPlugins);
+        Assert.Single(health.Plugins);
+
+        var pluginHealth = health.Plugins[0];
+        Assert.Equal(context.Manifest.Id, pluginHealth.PluginId);
+        Assert.Equal(PluginHealthState.Healthy, pluginHealth.State);
+        Assert.Equal(context.Manifest.Version.ToString(), pluginHealth.Version);
+        Assert.True(pluginHealth.AssemblyCount > 0);
+        Assert.True(pluginHealth.TypeCount > 0);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_WithFailedLoad_TracksFailure()
+    {
+        // Use a path that will be normalized consistently
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent", "path", "plugin.dll");
+
+        // Try to load a non-existent plugin
+        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            _manager.LoadAsync(nonExistentPath));
+
+        var health = await _manager.GetHealthAsync();
+
+        Assert.Single(health.FailedLoads);
+        Assert.Contains("plugin.dll", health.FailedLoads[0].PluginPath);
+        Assert.NotNull(health.FailedLoads[0].ErrorMessage);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_AfterSuccessfulLoad_ClearsFailure()
+    {
+        var dllPath = typeof(PluginManagerTests).Assembly.Location;
+
+        // First, try a failed load
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent", "path", "plugin.dll");
+        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+            _manager.LoadAsync(nonExistentPath));
+
+        // Then load successfully
+        var options = new PluginLoadOptions { IsolationModeOverride = PluginIsolationMode.None };
+        await _manager.LoadAsync(dllPath, options);
+
+        var health = await _manager.GetHealthAsync();
+
+        // The failed load for the non-existent path should still be tracked
+        Assert.Single(health.FailedLoads);
+        // But we have a healthy plugin
+        Assert.Equal(1, health.HealthyPlugins);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_ReportsHotReloadStatus()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            EnableHotReload = true
+        });
+        await using var manager = new PluginManager(loader, options);
+
+        var health = await manager.GetHealthAsync();
+
+        Assert.True(health.HotReloadEnabled);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var loader = new PluginLoader();
+        var manager = new PluginManager(loader);
+        await manager.DisposeAsync();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => manager.GetHealthAsync());
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_SupportsCancellation()
+    {
+        var dllPath = typeof(PluginManagerTests).Assembly.Location;
+        var options = new PluginLoadOptions { IsolationModeOverride = PluginIsolationMode.None };
+        await _manager.LoadAsync(dllPath, options);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _manager.GetHealthAsync(cts.Token));
+    }
+
+    #endregion
 }
 
 public class PluginManagerWithOptionsTests : IAsyncDisposable

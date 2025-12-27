@@ -1040,4 +1040,105 @@ public class ManifestLoaderTests : IDisposable
     }
 
     #endregion
+
+    #region Size Limit Tests
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithOversizedManifest_ThrowsInvalidOperationException()
+    {
+        // Arrange - create a loader with a very small size limit
+        var loader = new ManifestLoader(maxManifestSize: 100, maxJsonDepth: 32);
+
+        var assemblyPath = Path.Combine(_tempDir, "Oversized.dll");
+        var manifestPath = Path.Combine(_tempDir, "Oversized.plugin.json");
+
+        // Create a manifest larger than 100 bytes
+        var manifestJson = $$"""
+            {
+                "manifestVersion": "1.0",
+                "plugin": {
+                    "id": "Oversized.Plugin",
+                    "description": "{{new string('A', 200)}}"
+                }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            loader.TryLoadFromAdjacentFile(assemblyPath, out _));
+
+        Assert.Contains("exceeds maximum size", ex.Message);
+    }
+
+    [Fact]
+    public void TryLoadFromAdjacentFile_WithManifestUnderSizeLimit_ReturnsTrue()
+    {
+        // Arrange - create a loader with a reasonable size limit
+        var loader = new ManifestLoader(maxManifestSize: 10000, maxJsonDepth: 32);
+
+        var assemblyPath = Path.Combine(_tempDir, "UnderSize.dll");
+        var manifestPath = Path.Combine(_tempDir, "UnderSize.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "UnderSize.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Act
+        var result = loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal("UnderSize.Plugin", manifest.Id);
+    }
+
+    [Fact]
+    public void Constructor_WithZeroMaxSize_UsesDefaultSize()
+    {
+        // Zero should not crash and should use a reasonable default
+        var loader = new ManifestLoader(maxManifestSize: 0, maxJsonDepth: 32);
+
+        var assemblyPath = Path.Combine(_tempDir, "ZeroSize.dll");
+        var manifestPath = Path.Combine(_tempDir, "ZeroSize.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "ZeroSize.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Should work with default size
+        var result = loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void Constructor_WithNegativeMaxSize_UsesDefaultSize()
+    {
+        // Negative values should use defaults
+        var loader = new ManifestLoader(maxManifestSize: -100, maxJsonDepth: 32);
+
+        var assemblyPath = Path.Combine(_tempDir, "NegativeSize.dll");
+        var manifestPath = Path.Combine(_tempDir, "NegativeSize.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "NegativeSize.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        // Should work with default size
+        var result = loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+        Assert.True(result);
+    }
+
+    #endregion
 }

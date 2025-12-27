@@ -1,0 +1,202 @@
+using System.Security;
+using ExperimentFramework.Plugins.Configuration;
+using ExperimentFramework.Plugins.Security;
+
+namespace ExperimentFramework.Plugins.Tests.Security;
+
+public class PluginSecurityValidatorTests : IDisposable
+{
+    private readonly string _tempDir;
+    private readonly string _tempFile;
+
+    public PluginSecurityValidatorTests()
+    {
+        _tempDir = Path.Combine(Path.GetTempPath(), $"PluginSecurityTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+        _tempFile = Path.Combine(_tempDir, "test.dll");
+        File.WriteAllBytes(_tempFile, new byte[] { 0x4D, 0x5A }); // MZ header
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        }
+    }
+
+    #region Constructor Tests
+
+    [Fact]
+    public void Constructor_WithNullOptions_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new PluginSecurityValidator(null!));
+    }
+
+    [Fact]
+    public void Constructor_WithValidOptions_Succeeds()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.NotNull(validator);
+    }
+
+    #endregion
+
+    #region ValidatePath Tests
+
+    [Fact]
+    public void ValidatePath_NullPath_ThrowsArgumentException()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.Throws<ArgumentNullException>(() => validator.ValidatePath(null!));
+    }
+
+    [Fact]
+    public void ValidatePath_EmptyPath_ThrowsArgumentException()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.Throws<ArgumentException>(() => validator.ValidatePath(""));
+        Assert.Throws<ArgumentException>(() => validator.ValidatePath("   "));
+    }
+
+    [Fact]
+    public void ValidatePath_UncPathWhenNotAllowed_ThrowsSecurityException()
+    {
+        var options = new PluginConfigurationOptions { AllowUncPaths = false };
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.Throws<SecurityException>(() => validator.ValidatePath(@"\\server\share\plugin.dll"));
+        Assert.Throws<SecurityException>(() => validator.ValidatePath("//server/share/plugin.dll"));
+    }
+
+    [Fact]
+    public void ValidatePath_UncPathWhenAllowed_DoesNotThrow()
+    {
+        var options = new PluginConfigurationOptions { AllowUncPaths = true };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - just validates path format
+        validator.ValidatePath(@"\\server\share\plugin.dll");
+    }
+
+    [Fact]
+    public void ValidatePath_PathTraversal_ThrowsSecurityException()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.Throws<SecurityException>(() => validator.ValidatePath("../../../plugin.dll"));
+        Assert.Throws<SecurityException>(() => validator.ValidatePath("./.."));
+        Assert.Throws<SecurityException>(() => validator.ValidatePath("/path/../other/plugin.dll"));
+        Assert.Throws<SecurityException>(() => validator.ValidatePath("/path/./secret/../plugin.dll"));
+    }
+
+    [Fact]
+    public void ValidatePath_NotInAllowedDirectories_ThrowsSecurityException()
+    {
+        var options = new PluginConfigurationOptions
+        {
+            AllowedPluginDirectories = [_tempDir]
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.Throws<SecurityException>(() => validator.ValidatePath("/other/directory/plugin.dll"));
+    }
+
+    [Fact]
+    public void ValidatePath_InAllowedDirectory_DoesNotThrow()
+    {
+        var options = new PluginConfigurationOptions
+        {
+            AllowedPluginDirectories = [_tempDir]
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw
+        validator.ValidatePath(_tempFile);
+    }
+
+    [Fact]
+    public void ValidatePath_NoAllowedDirectoriesConfigured_AllowsAnyPath()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw when no allowed directories are configured
+        validator.ValidatePath(_tempFile);
+    }
+
+    #endregion
+
+    #region ValidateAssemblySignature Tests
+
+    [Fact]
+    public void ValidateAssemblySignature_NoSignatureRequired_DoesNotThrow()
+    {
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = false
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw for unsigned assembly when not required
+        validator.ValidateAssemblySignature(_tempFile);
+    }
+
+    [Fact]
+    public void ValidateAssemblySignature_SignatureRequiredButUnsigned_ThrowsSecurityException()
+    {
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should throw for unsigned assembly when required
+        Assert.Throws<SecurityException>(() => validator.ValidateAssemblySignature(_tempFile));
+    }
+
+    #endregion
+
+    #region ValidatePlugin Tests
+
+    [Fact]
+    public void ValidatePlugin_ValidPath_DoesNotThrow()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw for valid path
+        validator.ValidatePlugin(_tempFile);
+    }
+
+    [Fact]
+    public void ValidatePlugin_NonExistentFile_DoesNotValidateSignature()
+    {
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw because file doesn't exist (signature check skipped)
+        validator.ValidatePlugin("/nonexistent/plugin.dll");
+    }
+
+    [Fact]
+    public void ValidatePlugin_PathTraversal_ThrowsSecurityException()
+    {
+        var options = new PluginConfigurationOptions();
+        var validator = new PluginSecurityValidator(options);
+
+        Assert.Throws<SecurityException>(() => validator.ValidatePlugin("../plugin.dll"));
+    }
+
+    #endregion
+}

@@ -158,8 +158,22 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         services.AddExperimentPlugins();
 
-        Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Throws<InvalidOperationException>(() =>
             services.AddPluginTypeResolver());
+
+        Assert.Contains("ITypeResolver", ex.Message);
+    }
+
+    [Fact]
+    public void AddPluginTypeResolver_WithNoPluginManager_ThrowsInvalidOperation()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ITypeResolver, TestTypeResolver>();
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            services.AddPluginTypeResolver());
+
+        Assert.Contains("IPluginManager", ex.Message);
     }
 
     [Fact]
@@ -179,6 +193,97 @@ public class ServiceCollectionExtensionsTests
         // Should be decorated with PluginTypeResolver
         Assert.IsType<PluginTypeResolver>(resolver);
     }
+
+    #region Idempotency Tests
+
+    [Fact]
+    public void AddExperimentPlugins_CalledMultipleTimes_IsIdempotent()
+    {
+        var services = new ServiceCollection();
+
+        // Call multiple times
+        services.AddExperimentPlugins();
+        services.AddExperimentPlugins();
+        services.AddExperimentPlugins();
+
+        var provider = services.BuildServiceProvider();
+
+        // Should only have one IPluginManager registered
+        var managers = provider.GetServices<IPluginManager>().ToList();
+        Assert.Single(managers);
+
+        // Should only have one IPluginLoader registered
+        var loaders = provider.GetServices<IPluginLoader>().ToList();
+        Assert.Single(loaders);
+    }
+
+    [Fact]
+    public void AddExperimentPlugins_CalledMultipleTimes_AppliesConfigurationEachTime()
+    {
+        var services = new ServiceCollection();
+
+        services.AddExperimentPlugins(opts => opts.DiscoveryPaths.Add("./first"));
+        services.AddExperimentPlugins(opts => opts.DiscoveryPaths.Add("./second"));
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<PluginConfigurationOptions>>();
+
+        // Both paths should be present
+        Assert.Contains("./first", options.Value.DiscoveryPaths);
+        Assert.Contains("./second", options.Value.DiscoveryPaths);
+    }
+
+    [Fact]
+    public void AddExperimentPluginsWithHotReload_CalledMultipleTimes_IsIdempotent()
+    {
+        var services = new ServiceCollection();
+
+        services.AddExperimentPluginsWithHotReload();
+        services.AddExperimentPluginsWithHotReload();
+
+        var provider = services.BuildServiceProvider();
+
+        // Should only have one IPluginManager
+        var managers = provider.GetServices<IPluginManager>().ToList();
+        Assert.Single(managers);
+    }
+
+    [Fact]
+    public void AddExperimentPluginsFromConfiguration_CalledMultipleTimes_IsIdempotent()
+    {
+        var services = new ServiceCollection();
+        var config1 = new PluginsConfig { Discovery = new PluginDiscoveryConfig { Paths = ["./one"] } };
+        var config2 = new PluginsConfig { Discovery = new PluginDiscoveryConfig { Paths = ["./two"] } };
+
+        services.AddExperimentPluginsFromConfiguration(config1);
+        services.AddExperimentPluginsFromConfiguration(config2);
+
+        var provider = services.BuildServiceProvider();
+
+        // Should only have one IPluginManager
+        var managers = provider.GetServices<IPluginManager>().ToList();
+        Assert.Single(managers);
+    }
+
+    #endregion
+
+    #region Validator Registration Tests
+
+    [Fact]
+    public void AddExperimentPlugins_RegistersConfigurationValidator()
+    {
+        var services = new ServiceCollection();
+
+        services.AddExperimentPlugins();
+
+        var provider = services.BuildServiceProvider();
+
+        // The validator is registered as IValidateOptions<PluginConfigurationOptions>
+        var validators = provider.GetServices<IValidateOptions<PluginConfigurationOptions>>().ToList();
+        Assert.True(validators.Count > 0, "Expected at least one validator to be registered");
+    }
+
+    #endregion
 
     private class TestTypeResolver : ITypeResolver
     {
