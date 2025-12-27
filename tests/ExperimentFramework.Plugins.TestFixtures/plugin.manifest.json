@@ -1,0 +1,25 @@
+{
+  "manifestVersion": "1.0",
+  "plugin": {
+    "id": "TestFixtures.EmbeddedPlugin",
+    "name": "Embedded Plugin from Resource",
+    "version": "2.0.0",
+    "description": "A test plugin with embedded manifest"
+  },
+  "isolation": {
+    "mode": "shared",
+    "sharedAssemblies": ["TestAssembly1", "TestAssembly2"]
+  },
+  "services": [
+    {
+      "interface": "ITestService",
+      "implementations": [
+        { "type": "TestServiceImpl", "alias": "test-impl" }
+      ]
+    }
+  ],
+  "lifecycle": {
+    "supportsHotReload": true,
+    "requiresRestartOnUnload": false
+  }
+}

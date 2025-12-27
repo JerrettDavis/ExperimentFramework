@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+
+    <!-- Important: Set to false for proper plugin loading -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+
+    <!-- Copy dependencies to output for plugin loading -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reference the Plugins package for manifest attributes -->
+    <ProjectReference Include="..\..\src\ExperimentFramework.Plugins\ExperimentFramework.Plugins.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+
+    <!-- Reference the source generator to auto-generate the manifest -->
+    <ProjectReference Include="..\..\src\ExperimentFramework.Plugins.Generators\ExperimentFramework.Plugins.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!--
+  NOTE: The plugin manifest is now auto-generated at compile time!
+  No need for plugin.manifest.json - the source generator discovers:
+  - All public classes implementing non-system interfaces
+  - Generates aliases from class names (e.g., StripeV2Processor -> stripe-v2)
+  - Uses assembly metadata for plugin ID, name, and version
+
+  To customize, add [assembly: GeneratePluginManifest(...)] to any file.
+  -->
+
+</Project>

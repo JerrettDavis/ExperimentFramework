@@ -697,3 +697,11 @@ opts.ThrowOnValidationErrors = false; // Log instead of throw
 ```
 
 Check logs for `[Warning]` entries about skipped trials.
+
+---
+
+## Next Steps
+
+- [Plugin System](plugins.md) - Load experiment implementations from external DLLs at runtime
+- [Extensibility](extensibility.md) - Create custom selection mode providers
+- [Getting Started](getting-started.md) - Basic framework setup with code examples

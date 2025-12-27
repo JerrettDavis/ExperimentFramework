@@ -120,7 +120,7 @@ public sealed class ExperimentProxyGenerator : IIncrementalGenerator
             }
         }
 
-        context.AddSource("_Diagnostic.g.cs", diagSummary.ToString());
+        context.AddSource("GeneratorDiagnostic.g.cs", diagSummary.ToString());
 
         if (allExperiments.Length == 0)
             return;

@@ -860,4 +860,6 @@ public class ExperimentTests
 
 - [Getting Started](getting-started.md) - Build your first experiment
 - [Core Concepts](core-concepts.md) - Understand framework fundamentals
+- [YAML/JSON Configuration](configuration.md) - Define experiments declaratively
+- [Plugin System](plugins.md) - Load experiment implementations from external DLLs
 - [Advanced Topics](advanced.md) - Explore custom decorators and patterns

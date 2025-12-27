@@ -747,5 +747,7 @@ services.AddSingleton<IExperimentTelemetry, DatadogExperimentTelemetry>();
 ## Next Steps
 
 - [Samples](samples.md) - Complete working examples of advanced patterns
+- [Plugin System](plugins.md) - Load experiment implementations from external DLLs
+- [YAML/JSON Configuration](configuration.md) - Define experiments declaratively
 - [Core Concepts](core-concepts.md) - Review fundamental framework concepts
 - [Telemetry](telemetry.md) - Learn about built-in telemetry options

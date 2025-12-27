@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/ExperimentFramework.ComprehensiveSample/ExperimentFramework.ComprehensiveSample.csproj" />
+    <Project Path="samples/ExperimentFramework.PluginHostSample/ExperimentFramework.PluginHostSample.csproj" />
     <Project Path="samples/ExperimentFramework.SampleConsole/ExperimentFramework.SampleConsole.csproj" />
+    <Project Path="samples/ExperimentFramework.SamplePlugin/ExperimentFramework.SamplePlugin.csproj" />
     <Project Path="samples/ExperimentFramework.SampleWebApp/ExperimentFramework.SampleWebApp.csproj" />
     <Project Path="samples/ExperimentFramework.ScientificSample/ExperimentFramework.ScientificSample.csproj" />
   </Folder>
@@ -13,12 +15,17 @@
     <Project Path="src/ExperimentFramework.Generators/ExperimentFramework.Generators.csproj" />
     <Project Path="src/ExperimentFramework.Metrics.Exporters/ExperimentFramework.Metrics.Exporters.csproj" />
     <Project Path="src/ExperimentFramework.OpenFeature/ExperimentFramework.OpenFeature.csproj" />
+    <Project Path="src/ExperimentFramework.Plugins/ExperimentFramework.Plugins.csproj" />
+    <Project Path="src/ExperimentFramework.Plugins.Generators/ExperimentFramework.Plugins.Generators.csproj" />
     <Project Path="src/ExperimentFramework.Resilience/ExperimentFramework.Resilience.csproj" />
     <Project Path="src/ExperimentFramework.Science/ExperimentFramework.Science.csproj" />
     <Project Path="src/ExperimentFramework.StickyRouting/ExperimentFramework.StickyRouting.csproj" />
     <Project Path="src/ExperimentFramework/ExperimentFramework.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ExperimentFramework.Generators.Tests/ExperimentFramework.Generators.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Plugins.Generators.Tests/ExperimentFramework.Plugins.Generators.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Plugins.Tests/ExperimentFramework.Plugins.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Tests/ExperimentFramework.Tests.csproj" />
   </Folder>
 </Solution>

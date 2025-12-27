@@ -50,7 +50,7 @@ All of these are functionally equivalent—use whichever reads most naturally fo
 - Decorator pipeline for cross-cutting concerns
 - Dependency injection integration
 
-**Scientific Experimentation** *(NEW)*
+**Scientific Experimentation**
 - **Data Collection** (`ExperimentFramework.Data`)
   - Automatic outcome recording (binary, continuous, count, duration)
   - Thread-safe in-memory storage with aggregation
@@ -61,6 +61,14 @@ All of these are functionally equivalent—use whichever reads most naturally fo
   - Power analysis and sample size calculation
   - Multiple comparison corrections (Bonferroni, Holm, Benjamini-Hochberg)
   - Publication-ready reports (Markdown, JSON)
+
+**Extensibility Features**
+- **Plugin System** (`ExperimentFramework.Plugins`)
+  - Dynamic assembly loading at runtime
+  - Configurable isolation modes (Full, Shared, None)
+  - Plugin manifests (JSON or assembly attributes)
+  - Hot reload support with file watching
+  - YAML DSL integration with `plugin:PluginId/alias` syntax
 
 ## Quick Start
 
@@ -1053,6 +1061,90 @@ var bh = BenjaminiHochbergCorrection.Instance.AdjustPValues(pValues);
 
 See the [Scientific Analysis Guide](docs/user-guide/statistical-analysis.md) for detailed documentation.
 
+## Plugin System (NEW)
+
+Deploy experimental implementations as separate DLLs without rebuilding your main application.
+
+### 1. Install Plugin Package
+
+```bash
+dotnet add package ExperimentFramework.Plugins
+```
+
+### 2. Configure Plugin Loading
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+// Add plugin support
+builder.Services.AddExperimentPlugins(opts =>
+{
+    opts.DiscoveryPaths.Add("./plugins");
+    opts.EnableHotReload = true;
+    opts.DefaultIsolationMode = PluginIsolationMode.Shared;
+});
+
+// Register experiment framework
+builder.Services.AddExperimentFrameworkFromConfiguration(builder.Configuration);
+```
+
+### 3. Reference Plugin Types in YAML
+
+```yaml
+experimentFramework:
+  plugins:
+    discovery:
+      paths:
+        - "./plugins"
+    hotReload:
+      enabled: true
+
+  trials:
+    - serviceType: IPaymentProcessor
+      selectionMode:
+        type: featureFlag
+        flagName: PaymentExperiment
+      control:
+        key: control
+        implementationType: DefaultProcessor
+      conditions:
+        - key: stripe-v2
+          implementationType: plugin:Acme.Payments/stripe-v2
+        - key: adyen
+          implementationType: plugin:Acme.Payments/adyen
+```
+
+### 4. Create a Plugin
+
+```csharp
+// MyPlugin.csproj with EnableDynamicLoading=true
+// plugin.manifest.json embedded as resource:
+{
+  "manifestVersion": "1.0",
+  "plugin": {
+    "id": "Acme.PaymentExperiments",
+    "name": "Acme Payment Experiments",
+    "version": "1.0.0"
+  },
+  "services": [{
+    "interface": "IPaymentProcessor",
+    "implementations": [
+      { "type": "StripeV2Processor", "alias": "stripe-v2" }
+    ]
+  }]
+}
+```
+
+### Isolation Modes
+
+| Mode | Behavior | Use Case |
+|------|----------|----------|
+| `Full` | Separate AssemblyLoadContext | Untrusted plugins, version conflicts |
+| `Shared` | Shares specified assemblies | Most common, allows DI integration |
+| `None` | Loads into default context | Fully trusted, maximum compatibility |
+
+See the [Plugin System Guide](docs/user-guide/plugins.md) for complete documentation.
+
 ## API Reference
 
 ### Builder Methods
@@ -1103,6 +1195,7 @@ See the [Scientific Analysis Guide](docs/user-guide/statistical-analysis.md) for
 | `ExperimentFramework.FeatureManagement` | `services.AddExperimentVariantFeatureFlags()` |
 | `ExperimentFramework.StickyRouting` | `services.AddExperimentStickyRouting()` |
 | `ExperimentFramework.OpenFeature` | `services.AddExperimentOpenFeature()` |
+| `ExperimentFramework.Plugins` | `services.AddExperimentPlugins()` |
 
 ### Extension Methods
 
@@ -1139,6 +1232,20 @@ See the [Scientific Analysis Guide](docs/user-guide/statistical-analysis.md) for
 | `BonferroniCorrection.Instance.AdjustPValues()` | Bonferroni p-value correction |
 | `HolmBonferroniCorrection.Instance.AdjustPValues()` | Holm step-down correction |
 | `BenjaminiHochbergCorrection.Instance.AdjustPValues()` | FDR correction |
+
+### Plugin Methods (ExperimentFramework.Plugins)
+
+| Method | Description |
+|--------|-------------|
+| `services.AddExperimentPlugins()` | Registers plugin system with default options |
+| `services.AddExperimentPluginsWithHotReload()` | Registers with hot reload enabled |
+| `pluginManager.LoadAsync(path)` | Load a plugin from a DLL path |
+| `pluginManager.UnloadAsync(pluginId)` | Unload a loaded plugin |
+| `pluginManager.ReloadAsync(pluginId)` | Reload a plugin (unload + load) |
+| `pluginManager.GetLoadedPlugins()` | Get all currently loaded plugins |
+| `pluginManager.ResolveType(reference)` | Resolve type from `plugin:Id/alias` reference |
+| `pluginContext.GetTypeByAlias(alias)` | Get type by manifest alias |
+| `pluginContext.CreateInstance(type, sp)` | Create instance with DI |
 
 ## License
 

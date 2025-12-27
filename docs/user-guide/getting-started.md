@@ -358,6 +358,8 @@ Now that you have a working experiment, you can explore:
 
 - [Core Concepts](core-concepts.md) - Understand how trials, proxies, and decorators work
 - [Selection Modes](selection-modes.md) - Learn about configuration values, variants, and sticky routing
+- [YAML/JSON Configuration](configuration.md) - Define experiments declaratively without code changes
+- [Plugin System](plugins.md) - Load experiment implementations from external DLLs
 - [Error Handling](error-handling.md) - Explore different error handling strategies
 - [Telemetry](telemetry.md) - Integrate with OpenTelemetry for distributed tracing
 
