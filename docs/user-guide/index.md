@@ -132,6 +132,7 @@ The framework follows these design principles:
 ### Getting Started
 - [Getting Started](getting-started.md) - Install the framework and create your first experiment
 - [Core Concepts](core-concepts.md) - Detailed explanation of trials, proxies, and decorators
+- [YAML/JSON Configuration](configuration.md) - Define experiments declaratively via YAML/JSON files *(NEW)*
 
 ### Traffic Routing & Selection
 - [Selection Modes](selection-modes.md) - Learn about the different ways to select trials

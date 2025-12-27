@@ -333,15 +333,15 @@ public class InMemoryOutcomeStoreTests
     }
 
     [Fact]
-    public void Clear_RemovesAllData()
+    public async Task Clear_RemovesAllData()
     {
         // Arrange
-        _store.RecordAsync(CreateOutcome()).AsTask().Wait();
-        _store.RecordAsync(CreateOutcome()).AsTask().Wait();
+        await _store.RecordAsync(CreateOutcome());
+        await _store.RecordAsync(CreateOutcome());
 
         // Act
         _store.Clear();
-        var count = _store.CountAsync(new OutcomeQuery()).AsTask().Result;
+        var count = await _store.CountAsync(new OutcomeQuery());
 
         // Assert
         Assert.Equal(0, count);
@@ -352,7 +352,7 @@ public class InMemoryOutcomeStoreTests
     {
         // Arrange
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>

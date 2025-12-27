@@ -1,0 +1,440 @@
+using ExperimentFramework.Configuration.Models;
+
+namespace ExperimentFramework.Configuration.Validation;
+
+/// <summary>
+/// Default implementation of configuration validation.
+/// </summary>
+public sealed class ConfigurationValidator : IConfigurationValidator
+{
+    private static readonly HashSet<string> ValidSelectionModes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "featureFlag", "configurationKey", "variantFeatureFlag",
+        "openFeature", "stickyRouting", "custom"
+    };
+
+    private static readonly HashSet<string> ValidErrorPolicies = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "throw", "fallbackToControl", "fallbackTo", "tryInOrder", "tryAny"
+    };
+
+    private static readonly HashSet<string> ValidDecoratorTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "logging", "timeout", "metrics", "killSwitch",
+        "circuitBreaker", "outcomeCollection", "custom"
+    };
+
+    private static readonly HashSet<string> ValidHypothesisTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "superiority", "nonInferiority", "equivalence", "twoSided"
+    };
+
+    private static readonly HashSet<string> ValidOutcomeTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "binary", "continuous", "count", "duration"
+    };
+
+    /// <inheritdoc />
+    public ConfigurationValidationResult Validate(ExperimentFrameworkConfigurationRoot config)
+    {
+        var errors = new List<ConfigurationValidationError>();
+
+        // Validate decorators
+        if (config.Decorators != null)
+        {
+            for (var i = 0; i < config.Decorators.Count; i++)
+            {
+                ValidateDecorator(config.Decorators[i], $"decorators[{i}]", errors);
+            }
+        }
+
+        // Validate standalone trials
+        if (config.Trials != null)
+        {
+            for (var i = 0; i < config.Trials.Count; i++)
+            {
+                ValidateTrial(config.Trials[i], $"trials[{i}]", errors);
+            }
+        }
+
+        // Validate named experiments
+        if (config.Experiments != null)
+        {
+            var experimentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < config.Experiments.Count; i++)
+            {
+                var experiment = config.Experiments[i];
+                ValidateExperiment(experiment, $"experiments[{i}]", errors);
+
+                // Check for duplicate experiment names
+                if (!experimentNames.Add(experiment.Name))
+                {
+                    errors.Add(ConfigurationValidationError.Error(
+                        $"experiments[{i}].name",
+                        $"Duplicate experiment name: '{experiment.Name}'"));
+                }
+            }
+        }
+
+        return new ConfigurationValidationResult(errors);
+    }
+
+    private static void ValidateDecorator(DecoratorConfig decorator, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(decorator.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.type", "Decorator type is required"));
+            return;
+        }
+
+        if (!ValidDecoratorTypes.Contains(decorator.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.type",
+                $"Invalid decorator type: '{decorator.Type}'. Valid values: {string.Join(", ", ValidDecoratorTypes)}"));
+        }
+
+        if (decorator.Type.Equals("custom", StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(decorator.TypeName))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.typeName",
+                "Type name is required for custom decorators"));
+        }
+    }
+
+    private static void ValidateTrial(TrialConfig trial, string path, List<ConfigurationValidationError> errors)
+    {
+        // Required fields
+        if (string.IsNullOrWhiteSpace(trial.ServiceType))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.serviceType", "Service type is required"));
+        }
+
+        // Selection mode validation
+        if (trial.SelectionMode == null)
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.selectionMode", "Selection mode is required"));
+        }
+        else
+        {
+            ValidateSelectionMode(trial.SelectionMode, $"{path}.selectionMode", errors);
+        }
+
+        // Control validation
+        if (trial.Control == null)
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.control", "Control implementation is required"));
+        }
+        else
+        {
+            ValidateCondition(trial.Control, $"{path}.control", errors);
+        }
+
+        // Conditions validation
+        if (trial.Conditions != null)
+        {
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (trial.Control != null)
+            {
+                keys.Add(trial.Control.Key);
+            }
+
+            for (var i = 0; i < trial.Conditions.Count; i++)
+            {
+                var condition = trial.Conditions[i];
+                ValidateCondition(condition, $"{path}.conditions[{i}]", errors);
+
+                if (!keys.Add(condition.Key))
+                {
+                    errors.Add(ConfigurationValidationError.Error(
+                        $"{path}.conditions[{i}].key",
+                        $"Duplicate condition key: '{condition.Key}'"));
+                }
+            }
+        }
+
+        // Error policy validation
+        if (trial.ErrorPolicy != null)
+        {
+            ValidateErrorPolicy(trial.ErrorPolicy, trial, $"{path}.errorPolicy", errors);
+        }
+
+        // Activation validation
+        if (trial.Activation != null)
+        {
+            ValidateActivation(trial.Activation, $"{path}.activation", errors);
+        }
+    }
+
+    private static void ValidateSelectionMode(SelectionModeConfig mode, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(mode.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.type", "Selection mode type is required"));
+            return;
+        }
+
+        if (!ValidSelectionModes.Contains(mode.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.type",
+                $"Invalid selection mode type: '{mode.Type}'. Valid values: {string.Join(", ", ValidSelectionModes)}"));
+        }
+
+        // Mode-specific validation
+        if (mode.Type.Equals("custom", StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(mode.ModeIdentifier))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.modeIdentifier",
+                "Mode identifier is required for custom selection mode"));
+        }
+    }
+
+    private static void ValidateCondition(ConditionConfig condition, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(condition.Key))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.key", "Condition key is required"));
+        }
+
+        if (string.IsNullOrWhiteSpace(condition.ImplementationType))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.implementationType", "Implementation type is required"));
+        }
+    }
+
+    private static void ValidateErrorPolicy(ErrorPolicyConfig policy, TrialConfig trial, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(policy.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.type", "Error policy type is required"));
+            return;
+        }
+
+        if (!ValidErrorPolicies.Contains(policy.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.type",
+                $"Invalid error policy type: '{policy.Type}'. Valid values: {string.Join(", ", ValidErrorPolicies)}"));
+            return;
+        }
+
+        // Collect all valid condition keys
+        var allKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (trial.Control != null)
+        {
+            allKeys.Add(trial.Control.Key);
+        }
+        if (trial.Conditions != null)
+        {
+            foreach (var c in trial.Conditions)
+            {
+                allKeys.Add(c.Key);
+            }
+        }
+
+        // Validate fallback references
+        if (policy.Type.Equals("fallbackTo", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(policy.FallbackKey))
+            {
+                errors.Add(ConfigurationValidationError.Error(
+                    $"{path}.fallbackKey",
+                    "Fallback key is required for 'fallbackTo' policy"));
+            }
+            else if (!allKeys.Contains(policy.FallbackKey))
+            {
+                errors.Add(ConfigurationValidationError.Warning(
+                    $"{path}.fallbackKey",
+                    $"Fallback key '{policy.FallbackKey}' does not match any defined condition"));
+            }
+        }
+
+        if (policy.Type.Equals("tryInOrder", StringComparison.OrdinalIgnoreCase))
+        {
+            if (policy.FallbackKeys == null || policy.FallbackKeys.Count == 0)
+            {
+                errors.Add(ConfigurationValidationError.Error(
+                    $"{path}.fallbackKeys",
+                    "Fallback keys list is required for 'tryInOrder' policy"));
+            }
+            else
+            {
+                for (var i = 0; i < policy.FallbackKeys.Count; i++)
+                {
+                    var key = policy.FallbackKeys[i];
+                    if (!allKeys.Contains(key))
+                    {
+                        errors.Add(ConfigurationValidationError.Warning(
+                            $"{path}.fallbackKeys[{i}]",
+                            $"Fallback key '{key}' does not match any defined condition"));
+                    }
+                }
+            }
+        }
+    }
+
+    private static void ValidateActivation(ActivationConfig activation, string path, List<ConfigurationValidationError> errors)
+    {
+        if (activation is { From: not null, Until: not null })
+        {
+            if (activation.From >= activation.Until)
+            {
+                errors.Add(ConfigurationValidationError.Error(
+                    path,
+                    "Activation 'from' must be before 'until'"));
+            }
+        }
+
+        if (activation.Predicate != null && string.IsNullOrWhiteSpace(activation.Predicate.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.predicate.type",
+                "Predicate type is required"));
+        }
+    }
+
+    private static void ValidateExperiment(ExperimentConfig experiment, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(experiment.Name))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.name", "Experiment name is required"));
+        }
+
+        if (experiment.Trials == null || experiment.Trials.Count == 0)
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.trials", "Experiment must have at least one trial"));
+        }
+        else
+        {
+            for (var i = 0; i < experiment.Trials.Count; i++)
+            {
+                ValidateTrial(experiment.Trials[i], $"{path}.trials[{i}]", errors);
+            }
+        }
+
+        if (experiment.Activation != null)
+        {
+            ValidateActivation(experiment.Activation, $"{path}.activation", errors);
+        }
+
+        if (experiment.Hypothesis != null)
+        {
+            ValidateHypothesis(experiment.Hypothesis, $"{path}.hypothesis", errors);
+        }
+    }
+
+    private static void ValidateHypothesis(HypothesisConfig hypothesis, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(hypothesis.Name))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.name", "Hypothesis name is required"));
+        }
+
+        if (string.IsNullOrWhiteSpace(hypothesis.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.type", "Hypothesis type is required"));
+        }
+        else if (!ValidHypothesisTypes.Contains(hypothesis.Type))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.type",
+                $"Invalid hypothesis type: '{hypothesis.Type}'. Valid values: {string.Join(", ", ValidHypothesisTypes)}"));
+        }
+
+        if (string.IsNullOrWhiteSpace(hypothesis.NullHypothesis))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.nullHypothesis", "Null hypothesis is required"));
+        }
+
+        if (string.IsNullOrWhiteSpace(hypothesis.AlternativeHypothesis))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.alternativeHypothesis", "Alternative hypothesis is required"));
+        }
+
+        if (hypothesis.PrimaryEndpoint == null)
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.primaryEndpoint", "Primary endpoint is required"));
+        }
+        else
+        {
+            ValidateEndpoint(hypothesis.PrimaryEndpoint, $"{path}.primaryEndpoint", errors);
+        }
+
+        if (hypothesis.SecondaryEndpoints != null)
+        {
+            for (var i = 0; i < hypothesis.SecondaryEndpoints.Count; i++)
+            {
+                ValidateEndpoint(hypothesis.SecondaryEndpoints[i], $"{path}.secondaryEndpoints[{i}]", errors);
+            }
+        }
+
+        if (hypothesis.ExpectedEffectSize <= 0)
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.expectedEffectSize",
+                "Expected effect size must be positive"));
+        }
+
+        if (hypothesis.SuccessCriteria == null)
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.successCriteria", "Success criteria is required"));
+        }
+        else
+        {
+            ValidateSuccessCriteria(hypothesis.SuccessCriteria, $"{path}.successCriteria", errors);
+        }
+    }
+
+    private static void ValidateEndpoint(EndpointConfig endpoint, string path, List<ConfigurationValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint.Name))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.name", "Endpoint name is required"));
+        }
+
+        if (string.IsNullOrWhiteSpace(endpoint.OutcomeType))
+        {
+            errors.Add(ConfigurationValidationError.Error($"{path}.outcomeType", "Outcome type is required"));
+        }
+        else if (!ValidOutcomeTypes.Contains(endpoint.OutcomeType))
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.outcomeType",
+                $"Invalid outcome type: '{endpoint.OutcomeType}'. Valid values: {string.Join(", ", ValidOutcomeTypes)}"));
+        }
+
+        if (endpoint is { HigherIsBetter: true, LowerIsBetter: true })
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                path,
+                "Cannot specify both 'higherIsBetter' and 'lowerIsBetter' as true"));
+        }
+    }
+
+    private static void ValidateSuccessCriteria(SuccessCriteriaConfig criteria, string path, List<ConfigurationValidationError> errors)
+    {
+        if (criteria.Alpha is <= 0 or >= 1)
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.alpha",
+                "Alpha must be between 0 and 1 (exclusive)"));
+        }
+
+        if (criteria.Power is <= 0 or >= 1)
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.power",
+                "Power must be between 0 and 1 (exclusive)"));
+        }
+
+        if (criteria.MinimumSampleSize is <= 0)
+        {
+            errors.Add(ConfigurationValidationError.Error(
+                $"{path}.minimumSampleSize",
+                "Minimum sample size must be positive"));
+        }
+    }
+}

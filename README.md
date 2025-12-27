@@ -481,6 +481,112 @@ Emitted activity tags:
 - `experiment.fallback` - Fallback trial key (if applicable)
 - `experiment.variant` - Variant name (for variant mode)
 
+## YAML/JSON Configuration (NEW)
+
+Define experiments declaratively without code changes using YAML or JSON files:
+
+### 1. Install Configuration Package
+
+```bash
+dotnet add package ExperimentFramework.Configuration
+```
+
+### 2. Create experiments.yaml
+
+```yaml
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  decorators:
+    - type: logging
+      options:
+        benchmarks: true
+        errorLogging: true
+
+  trials:
+    - serviceType: IMyDatabase
+      selectionMode:
+        type: featureFlag
+        flagName: UseCloudDb
+      control:
+        key: control
+        implementationType: MyDbContext
+      conditions:
+        - key: "true"
+          implementationType: MyCloudDbContext
+      errorPolicy:
+        type: fallbackToControl
+
+  experiments:
+    - name: checkout-optimization
+      metadata:
+        owner: platform-team
+        ticket: PLAT-1234
+      activation:
+        from: "2025-01-01T00:00:00Z"
+        until: "2025-03-31T23:59:59Z"
+      trials:
+        - serviceType: ICheckoutService
+          selectionMode:
+            type: stickyRouting
+          control:
+            key: legacy
+            implementationType: LegacyCheckout
+          conditions:
+            - key: streamlined
+              implementationType: StreamlinedCheckout
+      hypothesis:
+        name: checkout-conversion
+        type: superiority
+        nullHypothesis: "No difference in conversion rate"
+        alternativeHypothesis: "Streamlined checkout improves conversion"
+        primaryEndpoint:
+          name: purchase_completed
+          outcomeType: binary
+          higherIsBetter: true
+        expectedEffectSize: 0.05
+        successCriteria:
+          alpha: 0.05
+          power: 0.80
+```
+
+### 3. Register from Configuration
+
+```csharp
+// Load experiment configuration from YAML files
+builder.Services.AddExperimentFrameworkFromConfiguration(builder.Configuration);
+
+// Or with options
+builder.Services.AddExperimentFrameworkFromConfiguration(builder.Configuration, opts =>
+{
+    opts.ScanDefaultPaths = true;
+    opts.EnableHotReload = true;
+    opts.TypeAliases.Add("IMyDb", typeof(IMyDatabase));
+});
+```
+
+### Features
+
+- **Auto-discovery**: Scans `experiments.yaml`, `ExperimentDefinitions/**/*.yaml`, and appsettings.json
+- **Type aliases**: Use simple names instead of assembly-qualified type names
+- **Hot reload**: Configuration changes apply without restart
+- **Validation**: Comprehensive validation with helpful error messages
+- **Hybrid mode**: Combine programmatic and file-based configuration
+
+### Selection Modes in YAML
+
+| YAML Type | Fluent API Equivalent |
+|-----------|----------------------|
+| `featureFlag` | `.UsingFeatureFlag()` |
+| `configurationKey` | `.UsingConfigurationKey()` |
+| `variantFeatureFlag` | `.UsingVariantFeatureFlag()` |
+| `stickyRouting` | `.UsingStickyRouting()` |
+| `openFeature` | `.UsingOpenFeature()` |
+| `custom` | `.UsingCustomMode()` |
+
+See the [Configuration Guide](docs/user-guide/configuration.md) for complete documentation.
+
 ## Configuration Example
 
 ### appsettings.json

@@ -1,0 +1,56 @@
+# OpenFeature Integration Example
+#
+# This example shows how to use OpenFeature for flag evaluation.
+# OpenFeature is an open standard for feature flag management that
+# supports multiple providers (LaunchDarkly, Split, Flagsmith, etc.)
+#
+# Requirements:
+#   - ExperimentFramework.OpenFeature package
+#   - OpenFeature SDK and a provider configured
+#
+# Setup:
+#   await Api.Instance.SetProviderAsync(new YourOpenFeatureProvider());
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  decorators:
+    - type: logging
+      options:
+        benchmarks: true
+
+  trials:
+    # String flag evaluation
+    - serviceType: ISearchService
+      selectionMode:
+        type: openFeature
+        flagName: search-algorithm
+      control:
+        key: basic
+        implementationType: BasicSearchService
+      conditions:
+        - key: fuzzy
+          implementationType: FuzzySearchService
+        - key: semantic
+          implementationType: SemanticSearchService
+      errorPolicy:
+        type: fallbackToControl
+
+    # Another OpenFeature-controlled experiment
+    - serviceType: INotificationService
+      selectionMode:
+        type: openFeature
+        flagName: notification-provider
+      control:
+        key: email
+        implementationType: EmailNotificationService
+      conditions:
+        - key: push
+          implementationType: PushNotificationService
+        - key: sms
+          implementationType: SmsNotificationService
+        - key: multi
+          implementationType: MultiChannelNotificationService
+      errorPolicy:
+        type: tryAny

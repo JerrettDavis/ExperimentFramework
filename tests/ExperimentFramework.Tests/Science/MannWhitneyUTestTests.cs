@@ -61,7 +61,7 @@ public class MannWhitneyUTestTests
         var result = MannWhitneyUTest.Instance.Perform(control, treatment, 0.05, AlternativeHypothesisType.Greater);
 
         // Assert - should return valid p-value for one-sided test
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
         Assert.Equal(AlternativeHypothesisType.Greater, result.AlternativeType);
     }
 
@@ -76,7 +76,7 @@ public class MannWhitneyUTestTests
         var result = MannWhitneyUTest.Instance.Perform(control, treatment, 0.05, AlternativeHypothesisType.Less);
 
         // Assert - should return valid p-value for one-sided test
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
         Assert.Equal(AlternativeHypothesisType.Less, result.AlternativeType);
     }
 
@@ -159,7 +159,7 @@ public class MannWhitneyUTestTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class MannWhitneyUTestTests
 
         // Assert - should not throw and should produce valid result
         Assert.NotNull(result);
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public class MannWhitneyUTestTests
 
         // Assert - should handle ties correctly
         Assert.NotNull(result);
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
     }
 
     [Fact]

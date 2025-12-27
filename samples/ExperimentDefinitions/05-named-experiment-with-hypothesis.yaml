@@ -1,0 +1,116 @@
+# Named Experiment with Hypothesis Example
+#
+# This example shows a complete scientific experiment definition with:
+#   - Named experiment for organization and tracking
+#   - Metadata for team ownership and ticketing
+#   - Formal hypothesis with statistical parameters
+#   - Success criteria for experiment conclusion
+#
+# Use cases:
+#   - Rigorous A/B testing with statistical significance
+#   - Product experiments requiring formal analysis
+#   - Data-driven decision making
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  decorators:
+    - type: logging
+      options:
+        benchmarks: true
+        errorLogging: true
+    - type: outcomeCollection
+      options:
+        collectDuration: true
+        collectErrors: true
+
+  experiments:
+    - name: q1-2025-checkout-optimization
+      metadata:
+        owner: growth-team
+        ticket: GROWTH-1234
+        description: |
+          Testing a streamlined checkout flow to improve conversion rates.
+          Hypothesis: Reducing checkout steps from 4 to 2 will increase
+          purchase completion by at least 5%.
+        startDate: "2025-01-15"
+        expectedEndDate: "2025-03-31"
+
+      activation:
+        from: "2025-01-15T00:00:00Z"
+        until: "2025-03-31T23:59:59Z"
+
+      trials:
+        - serviceType: ICheckoutFlow
+          selectionMode:
+            type: stickyRouting
+          control:
+            key: legacy
+            implementationType: LegacyCheckout
+          conditions:
+            - key: streamlined
+              implementationType: StreamlinedCheckout
+          errorPolicy:
+            type: fallbackToControl
+
+      hypothesis:
+        name: checkout-conversion
+        type: superiority
+        nullHypothesis: "No difference in checkout completion rate between legacy and streamlined flows"
+        alternativeHypothesis: "Streamlined checkout improves completion rate by at least 5%"
+        primaryEndpoint:
+          name: purchase_completed
+          outcomeType: binary
+          higherIsBetter: true
+        expectedEffectSize: 0.05
+        successCriteria:
+          alpha: 0.05
+          power: 0.80
+          minimumSampleSize: 5000
+          minimumEffectSize: 0.03
+
+    - name: q1-2025-recommendation-algorithm
+      metadata:
+        owner: platform-team
+        ticket: PLAT-5678
+        description: Testing ML-based recommendations vs rule-based
+
+      activation:
+        from: "2025-01-01T00:00:00Z"
+        until: "2025-03-31T23:59:59Z"
+
+      trials:
+        - serviceType: IRecommendationService
+          selectionMode:
+            type: stickyRouting
+          control:
+            key: rules
+            implementationType: RuleBasedRecommendations
+          conditions:
+            - key: ml
+              implementationType: MLRecommendations
+          errorPolicy:
+            type: fallbackToControl
+
+      hypothesis:
+        name: recommendation-ctr
+        type: superiority
+        nullHypothesis: "No difference in click-through rate"
+        alternativeHypothesis: "ML recommendations improve CTR"
+        primaryEndpoint:
+          name: recommendation_clicked
+          outcomeType: binary
+          higherIsBetter: true
+        secondaryEndpoints:
+          - name: session_duration_seconds
+            outcomeType: continuous
+            higherIsBetter: true
+          - name: items_viewed
+            outcomeType: count
+            higherIsBetter: true
+        expectedEffectSize: 0.02
+        successCriteria:
+          alpha: 0.05
+          power: 0.80
+          minimumSampleSize: 10000

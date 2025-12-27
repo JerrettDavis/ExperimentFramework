@@ -89,8 +89,7 @@ internal static class FluentApiAnalyzer
             }
 
             // Move to the previous invocation in the chain
-            if (current.Expression is MemberAccessExpressionSyntax memberAccess &&
-                memberAccess.Expression is InvocationExpressionSyntax previousInvocation)
+            if (current.Expression is MemberAccessExpressionSyntax { Expression: InvocationExpressionSyntax previousInvocation })
             {
                 current = previousInvocation;
             }
@@ -110,8 +109,7 @@ internal static class FluentApiAnalyzer
     /// </summary>
     private static bool IsDefineCall(InvocationExpressionSyntax invocation)
     {
-        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-            memberAccess.Name is GenericNameSyntax genericName)
+        if (invocation.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax genericName })
         {
             // Support both "Define" and "Trial" method names
             var methodName = genericName.Identifier.Text;

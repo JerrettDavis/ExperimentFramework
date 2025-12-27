@@ -752,7 +752,7 @@ public class ExperimentAnalyzerTests
         await SeedContinuousData();
         var analyzer = new ExperimentAnalyzer(_store);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             analyzer.AnalyzeAsync("test-exp", null, cts.Token));

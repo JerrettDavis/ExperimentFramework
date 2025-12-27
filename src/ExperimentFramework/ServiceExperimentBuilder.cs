@@ -37,7 +37,6 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
 {
     private readonly Dictionary<string, Type> _trials = new(StringComparer.Ordinal);
     private string? _defaultKey;
-    private bool _hasExplicitControl;
     private SelectionMode _mode = SelectionMode.BooleanFeatureFlag;
     private string? _modeIdentifier;
     private string? _selectorName;
@@ -197,7 +196,6 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
         where TImpl : class, TService
     {
         _defaultKey = key;
-        _hasExplicitControl = true;
         _trials[key] = typeof(TImpl);
         return this;
     }

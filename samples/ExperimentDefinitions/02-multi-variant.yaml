@@ -1,0 +1,37 @@
+# Multi-Variant Configuration Example
+#
+# This example shows how to route to different implementations based on a
+# configuration value. Useful for A/B/C/n testing or gradual rollouts.
+#
+# Usage:
+#   Set "Experiments:PaymentProcessor" in appsettings.json to one of:
+#   - "stripe" (control)
+#   - "paypal"
+#   - "square"
+#
+# This example uses SOURCE GENERATORS for maximum performance.
+# Source generators create proxies at compile-time with zero runtime overhead.
+
+experimentFramework:
+  settings:
+    # Using sourceGenerators for zero-overhead proxies
+    # Change to "dispatchProxy" for simpler runtime generation
+    proxyStrategy: sourceGenerators
+
+  trials:
+    - serviceType: IPaymentProcessor
+      selectionMode:
+        type: configurationKey
+        key: "Experiments:PaymentProcessor"
+      control:
+        key: stripe
+        implementationType: StripeProcessor
+      conditions:
+        - key: paypal
+          implementationType: PayPalProcessor
+        - key: square
+          implementationType: SquareProcessor
+      errorPolicy:
+        type: tryInOrder
+        fallbackKeys:
+          - stripe  # Always fall back to Stripe if others fail

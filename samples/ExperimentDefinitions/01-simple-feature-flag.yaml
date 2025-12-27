@@ -1,0 +1,34 @@
+# Simple Feature Flag Example
+#
+# This example shows a basic A/B test using a boolean feature flag.
+# When the flag is enabled, traffic is routed to the experimental implementation.
+#
+# Usage:
+#   1. Set "FeatureManagement:UseNewAlgorithm" to true/false in appsettings.json
+#   2. The framework automatically routes to the correct implementation
+#
+# Proxy Strategy Options:
+#   - dispatchProxy: Runtime proxy generation using .NET DispatchProxy
+#                    Simpler setup, works everywhere, slight runtime overhead
+#   - sourceGenerators: Compile-time proxy generation
+#                       Zero runtime overhead, requires source generator support
+
+experimentFramework:
+  settings:
+    # Using dispatchProxy for runtime flexibility
+    # Change to "sourceGenerators" for compile-time generation
+    proxyStrategy: dispatchProxy
+
+  trials:
+    - serviceType: IRecommendationService
+      selectionMode:
+        type: featureFlag
+        flagName: UseNewAlgorithm
+      control:
+        key: control
+        implementationType: RuleBasedRecommendations
+      conditions:
+        - key: "true"
+          implementationType: MLRecommendations
+      errorPolicy:
+        type: fallbackToControl

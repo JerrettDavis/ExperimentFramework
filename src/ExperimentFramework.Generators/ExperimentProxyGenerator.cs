@@ -50,9 +50,7 @@ public sealed class ExperimentProxyGenerator : IIncrementalGenerator
     private static bool IsUseSourceGeneratorsCandidate(SyntaxNode node)
     {
         // Look for invocations that might be .UseSourceGenerators()
-        return node is InvocationExpressionSyntax invocation &&
-               invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-               memberAccess.Name.Identifier.Text == "UseSourceGenerators";
+        return node is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.Text: "UseSourceGenerators" } };
     }
 
     /// <summary>
@@ -61,8 +59,7 @@ public sealed class ExperimentProxyGenerator : IIncrementalGenerator
     private static bool IsCompositionRootAttributeCandidate(SyntaxNode node)
     {
         // Look for methods with attributes
-        return node is MethodDeclarationSyntax method &&
-               method.AttributeLists.Count > 0;
+        return node is MethodDeclarationSyntax { AttributeLists.Count: > 0 };
     }
 
     /// <summary>

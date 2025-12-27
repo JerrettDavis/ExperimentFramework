@@ -260,7 +260,7 @@ public sealed class SampleConsoleIntegrationTests(ITestOutputHelper output) : Ti
             return (ctx, dbName, taxAmount);
         }))
         .Then("runtime proxies route correctly", r =>
-            r.Item2 == "LocalDb" && r.Item3 == 105.0m)
+            r is { Item2: "LocalDb", Item3: 105.0m })
         .Finally(r => (r.Item1.ServiceProvider as ServiceProvider)?.Dispose())
         .AssertPassed();
 
@@ -445,7 +445,7 @@ public sealed class SampleConsoleIntegrationTests(ITestOutputHelper output) : Ti
             var results = await Task.WhenAll(tasks);
 
             // All should have same results
-            var allSame = results.All(r => r.Item1 == "LocalDb" && r.Item2 == 105.0m);
+            var allSame = results.All(r => r is { Item1: "LocalDb", Item2: 105.0m });
 
             return (ctx, allSame);
         }))

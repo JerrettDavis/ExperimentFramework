@@ -142,7 +142,7 @@ public class OneWayAnovaTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class OneWayAnovaTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.True(result.PValue >= 0 && result.PValue <= 1);
+        Assert.True(result.PValue is >= 0 and <= 1);
     }
 
     [Fact]

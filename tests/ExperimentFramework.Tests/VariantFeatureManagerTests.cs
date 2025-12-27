@@ -265,7 +265,7 @@ public sealed class VariantFeatureManagerTests(ITestOutputHelper output) : TinyB
         var sp = services.BuildServiceProvider();
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel(); // Cancel immediately
+        await cts.CancelAsync(); // Cancel immediately
 
         // Should handle cancellation gracefully
         var variant = await VariantFeatureManagerAdapter.TryGetVariantAsync(

@@ -1,0 +1,72 @@
+# Resilience Patterns Example
+#
+# This example shows how to configure resilience features:
+#   - Circuit breaker to prevent cascading failures
+#   - Timeout enforcement for slow operations
+#   - Multi-level fallback strategies
+#
+# Requirements:
+#   - ExperimentFramework.Resilience package (for circuit breaker)
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  decorators:
+    # Logging with benchmarks to track performance
+    - type: logging
+      options:
+        benchmarks: true
+        errorLogging: true
+
+    # Timeout enforcement: fail fast if operations take too long
+    - type: timeout
+      options:
+        timeout: "00:00:05"  # 5 second timeout
+        action: fallbackToDefault
+
+    # Circuit breaker: stop trying if service is failing
+    - type: circuitBreaker
+      options:
+        failureRatioThreshold: 0.5      # Open after 50% failures
+        minimumThroughput: 10           # Need 10 calls to evaluate
+        samplingDuration: "00:00:30"    # Evaluate over 30 seconds
+        breakDuration: "00:01:00"       # Stay open for 1 minute
+        onCircuitOpen: fallbackToDefault
+
+  trials:
+    # External API with aggressive fallback
+    - serviceType: IExternalDataProvider
+      selectionMode:
+        type: featureFlag
+        flagName: UseExternalProvider
+      control:
+        key: local
+        implementationType: LocalDataProvider
+      conditions:
+        - key: "true"
+          implementationType: ExternalApiProvider
+      errorPolicy:
+        type: fallbackToControl
+
+    # Database with multi-level fallback chain
+    - serviceType: IDataRepository
+      selectionMode:
+        type: configurationKey
+        key: "Data:Repository"
+      control:
+        key: primary
+        implementationType: PrimaryDatabase
+      conditions:
+        - key: replica
+          implementationType: ReplicaDatabase
+        - key: cache
+          implementationType: CachedRepository
+        - key: static
+          implementationType: StaticDataRepository
+      errorPolicy:
+        type: tryInOrder
+        fallbackKeys:
+          - cache    # Try cache first
+          - replica  # Then replica
+          - static   # Last resort: static data

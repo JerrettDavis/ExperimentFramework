@@ -238,7 +238,7 @@ public sealed class InMemoryOutcomeStore : IOutcomeStore
                 outcome.TrialKey,
                 _ => OutcomeAggregation.Empty(outcome.TrialKey, outcome.MetricName));
 
-            var isSuccess = outcome.OutcomeType == OutcomeType.Binary && outcome.Value >= 0.5;
+            var isSuccess = outcome is { OutcomeType: OutcomeType.Binary, Value: >= 0.5 };
             var updated = existing.WithValue(outcome.Value, isSuccess, outcome.Timestamp);
 
             trialAggregations[outcome.TrialKey] = updated;

@@ -566,6 +566,11 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "16.2.1",
+        "contentHash": "im6zTVgesjcfTRfuMpnx51Rg2svWenp/3q5XBfcIzgj8PNIkkSD2xEl9HWcVi2SaJPP9XcXUdzed9gSDEuf1TA=="
+      },
       "experimentframework": {
         "type": "Project",
         "dependencies": {
@@ -578,7 +583,7 @@
       "experimentframework.comprehensivesample": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.1, )",
           "Microsoft.FeatureManagement": "[4.4.0, )",
           "Microsoft.FeatureManagement.AspNetCore": "[4.4.0, )",
@@ -587,17 +592,30 @@
           "OpenTelemetry.Extensions.Hosting": "[1.12.0, )"
         }
       },
+      "experimentframework.configuration": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "Microsoft.Extensions.Configuration": "[10.0.1, )",
+          "Microsoft.Extensions.Configuration.Binder": "[10.0.1, )",
+          "Microsoft.Extensions.FileProviders.Physical": "[10.0.1, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.1, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
+          "Microsoft.Extensions.Options": "[10.0.1, )",
+          "YamlDotNet": "[16.2.1, )"
+        }
+      },
       "experimentframework.data": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
         }
       },
       "experimentframework.featuremanagement": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.FeatureManagement": "[4.4.0, )"
         }
@@ -605,13 +623,13 @@
       "experimentframework.metrics.exporters": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )"
+          "ExperimentFramework": "[1.0.0, )"
         }
       },
       "experimentframework.openfeature": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "OpenFeature": "[2.2.0, )"
         }
@@ -619,7 +637,7 @@
       "experimentframework.resilience": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "Polly": "[8.5.0, )"
@@ -628,7 +646,7 @@
       "experimentframework.sampleconsole": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Console": "[10.0.1, )",
           "Microsoft.FeatureManagement": "[4.4.0, )"
@@ -637,7 +655,7 @@
       "experimentframework.samplewebapp": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "ExperimentFramework.StickyRouting": "[1.0.0, )",
           "Microsoft.AspNetCore.OpenApi": "[10.0.1, )",
           "Microsoft.FeatureManagement.AspNetCore": "[4.4.0, )"
@@ -646,7 +664,7 @@
       "experimentframework.science": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "ExperimentFramework.Data": "[1.0.0, )",
           "MathNet.Numerics": "[5.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
@@ -655,7 +673,7 @@
       "experimentframework.stickyrouting": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[0.1.0, )",
+          "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
         }
       }

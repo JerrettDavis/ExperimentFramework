@@ -65,7 +65,7 @@ public sealed class StickyRoutingTests(ITestOutputHelper output) : TinyBddXunitB
                 var aCount = trialCounts.GetValueOrDefault("trial-a", 0);
                 var bCount = trialCounts.GetValueOrDefault("trial-b", 0);
                 // Should be roughly 50/50, allow 30-70 split for randomness
-                return aCount >= 30 && aCount <= 70 && bCount >= 30 && bCount <= 70;
+                return aCount is >= 30 and <= 70 && bCount is >= 30 and <= 70;
             })
             .AssertPassed();
 
@@ -163,9 +163,9 @@ public sealed class StickyRoutingTests(ITestOutputHelper output) : TinyBddXunitB
                 var aCount = trialCounts.GetValueOrDefault("variant-a", 0);
                 var bCount = trialCounts.GetValueOrDefault("variant-b", 0);
                 // Each should be roughly 33%, allow 20-47% for randomness
-                return controlCount >= 30 && controlCount <= 70 &&
-                       aCount >= 30 && aCount <= 70 &&
-                       bCount >= 30 && bCount <= 70;
+                return controlCount is >= 30 and <= 70 &&
+                       aCount is >= 30 and <= 70 &&
+                       bCount is >= 30 and <= 70;
             })
             .AssertPassed();
 }

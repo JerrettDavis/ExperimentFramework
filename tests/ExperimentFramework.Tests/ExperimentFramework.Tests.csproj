@@ -32,6 +32,7 @@
         <ProjectReference Include="..\..\src\ExperimentFramework.OpenFeature\ExperimentFramework.OpenFeature.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.Data\ExperimentFramework.Data.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.Science\ExperimentFramework.Science.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
     </ItemGroup>
 
     <ItemGroup>

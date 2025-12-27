@@ -129,8 +129,7 @@ public sealed class TrialConflictDetector
         }
 
         // Validate ordered fallback keys
-        if (registration.OnErrorPolicy == OnErrorPolicy.RedirectAndReplayOrdered &&
-            registration.OrderedFallbackKeys != null)
+        if (registration is { OnErrorPolicy: OnErrorPolicy.RedirectAndReplayOrdered, OrderedFallbackKeys: not null })
         {
             var invalidKeys = registration.OrderedFallbackKeys
                 .Where(key => !registration.Trials.ContainsKey(key));

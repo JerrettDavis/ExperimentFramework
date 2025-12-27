@@ -1,0 +1,49 @@
+# Time-Bounded Experiment Example
+#
+# This example shows how to run experiments within specific time windows.
+# Experiments automatically activate and deactivate based on dates.
+#
+# Use cases:
+#   - Holiday promotions
+#   - Seasonal features
+#   - Time-limited A/B tests
+#   - Compliance-driven rollouts
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  trials:
+    # Holiday pricing experiment (Dec 1 - Jan 15)
+    - serviceType: IPricingEngine
+      selectionMode:
+        type: featureFlag
+        flagName: HolidayPricing
+      control:
+        key: control
+        implementationType: StandardPricing
+      conditions:
+        - key: "true"
+          implementationType: HolidayPricing
+      errorPolicy:
+        type: fallbackToControl
+      activation:
+        from: "2025-12-01T00:00:00Z"
+        until: "2026-01-15T23:59:59Z"
+
+    # New year promotion (Jan 1 - Jan 7)
+    - serviceType: IPromotionService
+      selectionMode:
+        type: featureFlag
+        flagName: NewYearPromo
+      control:
+        key: control
+        implementationType: StandardPromotions
+      conditions:
+        - key: "true"
+          implementationType: NewYearPromotions
+      errorPolicy:
+        type: fallbackToControl
+      activation:
+        from: "2026-01-01T00:00:00Z"
+        until: "2026-01-07T23:59:59Z"
