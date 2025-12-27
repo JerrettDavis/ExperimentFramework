@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+
+    <!-- Disable shared compilation to prevent file locking issues with the generator DLL -->
+    <UseSharedCompilation>false</UseSharedCompilation>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ExperimentFramework.Plugins.Generators</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>JD</Authors>
+    <Description>Source generator for ExperimentFramework.Plugins that automatically generates plugin manifests at compile time.</Description>
+    <PackageTags>source-generator;roslyn;code-generation;plugins;experiments</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageType>Analyzer</PackageType>
+
+    <!-- Pack as development dependency analyzer -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
+
+    <!-- Suppress warnings/errors for source generator packages -->
+    <NoWarn>$(NoWarn);NU5128;NU5017;RS2008</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU5017</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Allow tests to access internals -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ExperimentFramework.Plugins.Generators.Tests" />
+  </ItemGroup>
+
+  <!-- Pack the generator DLL as an analyzer -->
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+  <!-- Ensure the generator DLL is included in the package -->
+  <Target Name="IncludeGeneratorInPackage" BeforeTargets="GenerateNuspec">
+    <ItemGroup>
+      <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+  </Target>
+</Project>

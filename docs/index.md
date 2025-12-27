@@ -130,6 +130,8 @@ Control experiment behavior through configuration:
 - [Getting Started](user-guide/getting-started.md) - Complete walkthrough with a working example
 - [Core Concepts](user-guide/core-concepts.md) - Understanding trials, proxies, and decorators
 - [Selection Modes](user-guide/selection-modes.md) - Deep dive into routing strategies
+- [YAML/JSON Configuration](user-guide/configuration.md) - Declarative experiment definitions
+- [Plugin System](user-guide/plugins.md) - Dynamic assembly loading for experiments
 - [Extensibility](user-guide/extensibility.md) - Create custom selection mode providers
 
 ## Requirements
