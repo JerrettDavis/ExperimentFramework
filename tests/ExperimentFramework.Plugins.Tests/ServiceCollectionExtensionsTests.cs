@@ -285,6 +285,85 @@ public class ServiceCollectionExtensionsTests
 
     #endregion
 
+    #region Security Config Binding Tests
+
+    [Fact]
+    public void AddExperimentPluginsFromConfiguration_BindsSecuritySettings()
+    {
+        var services = new ServiceCollection();
+        var config = new PluginsConfig
+        {
+            Security = new PluginSecurityConfig
+            {
+                AllowedDirectories = ["./plugins", "/opt/myapp/plugins"],
+                RequireSignedAssemblies = true,
+                TrustedThumbprints = ["ABC123DEF456ABC123DEF456ABC123DEF456ABCD"],
+                AllowUncPaths = false,
+                MaxManifestSizeBytes = 512 * 1024,
+                EnableAuditLogging = true
+            }
+        };
+
+        services.AddExperimentPluginsFromConfiguration(config);
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<PluginConfigurationOptions>>();
+
+        Assert.Equal(2, options.Value.AllowedPluginDirectories.Count);
+        Assert.Contains("./plugins", options.Value.AllowedPluginDirectories);
+        Assert.Contains("/opt/myapp/plugins", options.Value.AllowedPluginDirectories);
+        Assert.True(options.Value.RequireSignedAssemblies);
+        Assert.Single(options.Value.TrustedPublisherThumbprints);
+        Assert.Contains("ABC123DEF456ABC123DEF456ABC123DEF456ABCD", options.Value.TrustedPublisherThumbprints);
+        Assert.False(options.Value.AllowUncPaths);
+        Assert.Equal(512 * 1024, options.Value.MaxManifestSizeBytes);
+        Assert.True(options.Value.EnableAuditLogging);
+    }
+
+    [Fact]
+    public void AddExperimentPluginsFromConfiguration_WithNoSecurityConfig_UsesDefaults()
+    {
+        var services = new ServiceCollection();
+        var config = new PluginsConfig
+        {
+            Discovery = new PluginDiscoveryConfig { Paths = ["./plugins"] }
+        };
+
+        services.AddExperimentPluginsFromConfiguration(config);
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<PluginConfigurationOptions>>();
+
+        Assert.Empty(options.Value.AllowedPluginDirectories);
+        Assert.False(options.Value.RequireSignedAssemblies);
+        Assert.Empty(options.Value.TrustedPublisherThumbprints);
+        Assert.False(options.Value.AllowUncPaths);
+        Assert.Equal(1024 * 1024, options.Value.MaxManifestSizeBytes);
+        Assert.False(options.Value.EnableAuditLogging);
+    }
+
+    [Fact]
+    public void AddExperimentPluginsFromConfiguration_AllowUncPathsTrue_SetsOption()
+    {
+        var services = new ServiceCollection();
+        var config = new PluginsConfig
+        {
+            Security = new PluginSecurityConfig
+            {
+                AllowUncPaths = true
+            }
+        };
+
+        services.AddExperimentPluginsFromConfiguration(config);
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<PluginConfigurationOptions>>();
+
+        Assert.True(options.Value.AllowUncPaths);
+    }
+
+    #endregion
+
     private class TestTypeResolver : ITypeResolver
     {
         public Type Resolve(string typeName) => throw new NotImplementedException();

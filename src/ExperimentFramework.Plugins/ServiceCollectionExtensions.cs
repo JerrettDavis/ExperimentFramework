@@ -139,11 +139,22 @@ public static class ServiceCollectionExtensions
 
         services.AddExperimentPlugins(opts =>
         {
+            // Discovery settings
             opts.DiscoveryPaths = options.DiscoveryPaths;
             opts.DefaultIsolationMode = options.DefaultIsolationMode;
             opts.DefaultSharedAssemblies = options.DefaultSharedAssemblies;
+
+            // Hot reload settings
             opts.EnableHotReload = options.EnableHotReload;
             opts.HotReloadDebounceMs = options.HotReloadDebounceMs;
+
+            // Security settings - critical to copy these!
+            opts.AllowedPluginDirectories = options.AllowedPluginDirectories;
+            opts.RequireSignedAssemblies = options.RequireSignedAssemblies;
+            opts.TrustedPublisherThumbprints = options.TrustedPublisherThumbprints;
+            opts.AllowUncPaths = options.AllowUncPaths;
+            opts.MaxManifestSizeBytes = options.MaxManifestSizeBytes;
+            opts.EnableAuditLogging = options.EnableAuditLogging;
         });
 
         if (options.EnableHotReload)
