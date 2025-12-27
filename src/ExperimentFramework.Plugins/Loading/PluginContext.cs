@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using ExperimentFramework.Plugins.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework.Plugins.Loading;
 
@@ -11,6 +12,7 @@ namespace ExperimentFramework.Plugins.Loading;
 public sealed class PluginContext : IPluginContext
 {
     private readonly PluginLoadContext? _loadContext;
+    private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, Type> _aliasCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<Type, List<Type>> _implementationCache = new();
     private volatile bool _isLoaded = true;
@@ -22,7 +24,8 @@ public sealed class PluginContext : IPluginContext
         string pluginPath,
         Assembly mainAssembly,
         IReadOnlyList<Assembly> loadedAssemblies,
-        PluginLoadContext? loadContext)
+        PluginLoadContext? loadContext,
+        ILogger? logger = null)
     {
         ContextId = contextId;
         Manifest = manifest;
@@ -30,6 +33,7 @@ public sealed class PluginContext : IPluginContext
         MainAssembly = mainAssembly;
         LoadedAssemblies = loadedAssemblies;
         _loadContext = loadContext;
+        _logger = logger;
 
         BuildAliasCache();
     }
@@ -160,7 +164,9 @@ public sealed class PluginContext : IPluginContext
             _loadContext.Unload();
 
             // Give a chance for cleanup
-            await Task.Delay(100);
+            // Note: Collectible context unloading is non-deterministic and depends on
+            // all references being released. This delay and GC calls help but don't guarantee.
+            await Task.Delay(100).ConfigureAwait(false);
 
             // Trigger GC to help with unloading
             for (var i = 0; i < 3; i++)
@@ -201,9 +207,34 @@ public sealed class PluginContext : IPluginContext
                     .Where(t => t.IsClass && !t.IsAbstract && interfaceType.IsAssignableFrom(t));
                 implementations.AddRange(types);
             }
-            catch (Exception)
+            catch (ReflectionTypeLoadException ex)
             {
-                // Skip assemblies that can't be loaded
+                // Log detailed information about which types failed to load
+                var loaderExceptions = ex.LoaderExceptions
+                    .Where(e => e is not null)
+                    .Select(e => e!.Message)
+                    .Distinct();
+
+                _logger?.LogWarning(
+                    "Some types could not be loaded from assembly {Assembly} in plugin {PluginId}: {Errors}",
+                    assembly.GetName().Name,
+                    Manifest.Id,
+                    string.Join("; ", loaderExceptions));
+
+                // Process the types that did load successfully
+                var loadedTypes = ex.Types
+                    .Where(t => t is not null)
+                    .Where(t => t!.IsClass && !t.IsAbstract && interfaceType.IsAssignableFrom(t));
+
+                implementations.AddRange(loadedTypes!);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(
+                    ex,
+                    "Failed to discover types from assembly {Assembly} in plugin {PluginId}",
+                    assembly.GetName().Name,
+                    Manifest.Id);
             }
         }
 

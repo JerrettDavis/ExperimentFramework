@@ -10,12 +10,35 @@ namespace ExperimentFramework.Plugins.Manifest;
 public sealed class ManifestLoader
 {
     private const string EmbeddedManifestName = "plugin.manifest.json";
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private const int DefaultMaxSize = 1024 * 1024; // 1MB
+    private const int DefaultMaxDepth = 32;
+
+    private readonly int _maxManifestSize;
+    private readonly JsonSerializerOptions _jsonOptions;
+
+    /// <summary>
+    /// Creates a new manifest loader with default settings.
+    /// </summary>
+    public ManifestLoader() : this(DefaultMaxSize, DefaultMaxDepth)
     {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
-    };
+    }
+
+    /// <summary>
+    /// Creates a new manifest loader with custom size and depth limits.
+    /// </summary>
+    /// <param name="maxManifestSize">Maximum manifest size in bytes. 0 for unlimited.</param>
+    /// <param name="maxJsonDepth">Maximum JSON nesting depth.</param>
+    public ManifestLoader(int maxManifestSize, int maxJsonDepth)
+    {
+        _maxManifestSize = maxManifestSize > 0 ? maxManifestSize : int.MaxValue;
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+            MaxDepth = maxJsonDepth > 0 ? maxJsonDepth : DefaultMaxDepth
+        };
+    }
 
     /// <summary>
     /// Loads a manifest for the specified plugin assembly.
@@ -74,7 +97,14 @@ public sealed class ManifestLoader
 
         try
         {
-            var json = JsonSerializer.Deserialize<PluginManifestJson>(stream, JsonOptions);
+            // Validate size limit
+            if (stream.Length > _maxManifestSize)
+            {
+                throw new InvalidOperationException(
+                    $"Embedded manifest exceeds maximum size of {_maxManifestSize} bytes. Actual: {stream.Length}");
+            }
+
+            var json = JsonSerializer.Deserialize<PluginManifestJson>(stream, _jsonOptions);
             if (json is not null)
             {
                 manifest = json.ToManifest();
@@ -113,8 +143,16 @@ public sealed class ManifestLoader
 
         try
         {
+            // Validate file size before reading
+            var fileInfo = new FileInfo(manifestPath);
+            if (fileInfo.Length > _maxManifestSize)
+            {
+                throw new InvalidOperationException(
+                    $"Manifest file exceeds maximum size of {_maxManifestSize} bytes. Actual: {fileInfo.Length}");
+            }
+
             var jsonContent = File.ReadAllText(manifestPath);
-            var json = JsonSerializer.Deserialize<PluginManifestJson>(jsonContent, JsonOptions);
+            var json = JsonSerializer.Deserialize<PluginManifestJson>(jsonContent, _jsonOptions);
             if (json is not null)
             {
                 manifest = json.ToManifest();

@@ -611,6 +611,88 @@ experimentFramework:
       debounceMs: 500
 ```
 
+## Security
+
+The plugin system includes several security features to protect your application from malicious or untrusted plugins.
+
+### Path Restrictions
+
+By default, plugins can be loaded from any path. For production environments, restrict plugin loading to specific directories:
+
+```csharp
+builder.Services.AddExperimentPlugins(opts =>
+{
+    // Only allow plugins from these directories
+    opts.AllowedPluginDirectories.Add("./plugins");
+    opts.AllowedPluginDirectories.Add("/opt/myapp/plugins");
+
+    // Disable UNC paths (network shares) - default is false
+    opts.AllowUncPaths = false;
+});
+```
+
+Via YAML:
+
+```yaml
+experimentFramework:
+  plugins:
+    security:
+      allowedDirectories:
+        - "./plugins"
+        - "/opt/myapp/plugins"
+      allowUncPaths: false
+```
+
+### Assembly Signature Verification
+
+For high-security environments, require plugins to be signed with Authenticode:
+
+```csharp
+builder.Services.AddExperimentPlugins(opts =>
+{
+    // Require all plugins to be signed
+    opts.RequireSignedAssemblies = true;
+
+    // Optionally, restrict to specific trusted publishers
+    opts.TrustedPublisherThumbprints.Add("ABCDEF1234567890...");
+});
+```
+
+### Manifest Size Limits
+
+Protect against denial-of-service attacks via malformed manifests:
+
+```csharp
+builder.Services.AddExperimentPlugins(opts =>
+{
+    // Limit manifest file size (default: 1MB)
+    opts.MaxManifestSizeBytes = 512 * 1024; // 512KB
+
+    // Limit JSON nesting depth (default: 32)
+    opts.MaxManifestJsonDepth = 16;
+});
+```
+
+### Security Best Practices
+
+1. **Use path restrictions**: Always configure `AllowedPluginDirectories` in production
+2. **Disable UNC paths**: Keep `AllowUncPaths = false` unless required
+3. **Use signed assemblies**: For enterprise deployments, use `RequireSignedAssemblies = true`
+4. **Validate plugin sources**: Only deploy plugins from trusted CI/CD pipelines
+5. **Use Shared isolation**: Avoid `None` isolation mode for untrusted plugins
+6. **Enable audit logging**: Set `EnableAuditLogging = true` to track plugin operations
+7. **Monitor file watchers**: Be aware that hot reload watches the filesystem
+
+### Isolation Mode Security
+
+| Mode | Security Level | Use Case |
+|------|---------------|----------|
+| `Full` | Highest | Untrusted plugins, maximum isolation |
+| `Shared` | Medium | Default - allows DI integration, shares specified assemblies |
+| `None` | Lowest | Only for fully trusted code, cannot be unloaded |
+
+**Warning**: Plugins loaded with `None` isolation mode have full access to the host application's memory and cannot be unloaded. Only use this mode for plugins that are part of your trusted codebase.
+
 ## Troubleshooting
 
 ### Plugin Not Loading
@@ -619,24 +701,36 @@ experimentFramework:
 2. **Check manifest**: Ensure manifest is valid JSON with required fields
 3. **Check isolation**: Try `None` mode to debug loading issues
 4. **Check dependencies**: Ensure all dependencies are available
+5. **Check security**: Verify plugin path is in `AllowedPluginDirectories`
+6. **Check signature**: If `RequireSignedAssemblies` is enabled, ensure the plugin is signed
 
 ### Type Not Found
 
 1. **Check alias**: Verify the alias matches the manifest
 2. **Check namespace**: Use full type name if alias doesn't work
 3. **Check assembly loading**: Verify the assembly was loaded successfully
+4. **Check loader exceptions**: Look for `ReflectionTypeLoadException` details in logs
 
 ### Hot Reload Not Working
 
 1. **Check lifecycle**: Ensure `supportsHotReload: true` in manifest
 2. **Check file watcher**: Verify directory exists and is accessible
 3. **Check debounce**: Wait for debounce interval to elapse
+4. **Check file locks**: Ensure build process releases file locks before reload
 
 ### Memory Leaks
 
 1. **Dispose contexts**: Always dispose plugin contexts when done
 2. **Use collectible mode**: Set `EnableUnloading: true`
 3. **Trigger GC**: Call `GC.Collect()` after unloading
+4. **Note**: Collectible context unloading is non-deterministic; some references may prevent unload
+
+### Security Errors
+
+1. **SecurityException: Plugin path not in allowed directories**: Add the path to `AllowedPluginDirectories`
+2. **SecurityException: UNC paths not allowed**: Set `AllowUncPaths = true` or use a local path
+3. **SecurityException: Assembly not signed**: Sign the plugin with Authenticode
+4. **SecurityException: Untrusted publisher**: Add the certificate thumbprint to `TrustedPublisherThumbprints`
 
 ## Next Steps
 

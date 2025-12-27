@@ -9,10 +9,14 @@ namespace ExperimentFramework.Plugins.HotReload;
 /// </summary>
 public sealed class PluginWatcher : IDisposable
 {
+    private const int MaxFileLockRetries = 5;
+    private const int FileLockRetryDelayMs = 200;
+
     private readonly IPluginManager _pluginManager;
     private readonly ILogger<PluginWatcher> _logger;
     private readonly TimeSpan _debounceInterval;
     private readonly List<FileSystemWatcher> _watchers = [];
+    private readonly ConcurrentDictionary<string, FileSystemWatcher> _pluginWatchers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _lastChangeTime = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _pendingReloads = new();
     private bool _disposed;
@@ -132,6 +136,11 @@ public sealed class PluginWatcher : IDisposable
             return;
         }
 
+        var pluginId = plugin.Manifest.Id;
+
+        // Remove existing watcher if any
+        CleanupPluginWatcher(pluginId);
+
         var fileName = Path.GetFileName(plugin.PluginPath);
         var watcher = new FileSystemWatcher(directory, fileName)
         {
@@ -141,8 +150,21 @@ public sealed class PluginWatcher : IDisposable
 
         watcher.Changed += OnFileChanged;
         _watchers.Add(watcher);
+        _pluginWatchers[pluginId] = watcher;
 
         _logger.LogDebug("Watching plugin file: {Path}", plugin.PluginPath);
+    }
+
+    private void CleanupPluginWatcher(string pluginId)
+    {
+        if (_pluginWatchers.TryRemove(pluginId, out var watcher))
+        {
+            watcher.EnableRaisingEvents = false;
+            watcher.Changed -= OnFileChanged;
+            _watchers.Remove(watcher);
+            watcher.Dispose();
+            _logger.LogDebug("Cleaned up watcher for plugin: {PluginId}", pluginId);
+        }
     }
 
     private void OnPluginLoaded(object? sender, PluginEventArgs e)
@@ -152,7 +174,8 @@ public sealed class PluginWatcher : IDisposable
 
     private void OnPluginUnloaded(object? sender, PluginEventArgs e)
     {
-        // Watcher will be cleaned up on next StopWatching or Dispose
+        // Clean up the watcher immediately when plugin is unloaded
+        CleanupPluginWatcher(e.Context.Manifest.Id);
     }
 
     private void OnFileChanged(object sender, FileSystemEventArgs e)
@@ -200,7 +223,14 @@ public sealed class PluginWatcher : IDisposable
     {
         try
         {
-            await Task.Delay(_debounceInterval, cancellationToken);
+            await Task.Delay(_debounceInterval, cancellationToken).ConfigureAwait(false);
+
+            // Wait for file to be available (not locked by another process)
+            if (!await WaitForFileAvailableAsync(filePath, cancellationToken).ConfigureAwait(false))
+            {
+                _logger.LogWarning("File {Path} is still locked after retries, skipping reload", filePath);
+                return;
+            }
 
             // Find the plugin for this file
             var plugin = _pluginManager.GetLoadedPlugins()
@@ -214,11 +244,11 @@ public sealed class PluginWatcher : IDisposable
 
             if (plugin is not null)
             {
-                await ReloadPluginAsync(plugin, cancellationToken);
+                await ReloadPluginAsync(plugin, cancellationToken).ConfigureAwait(false);
             }
             else if (isNew)
             {
-                await LoadNewPluginAsync(filePath, cancellationToken);
+                await LoadNewPluginAsync(filePath, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -232,6 +262,46 @@ public sealed class PluginWatcher : IDisposable
         finally
         {
             _pendingReloads.TryRemove(filePath, out _);
+        }
+    }
+
+    private async Task<bool> WaitForFileAvailableAsync(string filePath, CancellationToken cancellationToken)
+    {
+        for (int attempt = 0; attempt < MaxFileLockRetries; attempt++)
+        {
+            if (IsFileAvailable(filePath))
+            {
+                return true;
+            }
+
+            _logger.LogDebug(
+                "File {Path} is locked, waiting (attempt {Attempt}/{Max})",
+                filePath,
+                attempt + 1,
+                MaxFileLockRetries);
+
+            // Exponential backoff
+            var delay = FileLockRetryDelayMs * (attempt + 1);
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+        }
+
+        return IsFileAvailable(filePath);
+    }
+
+    private static bool IsFileAvailable(string filePath)
+    {
+        try
+        {
+            using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.None);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -253,7 +323,7 @@ public sealed class PluginWatcher : IDisposable
 
         try
         {
-            var newContext = await _pluginManager.ReloadAsync(pluginId, cancellationToken);
+            var newContext = await _pluginManager.ReloadAsync(pluginId, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation(
                 "Plugin {PluginId} reloaded successfully (version: {Version})",
@@ -275,7 +345,7 @@ public sealed class PluginWatcher : IDisposable
 
         try
         {
-            var context = await _pluginManager.LoadAsync(filePath, null, cancellationToken);
+            var context = await _pluginManager.LoadAsync(filePath, null, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation(
                 "New plugin {PluginId} loaded successfully",

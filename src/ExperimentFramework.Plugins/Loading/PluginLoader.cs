@@ -1,8 +1,11 @@
 using System.Reflection;
 using ExperimentFramework.Plugins.Abstractions;
+using ExperimentFramework.Plugins.Configuration;
 using ExperimentFramework.Plugins.Manifest;
+using ExperimentFramework.Plugins.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace ExperimentFramework.Plugins.Loading;
 
@@ -14,7 +17,30 @@ public sealed class PluginLoader : IPluginLoader
     private readonly ManifestLoader _manifestLoader;
     private readonly ManifestValidator _manifestValidator;
     private readonly SharedTypeRegistry _defaultSharedRegistry;
+    private readonly PluginSecurityValidator _securityValidator;
+    private readonly PluginConfigurationOptions _options;
     private readonly ILogger<PluginLoader> _logger;
+
+    /// <summary>
+    /// Creates a new plugin loader with full configuration.
+    /// </summary>
+    /// <param name="options">The plugin configuration options.</param>
+    /// <param name="sharedTypeRegistry">The shared type registry.</param>
+    /// <param name="logger">Optional logger.</param>
+    public PluginLoader(
+        IOptions<PluginConfigurationOptions> options,
+        SharedTypeRegistry? sharedTypeRegistry = null,
+        ILogger<PluginLoader>? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        _options = options.Value;
+        _manifestLoader = new ManifestLoader(_options.MaxManifestSizeBytes, _options.MaxManifestJsonDepth);
+        _manifestValidator = new ManifestValidator();
+        _defaultSharedRegistry = sharedTypeRegistry ?? new SharedTypeRegistry();
+        _securityValidator = new PluginSecurityValidator(_options, logger as ILogger<PluginSecurityValidator>);
+        _logger = logger ?? NullLogger<PluginLoader>.Instance;
+    }
 
     /// <summary>
     /// Creates a new plugin loader with the specified shared type registry.
@@ -24,11 +50,8 @@ public sealed class PluginLoader : IPluginLoader
     public PluginLoader(
         SharedTypeRegistry? sharedTypeRegistry = null,
         ILogger<PluginLoader>? logger = null)
+        : this(Options.Create(new PluginConfigurationOptions()), sharedTypeRegistry, logger)
     {
-        _manifestLoader = new ManifestLoader();
-        _manifestValidator = new ManifestValidator();
-        _defaultSharedRegistry = sharedTypeRegistry ?? new SharedTypeRegistry();
-        _logger = logger ?? NullLogger<PluginLoader>.Instance;
     }
 
     /// <inheritdoc />
@@ -38,6 +61,9 @@ public sealed class PluginLoader : IPluginLoader
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginPath);
+
+        // Security validation - must pass before any file operations
+        _securityValidator.ValidatePlugin(pluginPath);
 
         if (!File.Exists(pluginPath))
         {
@@ -59,7 +85,7 @@ public sealed class PluginLoader : IPluginLoader
 
         _logger.LogInformation("Unloading plugin {PluginId}", context.Manifest.Id);
 
-        await context.DisposeAsync();
+        await context.DisposeAsync().ConfigureAwait(false);
 
         _logger.LogInformation("Plugin {PluginId} unloaded", context.Manifest.Id);
     }

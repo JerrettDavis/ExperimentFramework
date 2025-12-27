@@ -92,7 +92,7 @@ public sealed class PluginManager : IPluginManager
 
         var fullPath = Path.GetFullPath(path);
 
-        await _loadLock.WaitAsync(cancellationToken);
+        await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Check if already loaded from this path
@@ -111,7 +111,7 @@ public sealed class PluginManager : IPluginManager
             IPluginContext context;
             try
             {
-                context = await _loader.LoadAsync(fullPath, options, cancellationToken);
+                context = await _loader.LoadAsync(fullPath, options, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -123,7 +123,7 @@ public sealed class PluginManager : IPluginManager
             // Check for duplicate plugin ID
             if (_plugins.ContainsKey(context.Manifest.Id))
             {
-                await context.DisposeAsync();
+                await context.DisposeAsync().ConfigureAwait(false);
                 throw new InvalidOperationException(
                     $"A plugin with ID '{context.Manifest.Id}' is already loaded.");
             }
@@ -153,7 +153,7 @@ public sealed class PluginManager : IPluginManager
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
 
-        await _loadLock.WaitAsync(cancellationToken);
+        await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!_plugins.TryRemove(pluginId, out var context))
@@ -172,7 +172,7 @@ public sealed class PluginManager : IPluginManager
 
             _logger.LogInformation("Unloading plugin {PluginId}", pluginId);
 
-            await _loader.UnloadAsync(context, cancellationToken);
+            await _loader.UnloadAsync(context, cancellationToken).ConfigureAwait(false);
 
             PluginUnloaded?.Invoke(this, new PluginEventArgs(context));
 
@@ -190,7 +190,7 @@ public sealed class PluginManager : IPluginManager
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
 
-        await _loadLock.WaitAsync(cancellationToken);
+        await _loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!_plugins.TryGetValue(pluginId, out var existingContext))
@@ -203,15 +203,15 @@ public sealed class PluginManager : IPluginManager
 
             // Unload existing
             _plugins.TryRemove(pluginId, out _);
-            await _loader.UnloadAsync(existingContext, cancellationToken);
+            await _loader.UnloadAsync(existingContext, cancellationToken).ConfigureAwait(false);
             PluginUnloaded?.Invoke(this, new PluginEventArgs(existingContext));
 
             // Small delay to ensure cleanup
-            await Task.Delay(100, cancellationToken);
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
 
             // Load again
             var options = ApplyDefaultOptions(null);
-            var newContext = await _loader.LoadAsync(pluginPath, options, cancellationToken);
+            var newContext = await _loader.LoadAsync(pluginPath, options, cancellationToken).ConfigureAwait(false);
 
             _plugins[newContext.Manifest.Id] = newContext;
             _pathToIdMapping[pluginPath] = newContext.Manifest.Id;
@@ -250,7 +250,7 @@ public sealed class PluginManager : IPluginManager
 
             try
             {
-                var context = await LoadAsync(path, null, cancellationToken);
+                var context = await LoadAsync(path, null, cancellationToken).ConfigureAwait(false);
                 discoveredPlugins.Add(context);
             }
             catch (Exception ex)
@@ -327,7 +327,7 @@ public sealed class PluginManager : IPluginManager
         {
             try
             {
-                await _loader.UnloadAsync(context, CancellationToken.None);
+                await _loader.UnloadAsync(context, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -413,16 +413,35 @@ public sealed class PluginManager : IPluginManager
             return [];
         }
 
-        // Replace glob wildcards with regex-compatible pattern
-        filePattern = filePattern.Replace("*", ".*");
+        // Convert glob pattern to regex safely by escaping all regex metacharacters first
+        var regexPattern = System.Text.RegularExpressions.Regex.Escape(filePattern);
+
+        // Then convert glob wildcards to regex equivalents
+        regexPattern = regexPattern
+            .Replace(@"\*\*", ".*")     // ** matches anything including path separators
+            .Replace(@"\*", "[^/\\\\]*") // * matches any chars except path separators
+            .Replace(@"\?", ".");        // ? matches single character
 
         try
         {
+            // Use a timeout to prevent ReDoS attacks
+            var regex = new System.Text.RegularExpressions.Regex(
+                $"^{regexPattern}$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                TimeSpan.FromSeconds(1));
+
             return Directory.GetFiles(directory, "*.dll", searchOption)
-                .Where(f => System.Text.RegularExpressions.Regex.IsMatch(
-                    Path.GetFileName(f),
-                    $"^{filePattern}$",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+                .Where(f =>
+                {
+                    try
+                    {
+                        return regex.IsMatch(Path.GetFileName(f));
+                    }
+                    catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+                    {
+                        return false;
+                    }
+                });
         }
         catch (Exception)
         {
