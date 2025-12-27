@@ -6,6 +6,8 @@ using ExperimentFramework.Plugins.Integration;
 using ExperimentFramework.Plugins.Loading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ExperimentFramework.Plugins;
 
@@ -16,6 +18,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Adds the experiment framework plugin system to the service collection.
+    /// This method is idempotent - calling it multiple times has no additional effect.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Optional configuration action.</param>
@@ -26,29 +29,41 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        // Configure options
-        if (configure is not null)
+        // Check if already registered to ensure idempotency
+        if (services.Any(d => d.ServiceType == typeof(IPluginManager)))
         {
-            services.Configure(configure);
+            // Already registered, just apply additional configuration if provided
+            if (configure is not null)
+            {
+                services.Configure(configure);
+            }
+            return services;
         }
-        else
+
+        // Configure options - always use Configure pattern for consistency
+        services.Configure<PluginConfigurationOptions>(opts =>
         {
-            services.AddOptions<PluginConfigurationOptions>();
-        }
+            configure?.Invoke(opts);
+        });
+
+        // Register options validation
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<PluginConfigurationOptions>, PluginConfigurationValidator>());
 
         // Register core services
         services.TryAddSingleton<SharedTypeRegistry>();
         services.TryAddSingleton<IPluginLoader, PluginLoader>();
         services.TryAddSingleton<IPluginManager, PluginManager>();
 
-        // Register discovery service
-        services.AddHostedService<PluginDiscoveryService>();
+        // Register discovery service (only once)
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<Microsoft.Extensions.Hosting.IHostedService, PluginDiscoveryService>());
 
         return services;
     }
 
     /// <summary>
     /// Adds the experiment framework plugin system with hot reload support.
+    /// This method is idempotent - calling it multiple times has no additional effect.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Optional configuration action.</param>
@@ -63,8 +78,8 @@ public static class ServiceCollectionExtensions
             configure?.Invoke(opts);
         });
 
-        // Register hot reload service
-        services.AddHostedService<PluginReloadService>();
+        // Register hot reload service (only once)
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<Microsoft.Extensions.Hosting.IHostedService, PluginReloadService>());
 
         return services;
     }
@@ -75,9 +90,26 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The service collection for chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if <see cref="ITypeResolver"/> is not registered (call AddExperimentFramework first)
+    /// or if <see cref="IPluginManager"/> is not registered (call AddExperimentPlugins first).
+    /// </exception>
     public static IServiceCollection AddPluginTypeResolver(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        // Validate prerequisites are registered
+        if (!services.Any(d => d.ServiceType == typeof(IPluginManager)))
+        {
+            throw new InvalidOperationException(
+                $"No {nameof(IPluginManager)} is registered. Call AddExperimentPlugins() before AddPluginTypeResolver().");
+        }
+
+        if (!services.Any(d => d.ServiceType == typeof(ITypeResolver)))
+        {
+            throw new InvalidOperationException(
+                $"No {nameof(ITypeResolver)} is registered. Call AddExperimentFramework() before AddPluginTypeResolver().");
+        }
 
         // Decorate the existing type resolver
         services.Decorate<ITypeResolver>((inner, sp) =>
@@ -91,6 +123,7 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Adds the experiment framework plugin system from YAML/JSON configuration.
+    /// This method is idempotent - calling it multiple times has no additional effect.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="pluginsConfig">The plugins configuration from YAML/JSON.</param>
@@ -115,7 +148,8 @@ public static class ServiceCollectionExtensions
 
         if (options.EnableHotReload)
         {
-            services.AddHostedService<PluginReloadService>();
+            // Register hot reload service (only once)
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<Microsoft.Extensions.Hosting.IHostedService, PluginReloadService>());
         }
 
         return services;

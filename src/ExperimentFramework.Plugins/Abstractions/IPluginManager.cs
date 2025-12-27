@@ -57,6 +57,7 @@ public interface IPluginManager : IAsyncDisposable
     /// </summary>
     /// <param name="pluginId">The plugin ID.</param>
     /// <returns>The plugin context if found; otherwise, null.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="pluginId"/> is null or whitespace.</exception>
     IPluginContext? GetPlugin(string pluginId);
 
     /// <summary>
@@ -64,6 +65,7 @@ public interface IPluginManager : IAsyncDisposable
     /// </summary>
     /// <param name="pluginId">The plugin ID.</param>
     /// <returns>True if loaded; otherwise, false.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="pluginId"/> is null or whitespace.</exception>
     bool IsLoaded(string pluginId);
 
     /// <summary>
@@ -106,4 +108,11 @@ public interface IPluginManager : IAsyncDisposable
     /// <param name="typeReference">The type reference (e.g., "plugin:PluginId/alias" or "plugin:PluginId/Full.Type.Name").</param>
     /// <returns>The type if found; otherwise, null.</returns>
     Type? ResolveType(string typeReference);
+
+    /// <summary>
+    /// Gets the health status of the plugin system and all loaded plugins.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The health status of the plugin system.</returns>
+    Task<PluginSystemHealth> GetHealthAsync(CancellationToken cancellationToken = default);
 }

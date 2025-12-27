@@ -693,6 +693,162 @@ builder.Services.AddExperimentPlugins(opts =>
 
 **Warning**: Plugins loaded with `None` isolation mode have full access to the host application's memory and cannot be unloaded. Only use this mode for plugins that are part of your trusted codebase.
 
+## Production Deployment
+
+This section covers essential considerations for deploying the plugin system in production environments.
+
+### Health Monitoring
+
+The plugin system provides a health check API to monitor plugin status:
+
+```csharp
+var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
+var health = await pluginManager.GetHealthAsync();
+
+// Check overall system health
+if (health.State == PluginSystemHealthState.Unhealthy)
+{
+    logger.LogError("Plugin system is unhealthy: {Message}", health.Message);
+}
+
+// Check individual plugin status
+foreach (var plugin in health.Plugins)
+{
+    if (plugin.State != PluginHealthState.Healthy)
+    {
+        logger.LogWarning(
+            "Plugin {PluginId} is {State}: {Message}",
+            plugin.PluginId, plugin.State, plugin.Message);
+    }
+}
+
+// Check for failed load attempts
+foreach (var failure in health.FailedLoads)
+{
+    logger.LogError(
+        "Failed to load plugin from {Path}: {Error}",
+        failure.PluginPath, failure.ErrorMessage);
+}
+```
+
+### ASP.NET Core Health Check Integration
+
+Integrate plugin health with ASP.NET Core health checks:
+
+```csharp
+public class PluginHealthCheck : IHealthCheck
+{
+    private readonly IPluginManager _pluginManager;
+
+    public PluginHealthCheck(IPluginManager pluginManager)
+    {
+        _pluginManager = pluginManager;
+    }
+
+    public async Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var health = await _pluginManager.GetHealthAsync(cancellationToken);
+
+        return health.State switch
+        {
+            PluginSystemHealthState.Healthy => HealthCheckResult.Healthy(health.Message),
+            PluginSystemHealthState.Degraded => HealthCheckResult.Degraded(health.Message),
+            _ => HealthCheckResult.Unhealthy(health.Message)
+        };
+    }
+}
+
+// Registration
+services.AddHealthChecks()
+    .AddCheck<PluginHealthCheck>("plugins");
+```
+
+### Production Configuration Checklist
+
+Before deploying to production, review this checklist:
+
+**Security Configuration:**
+- [ ] Set `AllowedPluginDirectories` to restrict plugin loading locations
+- [ ] Enable `RequireSignedAssemblies = true` for enterprise deployments
+- [ ] Configure `TrustedPublisherThumbprints` with your organization's certificate thumbprints
+- [ ] Disable `AllowUncPaths` unless required (default: disabled)
+- [ ] Use `Shared` or `Full` isolation mode (avoid `None` for untrusted plugins)
+
+**Validation Configuration:**
+- [ ] Set appropriate `MaxManifestSizeBytes` (default: 1MB)
+- [ ] Set appropriate `MaxManifestJsonDepth` (default: 32)
+- [ ] Enable `EnableAuditLogging = true` for compliance scenarios
+
+**Hot Reload Configuration:**
+- [ ] Disable `EnableHotReload` in production unless required
+- [ ] If enabled, set appropriate `HotReloadDebounceMs` (default: 500ms)
+- [ ] Ensure file system watchers don't impact performance
+
+**Example Production Configuration:**
+
+```csharp
+services.AddExperimentPlugins(opts =>
+{
+    // Restrict plugin loading to specific directories
+    opts.AllowedPluginDirectories.Add("/app/plugins");
+
+    // Require signed assemblies
+    opts.RequireSignedAssemblies = true;
+    opts.TrustedPublisherThumbprints.Add("YOUR_CERTIFICATE_THUMBPRINT");
+
+    // Disable hot reload in production
+    opts.EnableHotReload = false;
+
+    // Use shared isolation for DI integration
+    opts.DefaultIsolationMode = PluginIsolationMode.Shared;
+
+    // Enable audit logging
+    opts.EnableAuditLogging = true;
+
+    // Set manifest limits
+    opts.MaxManifestSizeBytes = 1024 * 1024; // 1MB
+    opts.MaxManifestJsonDepth = 32;
+});
+```
+
+### Performance Tuning
+
+**Assembly Loading:**
+- Use `Shared` isolation mode to reduce memory footprint when plugins share common dependencies
+- Pre-load plugins at startup rather than on-demand to avoid runtime latency
+- Use `EnableUnloading = false` if plugins are never reloaded (better performance)
+
+**Memory Management:**
+- Monitor `AssemblyCount` and `TypeCount` from health checks
+- When unloading plugins, call `GC.Collect()` to reclaim memory from collectible contexts
+- Be aware that collectible context unloading is non-deterministic
+
+**Hot Reload (if enabled):**
+- Set `HotReloadDebounceMs` appropriately to avoid excessive reloads
+- Monitor file watcher resource usage on systems with many plugins
+
+### Operational Guidance
+
+**Deployment:**
+1. Deploy plugins to designated directories only
+2. Use your CI/CD pipeline to sign and validate plugins
+3. Version plugins independently from the main application
+4. Keep plugin manifests version-controlled
+
+**Monitoring:**
+- Monitor plugin health endpoint regularly
+- Alert on `PluginSystemHealthState.Unhealthy`
+- Track `FailedLoads` to catch deployment issues
+- Log plugin load/unload events for debugging
+
+**Incident Response:**
+1. Use `GetHealthAsync()` to diagnose issues
+2. Check logs for security or manifest validation errors
+3. Verify plugin paths and signatures
+4. Try reloading problematic plugins: `await pluginManager.ReloadAsync(pluginId);`
+
 ## Troubleshooting
 
 ### Plugin Not Loading

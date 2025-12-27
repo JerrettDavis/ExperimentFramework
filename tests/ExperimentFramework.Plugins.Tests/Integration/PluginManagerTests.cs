@@ -93,11 +93,11 @@ public class PluginManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public void IsLoaded_NullOrEmpty_ReturnsFalse()
+    public void IsLoaded_NullOrEmpty_ThrowsArgumentException()
     {
-        Assert.False(_manager.IsLoaded(null!));
-        Assert.False(_manager.IsLoaded(""));
-        Assert.False(_manager.IsLoaded("   "));
+        Assert.Throws<ArgumentNullException>(() => _manager.IsLoaded(null!));
+        Assert.Throws<ArgumentException>(() => _manager.IsLoaded(""));
+        Assert.Throws<ArgumentException>(() => _manager.IsLoaded("   "));
     }
 
     [Fact]

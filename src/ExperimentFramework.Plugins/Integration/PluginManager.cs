@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using ExperimentFramework.Plugins.Abstractions;
 using ExperimentFramework.Plugins.Configuration;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,10 @@ public sealed class PluginManager : IPluginManager
     private readonly ILogger<PluginManager> _logger;
     private readonly ConcurrentDictionary<string, IPluginContext> _plugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _pathToIdMapping = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _pluginLoadTimes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, PluginLoadFailure> _failedLoads = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private const int MaxFailedLoadsToTrack = 100;
     private bool _disposed;
 
     /// <summary>
@@ -78,7 +82,8 @@ public sealed class PluginManager : IPluginManager
     public bool IsLoaded(string pluginId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return !string.IsNullOrWhiteSpace(pluginId) && _plugins.ContainsKey(pluginId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
+        return _plugins.ContainsKey(pluginId);
     }
 
     /// <inheritdoc />
@@ -116,6 +121,10 @@ public sealed class PluginManager : IPluginManager
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to load plugin from {Path}", fullPath);
+
+                // Track failed load
+                TrackFailedLoad(fullPath, ex.Message);
+
                 PluginLoadFailed?.Invoke(this, new PluginLoadFailedEventArgs(fullPath, ex));
                 throw;
             }
@@ -130,6 +139,10 @@ public sealed class PluginManager : IPluginManager
 
             _plugins[context.Manifest.Id] = context;
             _pathToIdMapping[fullPath] = context.Manifest.Id;
+            _pluginLoadTimes[context.Manifest.Id] = DateTimeOffset.UtcNow;
+
+            // Clear any previous failed load for this path
+            _failedLoads.TryRemove(fullPath, out _);
 
             _logger.LogInformation(
                 "Successfully loaded plugin {PluginId} v{Version} from {Path}",
@@ -312,6 +325,102 @@ public sealed class PluginManager : IPluginManager
     }
 
     /// <inheritdoc />
+    public Task<PluginSystemHealth> GetHealthAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var pluginDetails = new List<PluginHealthDetails>();
+        var healthyCount = 0;
+        var degradedCount = 0;
+        var unhealthyCount = 0;
+
+        foreach (var (pluginId, context) in _plugins)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var loadTime = _pluginLoadTimes.GetValueOrDefault(pluginId, DateTimeOffset.UtcNow);
+            var warnings = new List<string>();
+            var state = PluginHealthState.Healthy;
+
+            // Check for potential issues
+            try
+            {
+                var typeCount = 0;
+                foreach (var assembly in context.LoadedAssemblies)
+                {
+                    try
+                    {
+                        typeCount += assembly.GetExportedTypes().Length;
+                    }
+                    catch (ReflectionTypeLoadException ex)
+                    {
+                        warnings.Add($"Some types could not be loaded from {assembly.GetName().Name}");
+                        typeCount += ex.Types.Count(t => t is not null);
+                        state = PluginHealthState.Warning;
+                    }
+                }
+
+                var details = new PluginHealthDetails(
+                    PluginId: pluginId,
+                    State: state,
+                    Version: context.Manifest.Version.ToString(),
+                    LoadedAt: loadTime,
+                    AssemblyCount: context.LoadedAssemblies.Count,
+                    TypeCount: typeCount,
+                    IsolationMode: context.Manifest.Isolation.Mode.ToString(),
+                    Message: state == PluginHealthState.Healthy ? "Plugin is operating normally" : null,
+                    Warnings: warnings.Count > 0 ? warnings : null);
+
+                pluginDetails.Add(details);
+
+                if (state == PluginHealthState.Healthy)
+                    healthyCount++;
+                else if (state == PluginHealthState.Warning)
+                    degradedCount++;
+                else
+                    unhealthyCount++;
+            }
+            catch (Exception ex)
+            {
+                pluginDetails.Add(new PluginHealthDetails(
+                    PluginId: pluginId,
+                    State: PluginHealthState.Error,
+                    Version: context.Manifest.Version.ToString(),
+                    LoadedAt: loadTime,
+                    AssemblyCount: context.LoadedAssemblies.Count,
+                    TypeCount: 0,
+                    IsolationMode: context.Manifest.Isolation.Mode.ToString(),
+                    Message: $"Health check failed: {ex.Message}",
+                    Warnings: null));
+                unhealthyCount++;
+            }
+        }
+
+        var overallState = unhealthyCount > 0 ? PluginSystemHealthState.Unhealthy
+            : degradedCount > 0 ? PluginSystemHealthState.Degraded
+            : PluginSystemHealthState.Healthy;
+
+        var failedLoads = _failedLoads.Values.ToList();
+
+        var health = new PluginSystemHealth(
+            State: overallState,
+            TotalPlugins: _plugins.Count,
+            HealthyPlugins: healthyCount,
+            DegradedPlugins: degradedCount,
+            UnhealthyPlugins: unhealthyCount,
+            HotReloadEnabled: _options.EnableHotReload,
+            Message: overallState == PluginSystemHealthState.Healthy
+                ? $"All {_plugins.Count} plugins are healthy"
+                : overallState == PluginSystemHealthState.Degraded
+                    ? $"{degradedCount} plugin(s) have warnings"
+                    : $"{unhealthyCount} plugin(s) are unhealthy",
+            Plugins: pluginDetails,
+            FailedLoads: failedLoads);
+
+        return Task.FromResult(health);
+    }
+
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -337,6 +446,8 @@ public sealed class PluginManager : IPluginManager
 
         _plugins.Clear();
         _pathToIdMapping.Clear();
+        _pluginLoadTimes.Clear();
+        _failedLoads.Clear();
         _loadLock.Dispose();
     }
 
@@ -446,6 +557,22 @@ public sealed class PluginManager : IPluginManager
         catch (Exception)
         {
             return [];
+        }
+    }
+
+    private void TrackFailedLoad(string pluginPath, string errorMessage)
+    {
+        var failure = new PluginLoadFailure(pluginPath, errorMessage, DateTimeOffset.UtcNow);
+        _failedLoads[pluginPath] = failure;
+
+        // Limit the number of tracked failures to prevent memory growth
+        if (_failedLoads.Count > MaxFailedLoadsToTrack)
+        {
+            var oldestKey = _failedLoads
+                .OrderBy(kvp => kvp.Value.FailedAt)
+                .First()
+                .Key;
+            _failedLoads.TryRemove(oldestKey, out _);
         }
     }
 }
