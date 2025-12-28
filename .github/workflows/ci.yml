@@ -33,7 +33,7 @@ jobs:
           dotnet restore --use-lock-file
 
       - name: Build (Release)
-        run: dotnet build ExperimentFramework.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true
+        run: dotnet build ExperimentFramework.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
 
       - name: Test with coverage
         run: |
@@ -132,6 +132,7 @@ jobs:
           --configuration Release
           --no-restore
           /p:ContinuousIntegrationBuild=true
+          /p:BuildInParallel=false
           /p:Version=${{ env.PACKAGE_VERSION }}
           /p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }}
           /p:FileVersion=${{ env.FILE_VERSION }}
