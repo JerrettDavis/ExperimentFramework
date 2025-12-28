@@ -1,5 +1,8 @@
 using ExperimentFramework.Configuration.Models;
+using ExperimentFramework.Targeting;
 using ExperimentFramework.Targeting.Configuration;
+using ExperimentFramework.Tests.TestInterfaces;
+using Microsoft.Extensions.Logging;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
@@ -14,6 +17,104 @@ public sealed class TargetingSelectionModeHandlerTests(ITestOutputHelper output)
     public Task Handler_has_correct_mode_type()
         => Given("a targeting selection mode handler", () => new TargetingSelectionModeHandler())
             .Then("mode type is 'targeting'", h => h.ModeType == "targeting")
+            .AssertPassed();
+
+    [Scenario("Apply configures targeting mode on builder")]
+    [Fact]
+    public Task Apply_configures_targeting_mode()
+        => Given("a handler and framework builder", () =>
+            {
+                var handler = new TargetingSelectionModeHandler();
+                var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+                ServiceExperimentBuilder<ITestService>? serviceBuilder = null;
+
+                frameworkBuilder.Define<ITestService>(builder =>
+                {
+                    serviceBuilder = builder;
+                    var config = new SelectionModeConfig { Type = "targeting" };
+                    handler.Apply(builder, config, null);
+                });
+
+                return serviceBuilder!;
+            })
+            .Then("builder is configured", builder => builder != null)
+            .AssertPassed();
+
+    [Scenario("Apply uses custom selector name when provided")]
+    [Fact]
+    public Task Apply_uses_custom_selector_name()
+        => Given("a handler and config with selector name", () =>
+            {
+                var handler = new TargetingSelectionModeHandler();
+                var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+                ServiceExperimentBuilder<ITestService>? serviceBuilder = null;
+
+                frameworkBuilder.Define<ITestService>(builder =>
+                {
+                    serviceBuilder = builder;
+                    var config = new SelectionModeConfig
+                    {
+                        Type = "targeting",
+                        SelectorName = "custom-selector"
+                    };
+                    handler.Apply(builder, config, null);
+                });
+
+                return serviceBuilder!;
+            })
+            .Then("builder is configured", builder => builder != null)
+            .AssertPassed();
+
+    [Scenario("Apply logs debug message when logger provided")]
+    [Fact]
+    public async Task Apply_logs_debug_message()
+    {
+        var handler = new TargetingSelectionModeHandler();
+        var logger = new TestLogger();
+        var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+
+        frameworkBuilder.Define<ITestService>(builder =>
+        {
+            var config = new SelectionModeConfig { Type = "targeting" };
+            handler.Apply(builder, config, logger);
+        });
+
+        Assert.Contains(logger.Messages, m =>
+            m.Contains("targeting selection mode") && m.Contains("ITestService"));
+
+        await Task.CompletedTask;
+    }
+
+    [Scenario("Apply works without logger")]
+    [Fact]
+    public Task Apply_works_without_logger()
+        => Given("a handler", () => new TargetingSelectionModeHandler())
+            .When("applying without logger", handler =>
+            {
+                var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+                ServiceExperimentBuilder<ITestService>? result = null;
+
+                frameworkBuilder.Define<ITestService>(builder =>
+                {
+                    result = builder;
+                    var config = new SelectionModeConfig { Type = "targeting" };
+                    handler.Apply(builder, config, null);
+                });
+
+                return result;
+            })
+            .Then("no exception thrown", result => result != null)
+            .AssertPassed();
+
+    [Scenario("Apply uses TargetingModes.Targeting constant")]
+    [Fact]
+    public Task Apply_uses_targeting_modes_constant()
+        => Given("targeting constants", () => TargetingModes.Targeting)
+            .Then("constant value matches handler mode type", mode =>
+            {
+                var handler = new TargetingSelectionModeHandler();
+                return mode == handler.ModeType;
+            })
             .AssertPassed();
 
     [Scenario("Validate returns no errors for valid configuration")]
@@ -153,4 +254,17 @@ public sealed class TargetingSelectionModeHandlerTests(ITestOutputHelper output)
                 return errors1.Count == errors2.Count;
             })
             .AssertPassed();
+
+    private sealed class TestLogger : ILogger
+    {
+        public List<string> Messages { get; } = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+        }
+    }
 }
