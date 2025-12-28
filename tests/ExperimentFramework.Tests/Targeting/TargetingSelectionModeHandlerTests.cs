@@ -21,49 +21,48 @@ public sealed class TargetingSelectionModeHandlerTests(ITestOutputHelper output)
 
     [Scenario("Apply configures targeting mode on builder")]
     [Fact]
-    public Task Apply_configures_targeting_mode()
-        => Given("a handler and framework builder", () =>
-            {
-                var handler = new TargetingSelectionModeHandler();
-                var frameworkBuilder = ExperimentFrameworkBuilder.Create();
-                ServiceExperimentBuilder<ITestService>? serviceBuilder = null;
+    public async Task Apply_configures_targeting_mode()
+    {
+        var handler = new TargetingSelectionModeHandler();
+        var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+        ServiceExperimentBuilder<ITestService>? serviceBuilder = null;
 
-                frameworkBuilder.Define<ITestService>(builder =>
-                {
-                    serviceBuilder = builder;
-                    var config = new SelectionModeConfig { Type = "targeting" };
-                    handler.Apply(builder, config, null);
-                });
+        frameworkBuilder.Define<ITestService>(builder =>
+        {
+            serviceBuilder = builder;
+            var config = new SelectionModeConfig { Type = "targeting" };
+            handler.Apply(builder, config, null);
+            // Add a trial to satisfy builder requirements
+            builder.AddTrial<StableService>("control");
+        });
 
-                return serviceBuilder!;
-            })
-            .Then("builder is configured", builder => builder != null)
-            .AssertPassed();
+        Assert.NotNull(serviceBuilder);
+        await Task.CompletedTask;
+    }
 
     [Scenario("Apply uses custom selector name when provided")]
     [Fact]
-    public Task Apply_uses_custom_selector_name()
-        => Given("a handler and config with selector name", () =>
+    public async Task Apply_uses_custom_selector_name()
+    {
+        var handler = new TargetingSelectionModeHandler();
+        var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+        ServiceExperimentBuilder<ITestService>? serviceBuilder = null;
+
+        frameworkBuilder.Define<ITestService>(builder =>
+        {
+            serviceBuilder = builder;
+            var config = new SelectionModeConfig
             {
-                var handler = new TargetingSelectionModeHandler();
-                var frameworkBuilder = ExperimentFrameworkBuilder.Create();
-                ServiceExperimentBuilder<ITestService>? serviceBuilder = null;
+                Type = "targeting",
+                SelectorName = "custom-selector"
+            };
+            handler.Apply(builder, config, null);
+            builder.AddTrial<StableService>("control");
+        });
 
-                frameworkBuilder.Define<ITestService>(builder =>
-                {
-                    serviceBuilder = builder;
-                    var config = new SelectionModeConfig
-                    {
-                        Type = "targeting",
-                        SelectorName = "custom-selector"
-                    };
-                    handler.Apply(builder, config, null);
-                });
-
-                return serviceBuilder!;
-            })
-            .Then("builder is configured", builder => builder != null)
-            .AssertPassed();
+        Assert.NotNull(serviceBuilder);
+        await Task.CompletedTask;
+    }
 
     [Scenario("Apply logs debug message when logger provided")]
     [Fact]
@@ -77,6 +76,7 @@ public sealed class TargetingSelectionModeHandlerTests(ITestOutputHelper output)
         {
             var config = new SelectionModeConfig { Type = "targeting" };
             handler.Apply(builder, config, logger);
+            builder.AddTrial<StableService>("control");
         });
 
         Assert.Contains(logger.Messages, m =>
@@ -87,35 +87,44 @@ public sealed class TargetingSelectionModeHandlerTests(ITestOutputHelper output)
 
     [Scenario("Apply works without logger")]
     [Fact]
-    public Task Apply_works_without_logger()
-        => Given("a handler", () => new TargetingSelectionModeHandler())
-            .When("applying without logger", handler =>
-            {
-                var frameworkBuilder = ExperimentFrameworkBuilder.Create();
-                ServiceExperimentBuilder<ITestService>? result = null;
+    public async Task Apply_works_without_logger()
+    {
+        var handler = new TargetingSelectionModeHandler();
+        var frameworkBuilder = ExperimentFrameworkBuilder.Create();
+        ServiceExperimentBuilder<ITestService>? result = null;
 
-                frameworkBuilder.Define<ITestService>(builder =>
-                {
-                    result = builder;
-                    var config = new SelectionModeConfig { Type = "targeting" };
-                    handler.Apply(builder, config, null);
-                });
+        frameworkBuilder.Define<ITestService>(builder =>
+        {
+            result = builder;
+            var config = new SelectionModeConfig { Type = "targeting" };
+            handler.Apply(builder, config, null);
+            builder.AddTrial<StableService>("control");
+        });
 
-                return result;
-            })
-            .Then("no exception thrown", result => result != null)
-            .AssertPassed();
+        Assert.NotNull(result);
+        await Task.CompletedTask;
+    }
 
-    [Scenario("Apply uses TargetingModes.Targeting constant")]
+    [Scenario("Handler ModeType is lowercase version of TargetingModes constant")]
     [Fact]
-    public Task Apply_uses_targeting_modes_constant()
-        => Given("targeting constants", () => TargetingModes.Targeting)
-            .Then("constant value matches handler mode type", mode =>
-            {
-                var handler = new TargetingSelectionModeHandler();
-                return mode == handler.ModeType;
-            })
-            .AssertPassed();
+    public async Task Handler_mode_type_matches_targeting_constant_case_insensitive()
+    {
+        var handler = new TargetingSelectionModeHandler();
+
+        // ModeType is lowercase for YAML config matching
+        Assert.Equal("targeting", handler.ModeType);
+
+        // TargetingModes.Targeting is capitalized for internal mode identifier
+        Assert.Equal("Targeting", TargetingModes.Targeting);
+
+        // They should match case-insensitively
+        Assert.Equal(
+            TargetingModes.Targeting,
+            handler.ModeType,
+            StringComparer.OrdinalIgnoreCase);
+
+        await Task.CompletedTask;
+    }
 
     [Scenario("Validate returns no errors for valid configuration")]
     [Fact]
