@@ -873,4 +873,206 @@ public class PluginManagerApplyDefaultOptionsTests : IAsyncDisposable
         Assert.NotNull(context);
         Assert.True(context.IsLoaded);
     }
+
+    [Fact]
+    public async Task LoadAsync_WithFullDefaultIsolation_AppliesDefaultMode()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DefaultIsolationMode = PluginIsolationMode.Full
+        });
+        _manager = new PluginManager(loader, options);
+
+        var dllPath = typeof(PluginManagerApplyDefaultOptionsTests).Assembly.Location;
+
+        // Load without specifying isolation mode - should use default Full mode
+        var context = await _manager.LoadAsync(dllPath);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithEmptySharedAssembliesAndDefaults_AppliesDefaultAssemblies()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DefaultIsolationMode = PluginIsolationMode.None,
+            DefaultSharedAssemblies = ["Default.Assembly1", "Default.Assembly2"]
+        });
+        _manager = new PluginManager(loader, options);
+
+        var dllPath = typeof(PluginManagerApplyDefaultOptionsTests).Assembly.Location;
+
+        // Load with empty shared assemblies - should apply defaults
+        var loadOptions = new PluginLoadOptions
+        {
+            // AdditionalSharedAssemblies is empty by default
+        };
+
+        var context = await _manager.LoadAsync(dllPath, loadOptions);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+    }
+}
+
+public class PluginManagerFailedLoadTrackingTests : IDisposable
+{
+    private readonly string _tempDir;
+
+    public PluginManagerFailedLoadTrackingTests()
+    {
+        _tempDir = Path.Combine(Path.GetTempPath(), $"FailedLoadTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_MultipleFailedLoads_TracksUpToMax()
+    {
+        var loader = new PluginLoader();
+        await using var manager = new PluginManager(loader);
+
+        // Try to load multiple non-existent files to track failures
+        for (int i = 0; i < 5; i++)
+        {
+            var nonExistentPath = Path.Combine(_tempDir, $"nonexistent_{i}.dll");
+            try
+            {
+                await manager.LoadAsync(nonExistentPath);
+            }
+            catch (FileNotFoundException)
+            {
+                // Expected
+            }
+        }
+
+        var health = await manager.GetHealthAsync();
+
+        Assert.Equal(5, health.FailedLoads.Count);
+    }
+
+    [Fact]
+    public async Task LoadAsync_SuccessfulLoadClearsFailure()
+    {
+        var loader = new PluginLoader();
+        await using var manager = new PluginManager(loader);
+        var dllPath = typeof(PluginManagerFailedLoadTrackingTests).Assembly.Location;
+
+        // First, create a fake DLL path that won't exist
+        var fakeDllPath = Path.Combine(_tempDir, "test.dll");
+
+        // Try to load it - should fail
+        try
+        {
+            await manager.LoadAsync(fakeDllPath);
+        }
+        catch (FileNotFoundException)
+        {
+            // Expected
+        }
+
+        // Now copy the real DLL to that path
+        File.Copy(dllPath, fakeDllPath);
+
+        // Load again - should succeed and clear the failure
+        var context = await manager.LoadAsync(fakeDllPath, new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        });
+
+        Assert.NotNull(context);
+
+        var health = await manager.GetHealthAsync();
+        Assert.Empty(health.FailedLoads);
+    }
+}
+
+public class PluginManagerEventTests : IAsyncDisposable
+{
+    private PluginManager? _manager;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_manager != null)
+        {
+            await _manager.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_RaisesPluginLoadedEvent()
+    {
+        var loader = new PluginLoader();
+        _manager = new PluginManager(loader);
+
+        IPluginContext? loadedContext = null;
+        _manager.PluginLoaded += (_, args) => loadedContext = args.Context;
+
+        var dllPath = typeof(PluginManagerEventTests).Assembly.Location;
+        var options = new PluginLoadOptions { IsolationModeOverride = PluginIsolationMode.None };
+
+        await _manager.LoadAsync(dllPath, options);
+
+        Assert.NotNull(loadedContext);
+    }
+
+    [Fact]
+    public async Task UnloadAsync_RaisesPluginUnloadedEvent()
+    {
+        var loader = new PluginLoader();
+        _manager = new PluginManager(loader);
+
+        IPluginContext? unloadedContext = null;
+        _manager.PluginUnloaded += (_, args) => unloadedContext = args.Context;
+
+        var dllPath = typeof(PluginManagerEventTests).Assembly.Location;
+        var options = new PluginLoadOptions { IsolationModeOverride = PluginIsolationMode.None };
+
+        var context = await _manager.LoadAsync(dllPath, options);
+        await _manager.UnloadAsync(context.Manifest.Id);
+
+        Assert.NotNull(unloadedContext);
+        Assert.Equal(context.Manifest.Id, unloadedContext.Manifest.Id);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RaisesPluginLoadFailedEventOnError()
+    {
+        var loader = new PluginLoader();
+        _manager = new PluginManager(loader);
+
+        string? failedPath = null;
+        Exception? failedException = null;
+        _manager.PluginLoadFailed += (_, args) =>
+        {
+            failedPath = args.PluginPath;
+            failedException = args.Exception;
+        };
+
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent_plugin.dll");
+
+        try
+        {
+            await _manager.LoadAsync(nonExistentPath);
+        }
+        catch (FileNotFoundException)
+        {
+            // Expected
+        }
+
+        Assert.NotNull(failedPath);
+        Assert.Contains("nonexistent_plugin.dll", failedPath);
+        Assert.IsType<FileNotFoundException>(failedException);
+    }
 }

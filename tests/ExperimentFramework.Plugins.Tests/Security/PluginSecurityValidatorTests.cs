@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Security;
 using ExperimentFramework.Plugins.Configuration;
 using ExperimentFramework.Plugins.Security;
@@ -349,4 +350,187 @@ public class PluginSecurityValidatorTests : IDisposable
     }
 
     #endregion
+}
+
+/// <summary>
+/// Tests for PluginSecurityValidator that require a signed executable.
+/// These tests use dotnet.exe which is Authenticode signed by Microsoft.
+/// </summary>
+public class PluginSecurityValidatorSignedAssemblyTests
+{
+    private static readonly string? DotnetExePath = FindDotnetExe();
+
+    private static string? FindDotnetExe()
+    {
+        // Try common locations for dotnet.exe
+        var paths = new[]
+        {
+            @"C:\Program Files\dotnet\dotnet.exe",
+            @"C:\Program Files (x86)\dotnet\dotnet.exe",
+            Environment.GetEnvironmentVariable("DOTNET_ROOT") is string root
+                ? Path.Combine(root, "dotnet.exe")
+                : null
+        };
+
+        foreach (var path in paths.Where(p => p != null))
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HasSignedDotnetExe => DotnetExePath != null &&
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+    // Known Microsoft .NET certificate thumbprint (may change with updates)
+    // This is the thumbprint for the ".NET" certificate from Microsoft
+    private const string MicrosoftDotNetThumbprint = "860AB2B78578D8EF61F692CF81AE4B1198CCBC94";
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_SignedAssemblyWithMatchingThumbprint_DoesNotThrow()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints = [MicrosoftDotNetThumbprint]
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - dotnet.exe is signed with the trusted thumbprint
+        validator.ValidateAssemblySignature(DotnetExePath!);
+    }
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_SignedAssemblyWithNonMatchingThumbprint_ThrowsSecurityException()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints = ["0000000000000000000000000000000000000000"] // Wrong thumbprint
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should throw - thumbprint doesn't match
+        var ex = Assert.Throws<SecurityException>(() =>
+            validator.ValidateAssemblySignature(DotnetExePath!));
+
+        Assert.Contains("not signed by a trusted publisher", ex.Message);
+        Assert.Contains(MicrosoftDotNetThumbprint, ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_SignedAssemblyWithRequiredButNoThumbprints_DoesNotThrow()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints = [] // No specific thumbprints - any signed assembly is OK
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - file is signed and no specific thumbprints required
+        validator.ValidateAssemblySignature(DotnetExePath!);
+    }
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_SignedAssemblyWithOnlyThumbprintsConfigured_DoesNotThrow()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = false, // Signing not required
+            TrustedPublisherThumbprints = [MicrosoftDotNetThumbprint] // But if signed, must match
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - thumbprint matches
+        validator.ValidateAssemblySignature(DotnetExePath!);
+    }
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_SignedAssemblyWithCaseInsensitiveThumbprint_DoesNotThrow()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints = [MicrosoftDotNetThumbprint.ToLowerInvariant()] // lowercase
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - thumbprint comparison is case-insensitive
+        validator.ValidateAssemblySignature(DotnetExePath!);
+    }
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_WithMultipleThumbprintsIncludingMatch_DoesNotThrow()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints =
+            [
+                "1111111111111111111111111111111111111111",
+                "2222222222222222222222222222222222222222",
+                MicrosoftDotNetThumbprint, // This one matches
+                "3333333333333333333333333333333333333333"
+            ]
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - one of the thumbprints matches
+        validator.ValidateAssemblySignature(DotnetExePath!);
+    }
+
+    [SkippableFact]
+    public void ValidateAssemblySignature_WithMultipleThumbprintsNoneMatching_ThrowsSecurityException()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints =
+            [
+                "1111111111111111111111111111111111111111",
+                "2222222222222222222222222222222222222222",
+                "3333333333333333333333333333333333333333"
+            ]
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should throw - none of the thumbprints match
+        Assert.Throws<SecurityException>(() =>
+            validator.ValidateAssemblySignature(DotnetExePath!));
+    }
+
+    [SkippableFact]
+    public void ValidatePlugin_SignedAssemblyWithMatchingThumbprint_DoesNotThrow()
+    {
+        Skip.IfNot(HasSignedDotnetExe, "Signed dotnet.exe not available on this platform");
+
+        var options = new PluginConfigurationOptions
+        {
+            RequireSignedAssemblies = true,
+            TrustedPublisherThumbprints = [MicrosoftDotNetThumbprint]
+        };
+        var validator = new PluginSecurityValidator(options);
+
+        // Should not throw - full validation passes
+        validator.ValidatePlugin(DotnetExePath!);
+    }
 }
