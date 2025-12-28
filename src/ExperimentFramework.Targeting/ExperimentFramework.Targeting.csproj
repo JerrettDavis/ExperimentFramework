@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ExperimentFramework.Targeting</RootNamespace>
+    <Description>User and context-based targeting for experiments</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Rollout\ExperimentFramework.Rollout.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
+  </ItemGroup>
+
+</Project>

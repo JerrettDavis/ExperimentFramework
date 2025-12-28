@@ -33,6 +33,14 @@
         <ProjectReference Include="..\..\src\ExperimentFramework.Data\ExperimentFramework.Data.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.Science\ExperimentFramework.Science.csproj" />
         <ProjectReference Include="..\..\src\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Rollout\ExperimentFramework.Rollout.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Targeting\ExperimentFramework.Targeting.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Distributed\ExperimentFramework.Distributed.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Audit\ExperimentFramework.Audit.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Admin\ExperimentFramework.Admin.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Bandit\ExperimentFramework.Bandit.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.AutoStop\ExperimentFramework.AutoStop.csproj" />
+        <ProjectReference Include="..\..\src\ExperimentFramework.Distributed.Redis\ExperimentFramework.Distributed.Redis.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -42,6 +50,7 @@
         <PackageReference Include="Moq" Version="4.20.72" />
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.1" />
+        <PackageReference Include="Testcontainers.Redis" Version="4.4.0" />
     </ItemGroup>
 
 </Project>

@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,5 @@
+using ExperimentFramework.Configuration.Extensions;
+using ExperimentFramework.Data.Configuration;
 using ExperimentFramework.Data.Recording;
 using ExperimentFramework.Data.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -99,6 +101,40 @@ public static class ServiceCollectionExtensions
             var store = sp.GetRequiredService<IOutcomeStore>();
             return new OutcomeRecorder(store);
         });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds data collection configuration handlers to the experiment framework.
+    /// This enables the 'outcomeCollection' decorator type in YAML/JSON configuration files.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection for chaining.</returns>
+    /// <example>
+    /// <code>
+    /// services.AddExperimentDataConfiguration();
+    /// services.AddExperimentDataCollection();
+    /// services.AddExperimentFrameworkFromConfiguration(configuration);
+    /// </code>
+    ///
+    /// Configuration file example:
+    /// <code>
+    /// experimentFramework:
+    ///   decorators:
+    ///     - type: outcomeCollection
+    ///       options:
+    ///         collectDuration: true
+    ///         collectErrors: true
+    ///         enableBatching: true
+    ///         maxBatchSize: 100
+    /// </code>
+    /// </example>
+    public static IServiceCollection AddExperimentDataConfiguration(this IServiceCollection services)
+    {
+        // Register the outcome collection handler with the configuration system
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IConfigurationDecoratorHandler, OutcomeCollectionDecoratorHandler>());
 
         return services;
     }

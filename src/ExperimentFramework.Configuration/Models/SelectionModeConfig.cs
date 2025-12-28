@@ -40,4 +40,13 @@ public sealed class SelectionModeConfig
     /// This identifies the registered custom selection mode provider.
     /// </summary>
     public string? ModeIdentifier { get; set; }
+
+    /// <summary>
+    /// Additional options for extension-provided selection modes.
+    /// </summary>
+    /// <remarks>
+    /// Extension packages can use this property to configure mode-specific settings.
+    /// For example, the Rollout package uses this for percentage configuration.
+    /// </remarks>
+    public Dictionary<string, object>? Options { get; set; }
 }

@@ -214,6 +214,7 @@ public class ServiceCollectionExtensionsTests : TinyBddXunitBase, IDisposable
                 - serviceType: "{typeof(ITestService).AssemblyQualifiedName}"
                   selectionMode:
                     type: featureFlag
+                    flagName: test-feature
                   control:
                     key: control
                     implementationType: "{typeof(TestServiceA).AssemblyQualifiedName}"

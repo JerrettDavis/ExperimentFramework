@@ -85,6 +85,15 @@
           "Castle.Core": "5.1.1"
         }
       },
+      "Testcontainers.Redis": {
+        "type": "Direct",
+        "requested": "[4.4.0, )",
+        "resolved": "4.4.0",
+        "contentHash": "PntcHwYqeAbHT0fKIbqZT2EbG9Bp/i5dLm7Bz8FSHyLwl8HyXVmb/kKn177UvnN6c4/dA67bRIh9HRZQoHB9nw==",
+        "dependencies": {
+          "Testcontainers": "4.4.0"
+        }
+      },
       "TinyBDD.Xunit": {
         "type": "Direct",
         "requested": "[0.13.0, )",
@@ -113,12 +122,30 @@
         "resolved": "3.1.4",
         "contentHash": "5mj99LvCqrq3CNi06xYdyIAXOEh+5b33F2nErCzI5zWiDdLHXiPXEWFSUAF8zlIv0ZWqjZNCwHTQeAPYbF3pCg=="
       },
+      "BouncyCastle.Cryptography": {
+        "type": "Transitive",
+        "resolved": "2.4.0",
+        "contentHash": "SwXsAV3sMvAU/Nn31pbjhWurYSjJ+/giI/0n6tCrYoupEK34iIHCuk3STAd9fx8yudM85KkLSVdn951vTng/vQ=="
+      },
       "Castle.Core": {
         "type": "Transitive",
         "resolved": "5.1.1",
         "contentHash": "rpYtIczkzGpf+EkZgDr9CClTdemhsrwA/W5hMoPjLkRFnXzH44zDLoovXeKtmxb1ykXK9aJVODSpiJml8CTw2g==",
         "dependencies": {
           "System.Diagnostics.EventLog": "6.0.0"
+        }
+      },
+      "Docker.DotNet.Enhanced": {
+        "type": "Transitive",
+        "resolved": "3.126.1",
+        "contentHash": "UPyLBLBaVE3s7OCWM0h5g9w6mUOag5sOIP5CldFQekIWo/gHixgZR+o5fG7eCFH4ZdKlvBGM4ALFuOyPoKoJ3A=="
+      },
+      "Docker.DotNet.Enhanced.X509": {
+        "type": "Transitive",
+        "resolved": "3.126.1",
+        "contentHash": "XFHMC/iWHbloQgg9apZrxu010DmSamaAggu8nomCqTeotGyUGkv2Tt/aqk1ljC/4tjtTrb9LtFQwYpwZbMbiKg==",
+        "dependencies": {
+          "Docker.DotNet.Enhanced": "3.126.1"
         }
       },
       "MathNet.Numerics": {
@@ -503,6 +530,11 @@
           "OpenTelemetry": "1.12.0"
         }
       },
+      "Pipelines.Sockets.Unofficial": {
+        "type": "Transitive",
+        "resolved": "2.2.8",
+        "contentHash": "zG2FApP5zxSx6OcdJQLbZDk2AVlN2BNQD6MorwIfV6gVj0RRxWPEp2LXAxqDGZqeNV1Zp0BNPcNaey/GXmTdvQ=="
+      },
       "Polly": {
         "type": "Transitive",
         "resolved": "8.5.0",
@@ -516,10 +548,44 @@
         "resolved": "8.5.0",
         "contentHash": "VYYMZNitZ85UEhwOKkTQI63WEMvzUqwQc74I2mm8h/DBVAMcBBxqYPni4DmuRtbCwngmuONuK2yBJfWNRKzI+A=="
       },
+      "SharpZipLib": {
+        "type": "Transitive",
+        "resolved": "1.4.2",
+        "contentHash": "yjj+3zgz8zgXpiiC3ZdF/iyTBbz2fFvMxZFEBPUcwZjIvXOf37Ylm+K58hqMfIBt5JgU/Z2uoUS67JmTLe973A=="
+      },
+      "SSH.NET": {
+        "type": "Transitive",
+        "resolved": "2024.2.0",
+        "contentHash": "9r+4UF2P51lTztpd+H7SJywk7WgmlWB//Cm2o96c6uGVZU5r58ys2/cD9pCgTk0zCdSkfflWL1WtqQ9I4IVO9Q==",
+        "dependencies": {
+          "BouncyCastle.Cryptography": "2.4.0"
+        }
+      },
+      "StackExchange.Redis": {
+        "type": "Transitive",
+        "resolved": "2.8.24",
+        "contentHash": "GWllmsFAtLyhm4C47cOCipGxyEi1NQWTFUHXnJ8hiHOsK/bH3T5eLkWPVW+LRL6jDiB3g3izW3YEHgLuPoJSyA==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "6.0.0",
+          "Pipelines.Sockets.Unofficial": "2.2.8"
+        }
+      },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
         "resolved": "10.0.1",
         "contentHash": "xfaHEHVDkMOOZR5S6ZGezD0+vekdH1Nx/9Ih8/rOqOGSOk1fxiN3u94bYkBW/wigj0Uw2Wt3vvRj9mtYdgwEjw=="
+      },
+      "Testcontainers": {
+        "type": "Transitive",
+        "resolved": "4.4.0",
+        "contentHash": "P4+fXNjMtLW1CRjBQ3SUQWxz98mio+79OL6B+4DmzMaafW1rEVZ/eFHFG9TrxMWeg+cgftkzV7oPcGNZQ12Q9w==",
+        "dependencies": {
+          "Docker.DotNet.Enhanced": "3.126.1",
+          "Docker.DotNet.Enhanced.X509": "3.126.1",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
+          "SSH.NET": "2024.2.0",
+          "SharpZipLib": "1.4.2"
+        }
       },
       "TinyBDD": {
         "type": "Transitive",
@@ -580,6 +646,37 @@
           "Microsoft.FeatureManagement": "[4.4.0, )"
         }
       },
+      "experimentframework.admin": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )"
+        }
+      },
+      "experimentframework.audit": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
+        }
+      },
+      "experimentframework.autostop": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Data": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.1, )"
+        }
+      },
+      "experimentframework.bandit": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Configuration": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
+        }
+      },
       "experimentframework.comprehensivesample": {
         "type": "Project",
         "dependencies": {
@@ -609,7 +706,23 @@
         "type": "Project",
         "dependencies": {
           "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Configuration": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
+        }
+      },
+      "experimentframework.distributed": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
+        }
+      },
+      "experimentframework.distributed.redis": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework.Distributed": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "StackExchange.Redis": "[2.8.24, )"
         }
       },
       "experimentframework.featuremanagement": {
@@ -638,9 +751,18 @@
         "type": "Project",
         "dependencies": {
           "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Configuration": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "Polly": "[8.5.0, )"
+        }
+      },
+      "experimentframework.rollout": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Configuration": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
         }
       },
       "experimentframework.sampleconsole": {
@@ -674,6 +796,15 @@
         "type": "Project",
         "dependencies": {
           "ExperimentFramework": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
+        }
+      },
+      "experimentframework.targeting": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Configuration": "[1.0.0, )",
+          "ExperimentFramework.Rollout": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )"
         }
       }

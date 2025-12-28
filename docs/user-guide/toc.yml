@@ -13,10 +13,22 @@
   items:
     - name: Selection Modes
       href: selection-modes.md
+    - name: Percentage Rollout
+      href: rollout.md
+    - name: User Targeting
+      href: targeting.md
     - name: OpenFeature Integration
       href: openfeature.md
     - name: Naming Conventions
       href: naming-conventions.md
+
+# Adaptive Experimentation
+- name: Adaptive Experimentation
+  items:
+    - name: Multi-Armed Bandits
+      href: bandit.md
+    - name: Automatic Stopping
+      href: auto-stop.md
 
 # Resilience & Reliability
 - name: Resilience
@@ -30,6 +42,12 @@
     - name: Kill Switch
       href: kill-switch.md
 
+# Distributed Systems
+- name: Distributed Systems
+  items:
+    - name: Distributed State
+      href: distributed.md
+
 # Observability
 - name: Observability
   items:
@@ -37,6 +55,14 @@
       href: telemetry.md
     - name: Metrics
       href: metrics.md
+    - name: Audit Logging
+      href: audit.md
+
+# Administration
+- name: Administration
+  items:
+    - name: Admin API
+      href: admin-api.md
 
 # Scientific Experimentation
 - name: Scientific Experimentation

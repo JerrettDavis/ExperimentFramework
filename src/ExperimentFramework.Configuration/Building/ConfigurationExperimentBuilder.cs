@@ -1,8 +1,9 @@
 using System.Reflection;
 using ExperimentFramework.Configuration.Activation;
 using ExperimentFramework.Configuration.Exceptions;
+using ExperimentFramework.Configuration.Extensions;
+using ExperimentFramework.Configuration.Extensions.Handlers;
 using ExperimentFramework.Configuration.Models;
-using ExperimentFramework.Models;
 using ExperimentFramework.Naming;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,15 +16,28 @@ namespace ExperimentFramework.Configuration.Building;
 public sealed class ConfigurationExperimentBuilder
 {
     private readonly ITypeResolver _typeResolver;
+    private readonly ConfigurationExtensionRegistry? _extensionRegistry;
     private readonly ILogger<ConfigurationExperimentBuilder>? _logger;
 
     /// <summary>
     /// Creates a new configuration experiment builder.
     /// </summary>
-    public ConfigurationExperimentBuilder(ITypeResolver typeResolver, ILogger<ConfigurationExperimentBuilder>? logger = null)
+    public ConfigurationExperimentBuilder(
+        ITypeResolver typeResolver,
+        ConfigurationExtensionRegistry? extensionRegistry = null,
+        ILogger<ConfigurationExperimentBuilder>? logger = null)
     {
         _typeResolver = typeResolver;
+        _extensionRegistry = extensionRegistry;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Creates a new configuration experiment builder (backward compatible).
+    /// </summary>
+    public ConfigurationExperimentBuilder(ITypeResolver typeResolver, ILogger<ConfigurationExperimentBuilder>? logger)
+        : this(typeResolver, null, logger)
+    {
     }
 
     /// <summary>
@@ -138,234 +152,37 @@ public sealed class ConfigurationExperimentBuilder
 
     private void AddDecorator(ExperimentFrameworkBuilder builder, DecoratorConfig decorator)
     {
-        switch (decorator.Type.ToLowerInvariant())
+        // Try to find a registered handler first
+        var handler = _extensionRegistry?.GetDecoratorHandler(decorator.Type);
+        if (handler != null)
         {
-            case "logging":
-                AddLoggingDecorator(builder, decorator);
-                break;
-
-            case "timeout":
-                AddTimeoutDecorator(builder, decorator);
-                break;
-
-            case "circuitbreaker":
-                AddCircuitBreakerDecorator(builder, decorator);
-                break;
-
-            case "outcomecollection":
-                AddOutcomeCollectionDecorator(builder, decorator);
-                break;
-
-            case "custom":
-                AddCustomDecorator(builder, decorator);
-                break;
-
-            default:
-                _logger?.LogWarning("Unknown decorator type '{Type}', skipping", decorator.Type);
-                break;
-        }
-    }
-
-    private void AddLoggingDecorator(ExperimentFrameworkBuilder builder, DecoratorConfig decorator)
-    {
-        builder.AddLogger(l =>
-        {
-            if (decorator.Options != null)
-            {
-                if (GetBoolOption(decorator.Options, "benchmarks"))
-                {
-                    l.AddBenchmarks();
-                }
-                if (GetBoolOption(decorator.Options, "errorLogging"))
-                {
-                    l.AddErrorLogging();
-                }
-            }
-        });
-    }
-
-    private void AddTimeoutDecorator(ExperimentFrameworkBuilder builder, DecoratorConfig decorator)
-    {
-        var timeout = TimeSpan.FromSeconds(30);
-        var onTimeout = TimeoutAction.FallbackToDefault;
-        string? fallbackKey = null;
-
-        if (decorator.Options != null)
-        {
-            if (TryGetTimeSpanOption(decorator.Options, "timeout", out var t))
-            {
-                timeout = t;
-            }
-
-            if (decorator.Options.TryGetValue("onTimeout", out var action) && action is string actionStr)
-            {
-                onTimeout = actionStr.ToLowerInvariant() switch
-                {
-                    "throw" or "throwexception" => TimeoutAction.ThrowException,
-                    "fallbacktodefault" => TimeoutAction.FallbackToDefault,
-                    "fallbacktospecifictrial" => TimeoutAction.FallbackToSpecificTrial,
-                    _ => TimeoutAction.FallbackToDefault
-                };
-            }
-
-            if (decorator.Options.TryGetValue("fallbackTrialKey", out var key) && key is string keyStr)
-            {
-                fallbackKey = keyStr;
-            }
-        }
-
-        builder.WithTimeout(timeout, onTimeout, fallbackKey);
-    }
-
-    private void AddCircuitBreakerDecorator(ExperimentFrameworkBuilder builder, DecoratorConfig decorator)
-    {
-        // Try to find and invoke WithCircuitBreaker via reflection
-        // This allows the Configuration package to work without a direct reference to Resilience
-        var resilienceExtensionsType = Type.GetType(
-            "ExperimentFramework.Resilience.ResilienceBuilderExtensions, ExperimentFramework.Resilience");
-
-        if (resilienceExtensionsType == null)
-        {
-            _logger?.LogWarning(
-                "Circuit breaker decorator requires ExperimentFramework.Resilience package. Skipping.");
+            handler.Apply(builder, decorator, _logger);
             return;
         }
 
-        try
+        // Fallback to built-in handlers when no registry is provided
+        handler = GetBuiltInDecoratorHandler(decorator.Type);
+        if (handler != null)
         {
-            // Find CircuitBreakerOptions type
-            var optionsType = Type.GetType(
-                "ExperimentFramework.Resilience.CircuitBreakerOptions, ExperimentFramework.Resilience");
-
-            if (optionsType == null)
-            {
-                _logger?.LogWarning("Could not find CircuitBreakerOptions type. Skipping circuit breaker.");
-                return;
-            }
-
-            // Create and configure options
-            var options = Activator.CreateInstance(optionsType);
-            if (options != null && decorator.Options != null)
-            {
-                ConfigureCircuitBreakerOptions(options, optionsType, decorator.Options);
-            }
-
-            // Find and invoke WithCircuitBreaker method
-            var method = resilienceExtensionsType.GetMethod("WithCircuitBreaker",
-                [typeof(ExperimentFrameworkBuilder), optionsType, typeof(ILoggerFactory)]);
-
-            method?.Invoke(null, [builder, options, null]);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to configure circuit breaker decorator");
-        }
-    }
-
-    private void ConfigureCircuitBreakerOptions(object options, Type optionsType, Dictionary<string, object> config)
-    {
-        foreach (var (key, value) in config)
-        {
-            var property = optionsType.GetProperty(key,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
-            if (property == null || !property.CanWrite)
-                continue;
-
-            try
-            {
-                object convertedValue = value;
-
-                if (property.PropertyType == typeof(TimeSpan) && value is string timeStr)
-                {
-                    convertedValue = TimeSpan.Parse(timeStr);
-                }
-                else if (property.PropertyType == typeof(int) && value is not int)
-                {
-                    convertedValue = Convert.ToInt32(value);
-                }
-                else if (property.PropertyType == typeof(double) && value is not double)
-                {
-                    convertedValue = Convert.ToDouble(value);
-                }
-                else if (property.PropertyType == typeof(double?) && value != null)
-                {
-                    convertedValue = Convert.ToDouble(value);
-                }
-
-                property.SetValue(options, convertedValue);
-            }
-            catch
-            {
-                // Ignore property setting errors
-            }
-        }
-    }
-
-    private void AddOutcomeCollectionDecorator(ExperimentFrameworkBuilder builder, DecoratorConfig decorator)
-    {
-        // Try to find and invoke WithOutcomeCollection via reflection
-        var dataExtensionsType = Type.GetType(
-            "ExperimentFramework.Data.ExperimentBuilderExtensions, ExperimentFramework.Data");
-
-        if (dataExtensionsType == null)
-        {
-            _logger?.LogWarning(
-                "Outcome collection decorator requires ExperimentFramework.Data package. Skipping.");
+            handler.Apply(builder, decorator, _logger);
             return;
         }
 
-        try
-        {
-            // Find the method that takes Action<OutcomeRecorderOptions>
-            var methods = dataExtensionsType.GetMethods()
-                .Where(m => m.Name == "WithOutcomeCollection")
-                .ToList();
-
-            var method = methods.FirstOrDefault(m =>
-            {
-                var parameters = m.GetParameters();
-                return parameters.Length == 2 &&
-                       parameters[0].ParameterType == typeof(ExperimentFrameworkBuilder);
-            });
-
-            if (method != null)
-            {
-                // Just call with null action for now - options configuration would require more complex reflection
-                method.Invoke(null, [builder, null]);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to configure outcome collection decorator");
-        }
+        // Log unknown decorator type
+        _logger?.LogWarning(
+            "Unknown decorator type '{Type}'. Register a handler via AddConfigurationDecoratorHandler<T>() or install an extension package that provides this decorator.",
+            decorator.Type);
     }
 
-    private void AddCustomDecorator(ExperimentFrameworkBuilder builder, DecoratorConfig decorator)
+    private IConfigurationDecoratorHandler? GetBuiltInDecoratorHandler(string decoratorType)
     {
-        if (string.IsNullOrEmpty(decorator.TypeName))
+        return decoratorType.ToLowerInvariant() switch
         {
-            _logger?.LogWarning("Custom decorator missing typeName, skipping");
-            return;
-        }
-
-        try
-        {
-            var factoryType = _typeResolver.Resolve(decorator.TypeName);
-            if (Activator.CreateInstance(factoryType) is Decorators.IExperimentDecoratorFactory factory)
-            {
-                builder.AddDecoratorFactory(factory);
-            }
-            else
-            {
-                _logger?.LogWarning("Type '{Type}' does not implement IExperimentDecoratorFactory",
-                    decorator.TypeName);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to create custom decorator '{Type}'", decorator.TypeName);
-        }
+            "logging" => new LoggingDecoratorHandler(),
+            "timeout" => new TimeoutDecoratorHandler(),
+            "custom" => new CustomDecoratorHandler(_typeResolver),
+            _ => null
+        };
     }
 
     private void AddTrial(ExperimentFrameworkBuilder builder, TrialConfig trial)
@@ -435,32 +252,37 @@ public sealed class ConfigurationExperimentBuilder
     private void ConfigureSelectionMode<TService>(ServiceExperimentBuilder<TService> builder, SelectionModeConfig mode)
         where TService : class
     {
-        switch (mode.Type.ToLowerInvariant())
+        // Try to find a registered handler first
+        var handler = _extensionRegistry?.GetSelectionModeHandler(mode.Type);
+        if (handler != null)
         {
-            case "featureflag":
-                builder.UsingFeatureFlag(mode.FlagName);
-                break;
-
-            case "configurationkey":
-                builder.UsingConfigurationKey(mode.Key);
-                break;
-
-            case "variantfeatureflag":
-                builder.UsingCustomMode("VariantFeatureFlag", mode.FlagName);
-                break;
-
-            case "openfeature":
-                builder.UsingCustomMode("OpenFeature", mode.FlagKey);
-                break;
-
-            case "stickyrouting":
-                builder.UsingCustomMode("StickyRouting", mode.SelectorName);
-                break;
-
-            case "custom":
-                builder.UsingCustomMode(mode.ModeIdentifier!, mode.SelectorName);
-                break;
+            handler.Apply(builder, mode, _logger);
+            return;
         }
+
+        // Fallback to built-in handlers when no registry is provided
+        handler = GetBuiltInSelectionModeHandler(mode.Type);
+        if (handler != null)
+        {
+            handler.Apply(builder, mode, _logger);
+            return;
+        }
+
+        // Log unknown selection mode type
+        _logger?.LogWarning(
+            "Unknown selection mode type '{Type}'. Register a handler via AddConfigurationSelectionModeHandler<T>() or install an extension package that provides this mode.",
+            mode.Type);
+    }
+
+    private IConfigurationSelectionModeHandler? GetBuiltInSelectionModeHandler(string modeType)
+    {
+        return modeType.ToLowerInvariant() switch
+        {
+            "featureflag" => new FeatureFlagSelectionModeHandler(),
+            "configurationkey" => new ConfigurationKeySelectionModeHandler(),
+            "custom" => new CustomSelectionModeHandler(),
+            _ => null
+        };
     }
 
     private void AddControl<TService>(ServiceExperimentBuilder<TService> builder, ConditionConfig control)
@@ -630,34 +452,5 @@ public sealed class ConfigurationExperimentBuilder
             throw new ExperimentConfigurationException(
                 $"Failed to add trial for service type '{trial.ServiceType}'", ex);
         }
-    }
-
-    private static bool GetBoolOption(Dictionary<string, object> options, string key)
-    {
-        if (options.TryGetValue(key, out var value))
-        {
-            return value switch
-            {
-                bool b => b,
-                string s => bool.TryParse(s, out var result) && result,
-                _ => false
-            };
-        }
-        return false;
-    }
-
-    private static bool TryGetTimeSpanOption(Dictionary<string, object> options, string key, out TimeSpan result)
-    {
-        result = default;
-        if (options.TryGetValue(key, out var value))
-        {
-            return value switch
-            {
-                TimeSpan ts => (result = ts) == ts,
-                string s => TimeSpan.TryParse(s, out result),
-                _ => false
-            };
-        }
-        return false;
     }
 }

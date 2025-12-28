@@ -9,8 +9,14 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="benchmarks/ExperimentFramework.Benchmarks/ExperimentFramework.Benchmarks.csproj" />
+    <Project Path="src/ExperimentFramework.Admin/ExperimentFramework.Admin.csproj" />
+    <Project Path="src/ExperimentFramework.Audit/ExperimentFramework.Audit.csproj" />
+    <Project Path="src/ExperimentFramework.AutoStop/ExperimentFramework.AutoStop.csproj" />
+    <Project Path="src/ExperimentFramework.Bandit/ExperimentFramework.Bandit.csproj" />
     <Project Path="src/ExperimentFramework.Configuration/ExperimentFramework.Configuration.csproj" />
     <Project Path="src/ExperimentFramework.Data/ExperimentFramework.Data.csproj" />
+    <Project Path="src/ExperimentFramework.Distributed.Redis/ExperimentFramework.Distributed.Redis.csproj" />
+    <Project Path="src/ExperimentFramework.Distributed/ExperimentFramework.Distributed.csproj" />
     <Project Path="src/ExperimentFramework.FeatureManagement/ExperimentFramework.FeatureManagement.csproj" />
     <Project Path="src/ExperimentFramework.Generators/ExperimentFramework.Generators.csproj" />
     <Project Path="src/ExperimentFramework.Metrics.Exporters/ExperimentFramework.Metrics.Exporters.csproj" />
@@ -18,8 +24,10 @@
     <Project Path="src/ExperimentFramework.Plugins/ExperimentFramework.Plugins.csproj" />
     <Project Path="src/ExperimentFramework.Plugins.Generators/ExperimentFramework.Plugins.Generators.csproj" />
     <Project Path="src/ExperimentFramework.Resilience/ExperimentFramework.Resilience.csproj" />
+    <Project Path="src/ExperimentFramework.Rollout/ExperimentFramework.Rollout.csproj" />
     <Project Path="src/ExperimentFramework.Science/ExperimentFramework.Science.csproj" />
     <Project Path="src/ExperimentFramework.StickyRouting/ExperimentFramework.StickyRouting.csproj" />
+    <Project Path="src/ExperimentFramework.Targeting/ExperimentFramework.Targeting.csproj" />
     <Project Path="src/ExperimentFramework/ExperimentFramework.csproj" />
   </Folder>
   <Folder Name="/tests/">

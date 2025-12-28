@@ -368,4 +368,415 @@ public class InMemoryOutcomeStoreTests
         // Assert
         Assert.Empty(aggregations);
     }
+
+    #region Additional Edge Case Tests
+
+    [Fact]
+    public async Task RecordBatchAsync_WithEmptyEnumerable_DoesNotThrow()
+    {
+        // Act & Assert - should not throw
+        await _store.RecordBatchAsync(Array.Empty<ExperimentOutcome>());
+
+        var count = await _store.CountAsync(new OutcomeQuery());
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public async Task RecordBatchAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        var outcomes = new[] { CreateOutcome() };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.RecordBatchAsync(outcomes, cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task QueryAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.QueryAsync(new OutcomeQuery(), cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task CountAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.CountAsync(new OutcomeQuery(), cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.DeleteAsync(new OutcomeQuery(), cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task GetTrialKeysAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.GetTrialKeysAsync("exp", cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task GetMetricNamesAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.GetMetricNamesAsync("exp", cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task GetAggregationsAsync_ThrowsOnCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _store.GetAggregationsAsync("exp", "metric", cts.Token).AsTask());
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithEmptyStore_ReturnsEmptyList()
+    {
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery { ExperimentName = "any" });
+
+        // Assert
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithOnlyLimit_ReturnsLimitedResults()
+    {
+        // Arrange
+        for (int i = 0; i < 10; i++)
+        {
+            await _store.RecordAsync(CreateOutcome(subjectId: $"user-{i}"));
+        }
+
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            Limit = 5
+        });
+
+        // Assert
+        Assert.Equal(5, results.Count);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithOnlyOffset_SkipsResults()
+    {
+        // Arrange
+        for (int i = 0; i < 10; i++)
+        {
+            await _store.RecordAsync(CreateOutcome(subjectId: $"user-{i}"));
+        }
+
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            Offset = 7
+        });
+
+        // Assert
+        Assert.Equal(3, results.Count);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithOffsetBeyondCount_ReturnsEmpty()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome());
+        await _store.RecordAsync(CreateOutcome());
+
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            Offset = 100
+        });
+
+        // Assert
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithMultipleFilters_CombinesWithAnd()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", metricName: "conversion"));
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", metricName: "revenue"));
+        await _store.RecordAsync(CreateOutcome(trialKey: "treatment", metricName: "conversion"));
+        await _store.RecordAsync(CreateOutcome(trialKey: "treatment", metricName: "revenue"));
+
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            TrialKey = "control",
+            MetricName = "conversion"
+        });
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("control", results[0].TrialKey);
+        Assert.Equal("conversion", results[0].MetricName);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithNoMatches_ReturnsZero()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome(experimentName: "exp-1"));
+
+        // Act
+        var deleted = await _store.DeleteAsync(new OutcomeQuery { ExperimentName = "nonexistent" });
+
+        // Assert
+        Assert.Equal(0, deleted);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithAllMatching_DeletesAll()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome());
+        await _store.RecordAsync(CreateOutcome());
+        await _store.RecordAsync(CreateOutcome());
+
+        // Act
+        var deleted = await _store.DeleteAsync(new OutcomeQuery { ExperimentName = "test-exp" });
+
+        // Assert
+        Assert.Equal(3, deleted);
+        var remaining = await _store.CountAsync(new OutcomeQuery());
+        Assert.Equal(0, remaining);
+    }
+
+    [Fact]
+    public async Task GetTrialKeysAsync_ReturnsEmptyForNonexistentExperiment()
+    {
+        // Act
+        var trialKeys = await _store.GetTrialKeysAsync("nonexistent");
+
+        // Assert
+        Assert.Empty(trialKeys);
+    }
+
+    [Fact]
+    public async Task GetMetricNamesAsync_ReturnsEmptyForNonexistentExperiment()
+    {
+        // Act
+        var metricNames = await _store.GetMetricNamesAsync("nonexistent");
+
+        // Assert
+        Assert.Empty(metricNames);
+    }
+
+    [Fact]
+    public async Task GetTrialKeysAsync_ReturnsSortedKeys()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome(trialKey: "z-trial"));
+        await _store.RecordAsync(CreateOutcome(trialKey: "a-trial"));
+        await _store.RecordAsync(CreateOutcome(trialKey: "m-trial"));
+
+        // Act
+        var trialKeys = await _store.GetTrialKeysAsync("test-exp");
+
+        // Assert
+        Assert.Equal(3, trialKeys.Count);
+        Assert.Equal("a-trial", trialKeys[0]);
+        Assert.Equal("m-trial", trialKeys[1]);
+        Assert.Equal("z-trial", trialKeys[2]);
+    }
+
+    [Fact]
+    public async Task GetMetricNamesAsync_ReturnsSortedNames()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome(metricName: "z-metric"));
+        await _store.RecordAsync(CreateOutcome(metricName: "a-metric"));
+        await _store.RecordAsync(CreateOutcome(metricName: "m-metric"));
+
+        // Act
+        var metricNames = await _store.GetMetricNamesAsync("test-exp");
+
+        // Assert
+        Assert.Equal(3, metricNames.Count);
+        Assert.Equal("a-metric", metricNames[0]);
+        Assert.Equal("m-metric", metricNames[1]);
+        Assert.Equal("z-metric", metricNames[2]);
+    }
+
+    [Fact]
+    public async Task GetAggregationsAsync_TracksSuccessForBinaryOutcomes()
+    {
+        // Arrange - Binary outcomes with value >= 0.5 are considered success
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", value: 1.0, outcomeType: OutcomeType.Binary));
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", value: 0.5, outcomeType: OutcomeType.Binary));
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", value: 0.0, outcomeType: OutcomeType.Binary));
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", value: 0.49, outcomeType: OutcomeType.Binary));
+
+        // Act
+        var aggregations = await _store.GetAggregationsAsync("test-exp", "conversion");
+
+        // Assert
+        Assert.Single(aggregations);
+        Assert.Equal(4, aggregations["control"].Count);
+        Assert.Equal(2, aggregations["control"].SuccessCount); // 1.0 and 0.5 are successes
+    }
+
+    [Fact]
+    public async Task CountAsync_WithAllFilters()
+    {
+        // Arrange
+        var now = DateTimeOffset.UtcNow;
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", metricName: "conv", timestamp: now.AddDays(-1)));
+        await _store.RecordAsync(CreateOutcome(trialKey: "control", metricName: "conv", timestamp: now.AddDays(-2)));
+        await _store.RecordAsync(CreateOutcome(trialKey: "treatment", metricName: "conv", timestamp: now.AddDays(-1)));
+
+        // Act
+        var count = await _store.CountAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            TrialKey = "control",
+            MetricName = "conv",
+            FromTimestamp = now.AddDays(-1.5),
+            ToTimestamp = now
+        });
+
+        // Assert
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task RecordAsync_DuplicateId_DoesNotOverwrite()
+    {
+        // Arrange
+        var id = Guid.NewGuid().ToString("N");
+        var outcome1 = new ExperimentOutcome
+        {
+            Id = id,
+            ExperimentName = "exp",
+            TrialKey = "trial",
+            SubjectId = "user-1",
+            MetricName = "metric",
+            OutcomeType = OutcomeType.Binary,
+            Value = 1.0,
+            Timestamp = DateTimeOffset.UtcNow
+        };
+        var outcome2 = new ExperimentOutcome
+        {
+            Id = id, // Same ID
+            ExperimentName = "exp",
+            TrialKey = "trial",
+            SubjectId = "user-2",
+            MetricName = "metric",
+            OutcomeType = OutcomeType.Binary,
+            Value = 0.0,
+            Timestamp = DateTimeOffset.UtcNow
+        };
+
+        // Act
+        await _store.RecordAsync(outcome1);
+        await _store.RecordAsync(outcome2); // Should not overwrite
+
+        // Assert
+        var results = await _store.QueryAsync(new OutcomeQuery { ExperimentName = "exp" });
+        Assert.Single(results);
+        Assert.Equal("user-1", results[0].SubjectId); // First one should be retained
+        Assert.Equal(1.0, results[0].Value);
+    }
+
+    [Fact]
+    public async Task Clear_AlsoClearsAggregations()
+    {
+        // Arrange
+        await _store.RecordAsync(CreateOutcome());
+        var aggregationsBefore = await _store.GetAggregationsAsync("test-exp", "conversion");
+        Assert.NotEmpty(aggregationsBefore);
+
+        // Act
+        _store.Clear();
+
+        // Assert
+        var aggregationsAfter = await _store.GetAggregationsAsync("test-exp", "conversion");
+        Assert.Empty(aggregationsAfter);
+    }
+
+    [Fact]
+    public async Task QueryAsync_FiltersByFromTimestampInclusive()
+    {
+        // Arrange
+        var now = DateTimeOffset.UtcNow;
+        await _store.RecordAsync(CreateOutcome(subjectId: "user-1", timestamp: now));
+        await _store.RecordAsync(CreateOutcome(subjectId: "user-2", timestamp: now.AddSeconds(1)));
+
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            FromTimestamp = now
+        });
+
+        // Assert
+        Assert.Equal(2, results.Count);
+    }
+
+    [Fact]
+    public async Task QueryAsync_FiltersByToTimestampExclusive()
+    {
+        // Arrange
+        var now = DateTimeOffset.UtcNow;
+        await _store.RecordAsync(CreateOutcome(subjectId: "user-1", timestamp: now.AddSeconds(-1)));
+        await _store.RecordAsync(CreateOutcome(subjectId: "user-2", timestamp: now));
+
+        // Act
+        var results = await _store.QueryAsync(new OutcomeQuery
+        {
+            ExperimentName = "test-exp",
+            ToTimestamp = now
+        });
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("user-1", results[0].SubjectId);
+    }
+
+    #endregion
 }

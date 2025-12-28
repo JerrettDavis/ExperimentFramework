@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using ExperimentFramework.Configuration.Building;
 using ExperimentFramework.Configuration.Exceptions;
+using ExperimentFramework.Configuration.Extensions;
 using ExperimentFramework.Configuration.Loading;
 using ExperimentFramework.Configuration.Validation;
 using Microsoft.Extensions.Configuration;
@@ -50,18 +51,22 @@ public static class ServiceCollectionExtensions
         // Register type resolver as singleton
         services.TryAddSingleton<ITypeResolver>(typeResolver);
 
+        // Add extension registry with built-in handlers
+        services.AddExperimentConfigurationExtensions();
+
+        // Build service provider to get the registry and logger
+        var serviceProvider = services.BuildServiceProvider();
+        var extensionRegistry = serviceProvider.GetService<ConfigurationExtensionRegistry>();
+        var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger<ConfigurationExperimentBuilder>();
+
         // Load configuration
         var loader = new ExperimentConfigurationLoader();
         var configRoot = loader.Load(configuration, options);
 
-        // Validate configuration
-        var validator = new ConfigurationValidator();
+        // Validate configuration using the extension registry
+        var validator = new ConfigurationValidator(extensionRegistry);
         var validationResult = validator.Validate(configRoot);
-
-        // Get logger factory if available for logging warnings
-        var serviceProvider = services.BuildServiceProvider();
-        var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger<ConfigurationExperimentBuilder>();
 
         // Log warnings
         foreach (var warning in validationResult.Warnings)
@@ -85,8 +90,8 @@ public static class ServiceCollectionExtensions
             }
         }
 
-        // Build framework configuration from loaded config
-        var configBuilder = new ConfigurationExperimentBuilder(typeResolver, logger);
+        // Build framework configuration from loaded config using the extension registry
+        var configBuilder = new ConfigurationExperimentBuilder(typeResolver, extensionRegistry, logger);
         var frameworkBuilder = configBuilder.Build(configRoot);
 
         // Register with the existing framework
@@ -95,7 +100,7 @@ public static class ServiceCollectionExtensions
         // Set up hot reload if enabled
         if (options.EnableHotReload)
         {
-            SetupHotReload(services, configuration, options, typeResolver, logger);
+            SetupHotReload(services, configuration, options, typeResolver, extensionRegistry, logger);
         }
 
         return services;
@@ -137,17 +142,22 @@ public static class ServiceCollectionExtensions
         var typeResolver = new TypeResolver(options.AssemblySearchPaths, options.TypeAliases);
         services.TryAddSingleton<ITypeResolver>(typeResolver);
 
+        // Add extension registry with built-in handlers
+        services.AddExperimentConfigurationExtensions();
+
+        // Build service provider to get the registry and logger
+        var serviceProvider = services.BuildServiceProvider();
+        var extensionRegistry = serviceProvider.GetService<ConfigurationExtensionRegistry>();
+        var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger<ConfigurationExperimentBuilder>();
+
         // Load configuration from files
         var loader = new ExperimentConfigurationLoader();
         var configRoot = loader.Load(configuration, options);
 
-        // Validate configuration
-        var validator = new ConfigurationValidator();
+        // Validate configuration using the extension registry
+        var validator = new ConfigurationValidator(extensionRegistry);
         var validationResult = validator.Validate(configRoot);
-
-        var serviceProvider = services.BuildServiceProvider();
-        var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger<ConfigurationExperimentBuilder>();
 
         // Log warnings
         foreach (var warning in validationResult.Warnings)
@@ -162,8 +172,8 @@ public static class ServiceCollectionExtensions
                 validationResult.Errors);
         }
 
-        // Merge file-based config into the programmatic builder
-        var configBuilder = new ConfigurationExperimentBuilder(typeResolver, logger);
+        // Merge file-based config into the programmatic builder using the extension registry
+        var configBuilder = new ConfigurationExperimentBuilder(typeResolver, extensionRegistry, logger);
         configBuilder.MergeInto(builder, configRoot);
 
         // Register the merged builder
@@ -175,6 +185,7 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         ExperimentFrameworkConfigurationOptions options,
         ITypeResolver typeResolver,
+        ConfigurationExtensionRegistry? extensionRegistry,
         ILogger<ConfigurationExperimentBuilder>? logger)
     {
         var basePath = options.BasePath ?? Directory.GetCurrentDirectory();
@@ -197,6 +208,7 @@ public static class ServiceCollectionExtensions
             configuration,
             options,
             typeResolver,
+            extensionRegistry,
             logger);
 
         services.AddSingleton(watcher);
@@ -213,6 +225,7 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
     private readonly IConfiguration _configuration;
     private readonly ExperimentFrameworkConfigurationOptions _options;
     private readonly ITypeResolver _typeResolver;
+    private readonly ConfigurationExtensionRegistry? _extensionRegistry;
     private readonly ILogger? _logger;
     private readonly List<FileSystemWatcher> _watchers = [];
     private readonly ConcurrentDictionary<string, DateTime> _lastChangeTime = new();
@@ -225,12 +238,14 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
         IConfiguration configuration,
         ExperimentFrameworkConfigurationOptions options,
         ITypeResolver typeResolver,
+        ConfigurationExtensionRegistry? extensionRegistry,
         ILogger? logger)
     {
         _filePaths = filePaths;
         _configuration = configuration;
         _options = options;
         _typeResolver = typeResolver;
+        _extensionRegistry = extensionRegistry;
         _logger = logger;
     }
 
@@ -323,7 +338,8 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
                 var loader = new ExperimentConfigurationLoader();
                 var configRoot = loader.Load(_configuration, _options);
 
-                var validator = new ConfigurationValidator();
+                // Validate using the extension registry
+                var validator = new ConfigurationValidator(_extensionRegistry);
                 var validationResult = validator.Validate(configRoot);
 
                 foreach (var warning in validationResult.Warnings)

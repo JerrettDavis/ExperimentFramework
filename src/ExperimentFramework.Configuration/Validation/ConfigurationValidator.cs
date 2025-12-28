@@ -1,3 +1,4 @@
+using ExperimentFramework.Configuration.Extensions;
 using ExperimentFramework.Configuration.Models;
 
 namespace ExperimentFramework.Configuration.Validation;
@@ -7,21 +8,28 @@ namespace ExperimentFramework.Configuration.Validation;
 /// </summary>
 public sealed class ConfigurationValidator : IConfigurationValidator
 {
-    private static readonly HashSet<string> ValidSelectionModes = new(StringComparer.OrdinalIgnoreCase)
+    private readonly ConfigurationExtensionRegistry? _extensionRegistry;
+
+    // Built-in types that are always valid (for backward compatibility when no registry)
+    // Note: Some of these require additional packages to actually work at runtime
+    private static readonly HashSet<string> BuiltInSelectionModes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "featureFlag", "configurationKey", "variantFeatureFlag",
-        "openFeature", "stickyRouting", "custom"
+        "featureFlag", "configurationKey", "custom",
+        // Extension package modes (require package to be installed for runtime)
+        "variantFeatureFlag", "openFeature", "stickyRouting",
+        "rollout", "stagedRollout", "targeting"
+    };
+
+    private static readonly HashSet<string> BuiltInDecoratorTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "logging", "timeout", "metrics", "killSwitch", "custom",
+        // Extension package decorators (require package to be installed for runtime)
+        "circuitBreaker", "outcomeCollection"
     };
 
     private static readonly HashSet<string> ValidErrorPolicies = new(StringComparer.OrdinalIgnoreCase)
     {
         "throw", "fallbackToControl", "fallbackTo", "tryInOrder", "tryAny"
-    };
-
-    private static readonly HashSet<string> ValidDecoratorTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "logging", "timeout", "metrics", "killSwitch",
-        "circuitBreaker", "outcomeCollection", "custom"
     };
 
     private static readonly HashSet<string> ValidHypothesisTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -33,6 +41,22 @@ public sealed class ConfigurationValidator : IConfigurationValidator
     {
         "binary", "continuous", "count", "duration"
     };
+
+    /// <summary>
+    /// Creates a new validator without an extension registry (backward compatible).
+    /// </summary>
+    public ConfigurationValidator() : this(null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new validator with an optional extension registry.
+    /// </summary>
+    /// <param name="extensionRegistry">Optional registry for custom decorator and selection mode validation.</param>
+    public ConfigurationValidator(ConfigurationExtensionRegistry? extensionRegistry)
+    {
+        _extensionRegistry = extensionRegistry;
+    }
 
     /// <inheritdoc />
     public ConfigurationValidationResult Validate(ExperimentFrameworkConfigurationRoot config)
@@ -79,7 +103,7 @@ public sealed class ConfigurationValidator : IConfigurationValidator
         return new ConfigurationValidationResult(errors);
     }
 
-    private static void ValidateDecorator(DecoratorConfig decorator, string path, List<ConfigurationValidationError> errors)
+    private void ValidateDecorator(DecoratorConfig decorator, string path, List<ConfigurationValidationError> errors)
     {
         if (string.IsNullOrWhiteSpace(decorator.Type))
         {
@@ -87,15 +111,28 @@ public sealed class ConfigurationValidator : IConfigurationValidator
             return;
         }
 
-        if (!ValidDecoratorTypes.Contains(decorator.Type))
+        // Check if type is valid - either registered in the extension registry or a built-in type
+        var isValidType = _extensionRegistry?.HasDecoratorHandler(decorator.Type) == true
+                          || BuiltInDecoratorTypes.Contains(decorator.Type);
+
+        if (!isValidType)
         {
+            // Get valid types for the error message
+            var validTypes = GetValidDecoratorTypes();
             errors.Add(ConfigurationValidationError.Error(
                 $"{path}.type",
-                $"Invalid decorator type: '{decorator.Type}'. Valid values: {string.Join(", ", ValidDecoratorTypes)}"));
+                $"Invalid decorator type: '{decorator.Type}'. Valid values: {string.Join(", ", validTypes)}"));
+            return;
         }
 
-        if (decorator.Type.Equals("custom", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(decorator.TypeName))
+        // Use handler-specific validation if available
+        var handler = _extensionRegistry?.GetDecoratorHandler(decorator.Type);
+        if (handler != null)
+        {
+            errors.AddRange(handler.Validate(decorator, path));
+        }
+        else if (decorator.Type.Equals("custom", StringComparison.OrdinalIgnoreCase) &&
+                 string.IsNullOrWhiteSpace(decorator.TypeName))
         {
             errors.Add(ConfigurationValidationError.Error(
                 $"{path}.typeName",
@@ -103,7 +140,20 @@ public sealed class ConfigurationValidator : IConfigurationValidator
         }
     }
 
-    private static void ValidateTrial(TrialConfig trial, string path, List<ConfigurationValidationError> errors)
+    private IEnumerable<string> GetValidDecoratorTypes()
+    {
+        var types = new HashSet<string>(BuiltInDecoratorTypes, StringComparer.OrdinalIgnoreCase);
+        if (_extensionRegistry != null)
+        {
+            foreach (var type in _extensionRegistry.GetRegisteredDecoratorTypes())
+            {
+                types.Add(type);
+            }
+        }
+        return types.OrderBy(t => t);
+    }
+
+    private void ValidateTrial(TrialConfig trial, string path, List<ConfigurationValidationError> errors)
     {
         // Required fields
         if (string.IsNullOrWhiteSpace(trial.ServiceType))
@@ -167,7 +217,7 @@ public sealed class ConfigurationValidator : IConfigurationValidator
         }
     }
 
-    private static void ValidateSelectionMode(SelectionModeConfig mode, string path, List<ConfigurationValidationError> errors)
+    private void ValidateSelectionMode(SelectionModeConfig mode, string path, List<ConfigurationValidationError> errors)
     {
         if (string.IsNullOrWhiteSpace(mode.Type))
         {
@@ -175,21 +225,45 @@ public sealed class ConfigurationValidator : IConfigurationValidator
             return;
         }
 
-        if (!ValidSelectionModes.Contains(mode.Type))
+        // Check if type is valid - either registered in the extension registry or a built-in type
+        var isValidType = _extensionRegistry?.HasSelectionModeHandler(mode.Type) == true
+                          || BuiltInSelectionModes.Contains(mode.Type);
+
+        if (!isValidType)
         {
+            var validTypes = GetValidSelectionModeTypes();
             errors.Add(ConfigurationValidationError.Error(
                 $"{path}.type",
-                $"Invalid selection mode type: '{mode.Type}'. Valid values: {string.Join(", ", ValidSelectionModes)}"));
+                $"Invalid selection mode type: '{mode.Type}'. Valid values: {string.Join(", ", validTypes)}"));
+            return;
         }
 
-        // Mode-specific validation
-        if (mode.Type.Equals("custom", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(mode.ModeIdentifier))
+        // Use handler-specific validation if available
+        var handler = _extensionRegistry?.GetSelectionModeHandler(mode.Type);
+        if (handler != null)
+        {
+            errors.AddRange(handler.Validate(mode, path));
+        }
+        else if (mode.Type.Equals("custom", StringComparison.OrdinalIgnoreCase) &&
+                 string.IsNullOrWhiteSpace(mode.ModeIdentifier))
         {
             errors.Add(ConfigurationValidationError.Error(
                 $"{path}.modeIdentifier",
                 "Mode identifier is required for custom selection mode"));
         }
+    }
+
+    private IEnumerable<string> GetValidSelectionModeTypes()
+    {
+        var types = new HashSet<string>(BuiltInSelectionModes, StringComparer.OrdinalIgnoreCase);
+        if (_extensionRegistry != null)
+        {
+            foreach (var type in _extensionRegistry.GetRegisteredSelectionModeTypes())
+            {
+                types.Add(type);
+            }
+        }
+        return types.OrderBy(t => t);
     }
 
     private static void ValidateCondition(ConditionConfig condition, string path, List<ConfigurationValidationError> errors)
@@ -296,7 +370,7 @@ public sealed class ConfigurationValidator : IConfigurationValidator
         }
     }
 
-    private static void ValidateExperiment(ExperimentConfig experiment, string path, List<ConfigurationValidationError> errors)
+    private void ValidateExperiment(ExperimentConfig experiment, string path, List<ConfigurationValidationError> errors)
     {
         if (string.IsNullOrWhiteSpace(experiment.Name))
         {
