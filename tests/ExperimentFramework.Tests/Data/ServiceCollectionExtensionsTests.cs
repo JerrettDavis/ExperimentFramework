@@ -159,6 +159,46 @@ public class ServiceCollectionExtensionsTests
         Assert.Same(customStore, store);
     }
 
+    [Fact]
+    public void AddExperimentDataConfiguration_RegistersDecoratorHandler()
+    {
+        var services = new ServiceCollection();
+
+        services.AddExperimentDataConfiguration();
+
+        var provider = services.BuildServiceProvider();
+        var handlers = provider.GetServices<ExperimentFramework.Configuration.Extensions.IConfigurationDecoratorHandler>().ToList();
+
+        Assert.Contains(handlers, h => h.DecoratorType == "outcomeCollection");
+    }
+
+    [Fact]
+    public void AddExperimentDataConfiguration_ReturnsServiceCollection()
+    {
+        var services = new ServiceCollection();
+
+        var result = services.AddExperimentDataConfiguration();
+
+        Assert.Same(services, result);
+    }
+
+    [Fact]
+    public void AddExperimentDataConfiguration_IsIdempotent()
+    {
+        var services = new ServiceCollection();
+
+        services.AddExperimentDataConfiguration();
+        services.AddExperimentDataConfiguration();
+
+        var provider = services.BuildServiceProvider();
+        var handlers = provider.GetServices<ExperimentFramework.Configuration.Extensions.IConfigurationDecoratorHandler>()
+            .Where(h => h.DecoratorType == "outcomeCollection")
+            .ToList();
+
+        // TryAddEnumerable should prevent duplicates
+        Assert.Single(handlers);
+    }
+
     // Test implementation of IOutcomeStore
     private sealed class TestOutcomeStore : IOutcomeStore
     {

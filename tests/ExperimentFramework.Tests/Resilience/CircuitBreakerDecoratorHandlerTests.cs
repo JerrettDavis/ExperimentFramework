@@ -335,4 +335,94 @@ public sealed class CircuitBreakerDecoratorHandlerTests(ITestOutputHelper output
 
         await Task.CompletedTask;
     }
+
+    [Scenario("Apply ignores unsupported option types for double")]
+    [Fact]
+    public async Task Apply_ignores_unsupported_double_types()
+    {
+        var handler = new CircuitBreakerDecoratorHandler();
+        var builder = ExperimentFramework.ExperimentFrameworkBuilder.Create();
+        var config = new DecoratorConfig
+        {
+            Type = "circuitBreaker",
+            Options = new Dictionary<string, object>
+            {
+                ["failureRatioThreshold"] = new object() // Unsupported type
+            }
+        };
+
+        // Should not throw, just use default
+        handler.Apply(builder, config, null);
+
+        Assert.NotNull(builder);
+
+        await Task.CompletedTask;
+    }
+
+    [Scenario("Apply ignores unsupported option types for int")]
+    [Fact]
+    public async Task Apply_ignores_unsupported_int_types()
+    {
+        var handler = new CircuitBreakerDecoratorHandler();
+        var builder = ExperimentFramework.ExperimentFrameworkBuilder.Create();
+        var config = new DecoratorConfig
+        {
+            Type = "circuitBreaker",
+            Options = new Dictionary<string, object>
+            {
+                ["minimumThroughput"] = new object() // Unsupported type
+            }
+        };
+
+        // Should not throw, just use default
+        handler.Apply(builder, config, null);
+
+        Assert.NotNull(builder);
+
+        await Task.CompletedTask;
+    }
+
+    [Scenario("Apply ignores unsupported option types for TimeSpan")]
+    [Fact]
+    public async Task Apply_ignores_unsupported_timespan_types()
+    {
+        var handler = new CircuitBreakerDecoratorHandler();
+        var builder = ExperimentFramework.ExperimentFrameworkBuilder.Create();
+        var config = new DecoratorConfig
+        {
+            Type = "circuitBreaker",
+            Options = new Dictionary<string, object>
+            {
+                ["samplingDuration"] = new object() // Unsupported type
+            }
+        };
+
+        // Should not throw, just use default
+        handler.Apply(builder, config, null);
+
+        Assert.NotNull(builder);
+
+        await Task.CompletedTask;
+    }
+
+    [Scenario("Options parsing handles long values for failureRatioThreshold")]
+    [Fact]
+    public async Task Options_parsing_handles_long_for_failure_ratio()
+    {
+        var handler = new CircuitBreakerDecoratorHandler();
+        var config = new DecoratorConfig
+        {
+            Type = "circuitBreaker",
+            Options = new Dictionary<string, object>
+            {
+                ["failureRatioThreshold"] = 1L // long value
+            }
+        };
+
+        var errors = handler.Validate(config, "decorators[0]").ToList();
+
+        Assert.Empty(errors);
+
+        await Task.CompletedTask;
+    }
 }

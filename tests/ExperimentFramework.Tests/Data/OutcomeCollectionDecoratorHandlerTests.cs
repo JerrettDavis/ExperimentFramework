@@ -368,4 +368,76 @@ public sealed class OutcomeCollectionDecoratorHandlerTests(ITestOutputHelper out
         var factories = builder.GetDecoratorFactories();
         Assert.NotEmpty(factories);
     }
+
+    [Scenario("Apply ignores unsupported bool type")]
+    [Fact]
+    public async Task Apply_ignores_unsupported_bool_type()
+    {
+        // Arrange
+        var handler = new OutcomeCollectionDecoratorHandler();
+        var config = new DecoratorConfig
+        {
+            Type = "outcomeCollection",
+            Options = new Dictionary<string, object>
+            {
+                ["autoGenerateIds"] = new object() // Unsupported type
+            }
+        };
+        var builder = ExperimentFrameworkBuilder.Create();
+
+        // Act - Should not throw, just use default
+        handler.Apply(builder, config, null);
+
+        // Assert
+        var factories = builder.GetDecoratorFactories();
+        Assert.NotEmpty(factories);
+    }
+
+    [Scenario("Apply ignores unsupported int type")]
+    [Fact]
+    public async Task Apply_ignores_unsupported_int_type()
+    {
+        // Arrange
+        var handler = new OutcomeCollectionDecoratorHandler();
+        var config = new DecoratorConfig
+        {
+            Type = "outcomeCollection",
+            Options = new Dictionary<string, object>
+            {
+                ["maxBatchSize"] = new object() // Unsupported type
+            }
+        };
+        var builder = ExperimentFrameworkBuilder.Create();
+
+        // Act - Should not throw, just use default
+        handler.Apply(builder, config, null);
+
+        // Assert
+        var factories = builder.GetDecoratorFactories();
+        Assert.NotEmpty(factories);
+    }
+
+    [Scenario("Apply ignores unsupported timespan type")]
+    [Fact]
+    public async Task Apply_ignores_unsupported_timespan_type()
+    {
+        // Arrange
+        var handler = new OutcomeCollectionDecoratorHandler();
+        var config = new DecoratorConfig
+        {
+            Type = "outcomeCollection",
+            Options = new Dictionary<string, object>
+            {
+                ["batchFlushInterval"] = new object() // Unsupported type
+            }
+        };
+        var builder = ExperimentFrameworkBuilder.Create();
+
+        // Act - Should not throw, just use default
+        handler.Apply(builder, config, null);
+
+        // Assert
+        var factories = builder.GetDecoratorFactories();
+        Assert.NotEmpty(factories);
+    }
 }
