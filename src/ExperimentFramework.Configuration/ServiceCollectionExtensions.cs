@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using ExperimentFramework.Configuration.Building;
 using ExperimentFramework.Configuration.Exceptions;
 using ExperimentFramework.Configuration.Loading;
-using ExperimentFramework.Configuration.Models;
 using ExperimentFramework.Configuration.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

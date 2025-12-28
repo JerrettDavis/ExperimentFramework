@@ -132,7 +132,6 @@ The framework follows these design principles:
 ### Getting Started
 - [Getting Started](getting-started.md) - Install the framework and create your first experiment
 - [Core Concepts](core-concepts.md) - Detailed explanation of trials, proxies, and decorators
-- [YAML/JSON Configuration](configuration.md) - Define experiments declaratively via YAML/JSON files *(NEW)*
 
 ### Traffic Routing & Selection
 - [Selection Modes](selection-modes.md) - Learn about the different ways to select trials
@@ -145,11 +144,15 @@ The framework follows these design principles:
 - [Circuit Breaker](circuit-breaker.md) - Automatic failure isolation
 - [Timeout Enforcement](timeout-enforcement.md) - Prevent runaway operations
 
-### Scientific Experimentation *(NEW)*
+### Scientific Experimentation
 - [Data Collection](data-collection.md) - Collect experiment outcomes
 - [Statistical Analysis](statistical-analysis.md) - Analyze results with statistical tests
 - [Hypothesis Testing](hypothesis-testing.md) - Define and test hypotheses
 - [Power Analysis](power-analysis.md) - Calculate required sample sizes
+
+### Enterprise Features *(NEW)*
+- [Plugin System](plugins.md) - Dynamic assembly loading for experiments
+- [YAML/JSON Configuration](configuration.md) - Declarative experiment definitions
 
 ### Reference
 - [Naming Conventions](naming-conventions.md) - Naming patterns and conventions

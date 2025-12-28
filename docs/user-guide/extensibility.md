@@ -364,3 +364,11 @@ services.AddSingleton<ISelectionModeProviderFactory, CustomProviderFactory>();
 ```
 
 This is rarely needed since `AddSelectionModeProvider<T>()` handles most scenarios automatically.
+
+---
+
+## Next Steps
+
+- [Plugin System](plugins.md) - Load experiment implementations from external DLLs
+- [YAML/JSON Configuration](configuration.md) - Declarative experiment definitions
+- [Selection Modes](selection-modes.md) - Built-in selection modes and their usage

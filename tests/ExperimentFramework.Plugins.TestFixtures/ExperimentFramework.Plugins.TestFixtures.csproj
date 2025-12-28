@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+
+    <!-- This is a test fixture assembly, not intended to be run directly -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExperimentFramework.Plugins\ExperimentFramework.Plugins.csproj" />
+  </ItemGroup>
+
+  <!-- Embed the plugin manifest as a resource -->
+  <ItemGroup>
+    <EmbeddedResource Include="plugin.manifest.json" />
+  </ItemGroup>
+
+</Project>
