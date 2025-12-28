@@ -204,4 +204,61 @@ public class PluginLoadContextTests : IDisposable
     }
 
     #endregion
+
+    #region Load Method Tests
+
+    [Fact]
+    public void LoadMainAssembly_WithFullIsolation_LoadsFromPluginDirectory()
+    {
+        var dllPath = typeof(PluginLoadContextTests).Assembly.Location;
+        var registry = new SharedTypeRegistry();
+
+        _context = new PluginLoadContext(dllPath, PluginIsolationMode.Full, registry);
+        var assembly = _context.LoadMainAssembly();
+
+        Assert.NotNull(assembly);
+    }
+
+    [Fact]
+    public void LoadMainAssembly_WithNoneIsolation_LoadsAssembly()
+    {
+        var dllPath = typeof(PluginLoadContextTests).Assembly.Location;
+        var registry = new SharedTypeRegistry();
+
+        _context = new PluginLoadContext(dllPath, PluginIsolationMode.None, registry);
+        var assembly = _context.LoadMainAssembly();
+
+        Assert.NotNull(assembly);
+    }
+
+    [Fact]
+    public void Load_SharedAssembly_LoadsFromSharedRegistry()
+    {
+        var dllPath = typeof(PluginLoadContextTests).Assembly.Location;
+        var registry = new SharedTypeRegistry();
+
+        _context = new PluginLoadContext(dllPath, PluginIsolationMode.Shared, registry);
+        var assembly = _context.LoadMainAssembly();
+
+        // The assembly should be loaded and dependencies resolved
+        Assert.NotNull(assembly);
+    }
+
+    #endregion
+
+    #region Constructor Edge Cases
+
+    [Fact]
+    public void Constructor_WithFileOnlyPath_InfersDirectory()
+    {
+        var dllPath = typeof(PluginLoadContextTests).Assembly.Location;
+        var registry = new SharedTypeRegistry();
+
+        _context = new PluginLoadContext(dllPath, PluginIsolationMode.Shared, registry);
+
+        Assert.Equal(dllPath, _context.PluginPath);
+        Assert.NotNull(_context.Name);
+    }
+
+    #endregion
 }

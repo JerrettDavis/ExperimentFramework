@@ -193,4 +193,41 @@ public class SharedTypeRegistryTests
         Assert.Contains("System.Runtime", SharedTypeRegistry.DefaultSharedAssemblies);
         Assert.Contains("System.Private.CoreLib", SharedTypeRegistry.DefaultSharedAssemblies);
     }
+
+    [Fact]
+    public void TryGetSharedAssembly_WithNonExistentSharedAssembly_ReturnsFalse()
+    {
+        var registry = new SharedTypeRegistry(["NonExistent.Assembly.That.Does.Not.Exist"]);
+        var assemblyName = new AssemblyName("NonExistent.Assembly.That.Does.Not.Exist");
+
+        // This should attempt to load from default context and fail gracefully
+        var result = registry.TryGetSharedAssembly(assemblyName, out var assembly);
+
+        Assert.False(result);
+        Assert.Null(assembly);
+    }
+
+    [Fact]
+    public void Constructor_WithEmptyAdditionalAssemblies_UsesOnlyDefaults()
+    {
+        var registry = new SharedTypeRegistry([]);
+
+        Assert.True(registry.IsShared("ExperimentFramework"));
+        Assert.False(registry.IsShared("Custom.Assembly"));
+    }
+
+    [Fact]
+    public void AddSharedAssembly_DuplicateName_KeepsFirst()
+    {
+        var registry = new SharedTypeRegistry();
+        var testAssembly1 = typeof(SharedTypeRegistryTests).Assembly;
+        var testAssembly2 = typeof(SharedTypeRegistry).Assembly;
+
+        registry.AddSharedAssembly("DuplicateAssembly", testAssembly1);
+        registry.AddSharedAssembly("DuplicateAssembly", testAssembly2);
+
+        // TryAdd keeps the first value
+        registry.TryGetSharedAssembly(new AssemblyName("DuplicateAssembly"), out var result);
+        Assert.Same(testAssembly1, result);
+    }
 }

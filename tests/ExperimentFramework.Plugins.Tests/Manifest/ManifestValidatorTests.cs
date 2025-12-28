@@ -276,4 +276,135 @@ public class ManifestValidatorTests
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w => w.Contains("will be ignored"));
     }
+
+    [Fact]
+    public void Validate_ValidAlias_ReturnsSuccess()
+    {
+        var manifest = new PluginManifest
+        {
+            ManifestVersion = "1.0",
+            Id = "Test.Plugin",
+            Name = "Test Plugin",
+            Version = "1.0.0",
+            Services =
+            [
+                new PluginServiceRegistration
+                {
+                    Interface = "ITestService",
+                    Implementations =
+                    [
+                        new PluginImplementation { Type = "SomeType", Alias = "valid-alias_123" }
+                    ]
+                }
+            ]
+        };
+
+        var result = _validator.Validate(manifest);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void Validate_MultipleErrors_ReturnsAllErrors()
+    {
+        var manifest = new PluginManifest
+        {
+            ManifestVersion = "1.0",
+            Id = "",
+            Name = "",
+            Version = ""
+        };
+
+        var result = _validator.Validate(manifest);
+
+        Assert.False(result.IsValid);
+        Assert.True(result.Errors.Count >= 3); // At least ID, name, and version errors
+    }
+
+    [Fact]
+    public void Validate_SharedIsolationWithSharedAssemblies_DoesNotWarn()
+    {
+        var manifest = new PluginManifest
+        {
+            ManifestVersion = "1.0",
+            Id = "Test.Plugin",
+            Name = "Test Plugin",
+            Version = "1.0.0",
+            Isolation = new PluginIsolationConfig
+            {
+                Mode = PluginIsolationMode.Shared,
+                SharedAssemblies = ["SomeAssembly"]
+            }
+        };
+
+        var result = _validator.Validate(manifest);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("will be ignored"));
+    }
+
+    [Fact]
+    public void Validate_NoneIsolationWithSharedAssemblies_DoesNotWarn()
+    {
+        var manifest = new PluginManifest
+        {
+            ManifestVersion = "1.0",
+            Id = "Test.Plugin",
+            Name = "Test Plugin",
+            Version = "1.0.0",
+            Isolation = new PluginIsolationConfig
+            {
+                Mode = PluginIsolationMode.None,
+                SharedAssemblies = ["SomeAssembly"]
+            }
+        };
+
+        var result = _validator.Validate(manifest);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("will be ignored"));
+    }
+
+    [Fact]
+    public void Validate_ServiceWithNullImplementations_HandlesGracefully()
+    {
+        // Services with null implementations should be handled
+        var manifest = new PluginManifest
+        {
+            ManifestVersion = "1.0",
+            Id = "Test.Plugin",
+            Name = "Test Plugin",
+            Version = "1.0.0",
+            Services =
+            [
+                new PluginServiceRegistration
+                {
+                    Interface = "ITestService",
+                    Implementations = []
+                }
+            ]
+        };
+
+        var result = _validator.Validate(manifest);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_EmptyServices_ReturnsSuccess()
+    {
+        var manifest = new PluginManifest
+        {
+            ManifestVersion = "1.0",
+            Id = "Test.Plugin",
+            Name = "Test Plugin",
+            Version = "1.0.0",
+            Services = []
+        };
+
+        var result = _validator.Validate(manifest);
+
+        Assert.True(result.IsValid);
+    }
 }

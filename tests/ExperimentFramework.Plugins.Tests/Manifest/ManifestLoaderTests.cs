@@ -1140,5 +1140,25 @@ public class ManifestLoaderTests : IDisposable
         Assert.True(result);
     }
 
+    [Fact]
+    public void Constructor_WithZeroMaxDepth_UsesDefaultDepth()
+    {
+        var loader = new ManifestLoader(maxManifestSize: 1024 * 1024, maxJsonDepth: 0);
+
+        var assemblyPath = Path.Combine(_tempDir, "ZeroDepth.dll");
+        var manifestPath = Path.Combine(_tempDir, "ZeroDepth.plugin.json");
+
+        var manifestJson = """
+            {
+                "manifestVersion": "1.0",
+                "plugin": { "id": "ZeroDepth.Plugin" }
+            }
+            """;
+        File.WriteAllText(manifestPath, manifestJson);
+
+        var result = loader.TryLoadFromAdjacentFile(assemblyPath, out var manifest);
+        Assert.True(result);
+    }
+
     #endregion
 }

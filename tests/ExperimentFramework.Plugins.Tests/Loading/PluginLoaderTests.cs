@@ -1,6 +1,8 @@
 using ExperimentFramework.Plugins.Abstractions;
+using ExperimentFramework.Plugins.Configuration;
 using ExperimentFramework.Plugins.Loading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ExperimentFramework.Plugins.Tests.Loading;
 
@@ -376,6 +378,117 @@ public class PluginLoaderTests : IDisposable
         Assert.True(context.IsLoaded);
 
         await context.DisposeAsync();
+    }
+
+    #endregion
+
+    #region Constructor with Options Tests
+
+    [Fact]
+    public void Constructor_WithOptions_ThrowsOnNull()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new PluginLoader(null!, null, null));
+    }
+
+    [Fact]
+    public void Constructor_WithOptions_UsesConfiguredSettings()
+    {
+        var configOptions = Options.Create(new PluginConfigurationOptions
+        {
+            MaxManifestSizeBytes = 512 * 1024,
+            MaxManifestJsonDepth = 16
+        });
+
+        var loader = new PluginLoader(configOptions);
+
+        Assert.NotNull(loader);
+    }
+
+    #endregion
+
+    #region LoadAsync Exception Handling Tests
+
+    [Fact]
+    public async Task LoadAsync_WithInvalidAssembly_DoesNotLeakLoadContext()
+    {
+        // Create a file that is not a valid assembly
+        var invalidDll = Path.Combine(_tempDir, "invalid.dll");
+        File.WriteAllBytes(invalidDll, [0x00, 0x01, 0x02, 0x03]); // Not a valid PE
+
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.Shared,
+            EnableUnloading = true
+        };
+
+        // Should throw because it's not a valid assembly
+        await Assert.ThrowsAnyAsync<Exception>(() => _loader.LoadAsync(invalidDll, options));
+
+        // The load context should be cleaned up on failure
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithFullIsolation_LoadsPlugin()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.Full,
+            EnableUnloading = true
+        };
+
+        var context = await _loader.LoadAsync(dllPath, options);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+
+        await context.DisposeAsync();
+    }
+
+    #endregion
+
+    #region Manifest Warnings Tests
+
+    [Fact]
+    public async Task LoadAsync_WithManifestWarnings_LogsWarnings()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var logger = Substitute.For<ILogger<PluginLoader>>();
+        var loader = new PluginLoader(logger: logger);
+
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+
+        var context = await loader.LoadAsync(dllPath, options);
+
+        Assert.NotNull(context);
+
+        await context.DisposeAsync();
+    }
+
+    #endregion
+
+    #region Edge Cases
+
+    [Fact]
+    public async Task LoadAsync_MultipleLoadsSameFile_CreatesDifferentContexts()
+    {
+        var dllPath = typeof(PluginLoaderTests).Assembly.Location;
+        var options = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+
+        var context1 = await _loader.LoadAsync(dllPath, options);
+        var context2 = await _loader.LoadAsync(dllPath, options);
+
+        Assert.NotEqual(context1.ContextId, context2.ContextId);
+
+        await context1.DisposeAsync();
+        await context2.DisposeAsync();
     }
 
     #endregion

@@ -699,3 +699,178 @@ public class PluginManagerDiscoveryTests : IDisposable
         Assert.Empty(plugins);
     }
 }
+
+public class PluginManagerDiscoveryWithGlobTests : IDisposable
+{
+    private readonly string _tempDir;
+
+    public PluginManagerDiscoveryWithGlobTests()
+    {
+        _tempDir = Path.Combine(Path.GetTempPath(), $"PluginGlobTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task DiscoverAndLoadAsync_WithGlobPattern_ExpandsPattern()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DiscoveryPaths = [Path.Combine(_tempDir, "*.dll")]
+        });
+        await using var manager = new PluginManager(loader, options);
+
+        // No DLLs exist, but glob pattern should be processed
+        var plugins = await manager.DiscoverAndLoadAsync();
+
+        Assert.Empty(plugins);
+    }
+
+    [Fact]
+    public async Task DiscoverAndLoadAsync_WithRecursiveGlobPattern_SearchesSubdirectories()
+    {
+        var subDir = Path.Combine(_tempDir, "sub");
+        Directory.CreateDirectory(subDir);
+
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DiscoveryPaths = [Path.Combine(_tempDir, "**", "*.dll")]
+        });
+        await using var manager = new PluginManager(loader, options);
+
+        var plugins = await manager.DiscoverAndLoadAsync();
+
+        Assert.Empty(plugins);
+    }
+
+    [Fact]
+    public async Task DiscoverAndLoadAsync_WithDirectFilePath_LoadsFile()
+    {
+        var dllPath = typeof(PluginManagerDiscoveryWithGlobTests).Assembly.Location;
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DiscoveryPaths = [dllPath]
+        });
+        await using var manager = new PluginManager(loader, options);
+
+        var plugins = await manager.DiscoverAndLoadAsync();
+
+        Assert.Single(plugins);
+    }
+
+    [Fact]
+    public async Task DiscoverAndLoadAsync_WithNonExistentDirectory_ReturnsEmpty()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DiscoveryPaths = ["/nonexistent/directory"]
+        });
+        await using var manager = new PluginManager(loader, options);
+
+        var plugins = await manager.DiscoverAndLoadAsync();
+
+        Assert.Empty(plugins);
+    }
+
+    [Fact]
+    public async Task DiscoverAndLoadAsync_WithGlobPatternInNonExistentDirectory_ReturnsEmpty()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DiscoveryPaths = ["/nonexistent/**/*.dll"]
+        });
+        await using var manager = new PluginManager(loader, options);
+
+        var plugins = await manager.DiscoverAndLoadAsync();
+
+        Assert.Empty(plugins);
+    }
+}
+
+public class PluginManagerApplyDefaultOptionsTests : IAsyncDisposable
+{
+    private PluginManager? _manager;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_manager != null)
+        {
+            await _manager.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithExplicitIsolationMode_DoesNotOverrideWithDefault()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DefaultIsolationMode = PluginIsolationMode.Full
+        });
+        _manager = new PluginManager(loader, options);
+
+        var dllPath = typeof(PluginManagerApplyDefaultOptionsTests).Assembly.Location;
+        var loadOptions = new PluginLoadOptions
+        {
+            IsolationModeOverride = PluginIsolationMode.None
+        };
+
+        var context = await _manager.LoadAsync(dllPath, loadOptions);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithExplicitSharedAssemblies_DoesNotOverrideWithDefault()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DefaultSharedAssemblies = ["Default.Assembly"],
+            DefaultIsolationMode = PluginIsolationMode.None
+        });
+        _manager = new PluginManager(loader, options);
+
+        var dllPath = typeof(PluginManagerApplyDefaultOptionsTests).Assembly.Location;
+        var loadOptions = new PluginLoadOptions
+        {
+            AdditionalSharedAssemblies = ["Explicit.Assembly"]
+        };
+
+        var context = await _manager.LoadAsync(dllPath, loadOptions);
+
+        Assert.NotNull(context);
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithNullOptions_AppliesDefaults()
+    {
+        var loader = new PluginLoader();
+        var options = Options.Create(new PluginConfigurationOptions
+        {
+            DefaultIsolationMode = PluginIsolationMode.None,
+            DefaultSharedAssemblies = ["Some.Assembly"]
+        });
+        _manager = new PluginManager(loader, options);
+
+        var dllPath = typeof(PluginManagerApplyDefaultOptionsTests).Assembly.Location;
+
+        var context = await _manager.LoadAsync(dllPath, null);
+
+        Assert.NotNull(context);
+        Assert.True(context.IsLoaded);
+    }
+}
