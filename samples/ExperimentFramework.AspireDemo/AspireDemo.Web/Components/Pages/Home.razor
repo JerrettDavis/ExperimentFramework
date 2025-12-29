@@ -1,0 +1,312 @@
+@page "/"
+
+<PageTitle>ExperimentFramework Demo</PageTitle>
+
+<div class="home-page">
+    <div class="hero-section">
+        <h1>ExperimentFramework</h1>
+        <p class="hero-subtitle">A powerful .NET library for A/B testing and feature experimentation</p>
+        <div class="hero-actions">
+            <a href="experiments" class="btn-primary">View Experiments</a>
+            <a href="demo" class="btn-secondary">Try Live Demo</a>
+        </div>
+    </div>
+
+    <div class="features-section">
+        <h2>Demo Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon experiment-icon">A/B</div>
+                <h3>Experiment Dashboard</h3>
+                <p>View and manage all your experiments in one place. Toggle between variants in real-time and see instant results.</p>
+                <a href="experiments">Go to Dashboard ></a>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon demo-icon">></div>
+                <h3>Live Demo</h3>
+                <p>Experience experiments in action. Test pricing strategies, notifications, recommendations, and themes.</p>
+                <a href="demo">Try Demo ></a>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon analytics-icon">#</div>
+                <h3>Analytics</h3>
+                <p>Track experiment usage statistics and view the audit log for all system events.</p>
+                <a href="analytics">View Analytics ></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="experiments-preview">
+        <h2>Active Experiments</h2>
+        <div class="experiment-list">
+            <div class="experiment-item">
+                <span class="exp-badge revenue">Revenue</span>
+                <div class="exp-info">
+                    <strong>Pricing Strategy</strong>
+                    <span>Compare tiered, flat, and volume pricing models</span>
+                </div>
+            </div>
+            <div class="experiment-item">
+                <span class="exp-badge engagement">Engagement</span>
+                <div class="exp-info">
+                    <strong>Notification Style</strong>
+                    <span>Test standard vs personalized messaging</span>
+                </div>
+            </div>
+            <div class="experiment-item">
+                <span class="exp-badge engagement">Engagement</span>
+                <div class="exp-info">
+                    <strong>Recommendation Algorithm</strong>
+                    <span>Compare basic, AI-powered, and collaborative filtering</span>
+                </div>
+            </div>
+            <div class="experiment-item">
+                <span class="exp-badge ux">UX</span>
+                <div class="exp-info">
+                    <strong>UI Theme</strong>
+                    <span>Test light, dark, and system themes</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tech-section">
+        <h2>Built With</h2>
+        <div class="tech-badges">
+            <span class="tech-badge">.NET Aspire</span>
+            <span class="tech-badge">Blazor Server</span>
+            <span class="tech-badge">ExperimentFramework</span>
+            <span class="tech-badge">Minimal APIs</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .home-page {
+        padding: 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .hero-section {
+        text-align: center;
+        padding: 3rem 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        color: white;
+        margin-bottom: 2rem;
+    }
+
+    .hero-section h1 {
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+
+    .hero-subtitle {
+        margin: 0.75rem 0 1.5rem;
+        font-size: 1.125rem;
+        opacity: 0.95;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+
+    .btn-primary {
+        background: white;
+        color: #667eea;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .btn-secondary {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .features-section {
+        margin-bottom: 2rem;
+    }
+
+    .features-section h2 {
+        font-size: 1.5rem;
+        color: var(--theme-text, #1f2937);
+        margin: 0 0 1.5rem;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .feature-card {
+        background: var(--theme-background, white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .feature-card {
+        background: #374151;
+        border-color: #4b5563;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 1rem;
+    }
+
+    .experiment-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .demo-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .analytics-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+    .feature-card h3 {
+        margin: 0 0 0.5rem;
+        font-size: 1.125rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .feature-card p {
+        margin: 0 0 1rem;
+        color: #6b7280;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .feature-card a {
+        color: #3b82f6;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .feature-card a:hover {
+        text-decoration: underline;
+    }
+
+    .experiments-preview {
+        background: var(--theme-background, white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .experiments-preview {
+        background: #374151;
+        border-color: #4b5563;
+    }
+
+    .experiments-preview h2 {
+        font-size: 1.25rem;
+        color: var(--theme-text, #1f2937);
+        margin: 0 0 1rem;
+    }
+
+    .experiment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .experiment-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: rgba(128,128,128,0.1);
+        border-radius: 8px;
+    }
+
+    .exp-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .exp-badge.revenue { background: #d1fae5; color: #059669; }
+    .exp-badge.engagement { background: #fef3c7; color: #d97706; }
+    .exp-badge.ux { background: #ede9fe; color: #7c3aed; }
+
+    .exp-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .exp-info strong {
+        color: var(--theme-text, #1f2937);
+        font-size: 0.875rem;
+    }
+
+    .exp-info span {
+        color: #6b7280;
+        font-size: 0.75rem;
+    }
+
+    .tech-section {
+        text-align: center;
+    }
+
+    .tech-section h2 {
+        font-size: 1.25rem;
+        color: var(--theme-text, #1f2937);
+        margin: 0 0 1rem;
+    }
+
+    .tech-badges {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .tech-badge {
+        padding: 0.5rem 1rem;
+        background: rgba(128,128,128,0.15);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        color: var(--theme-text, #374151);
+        font-weight: 500;
+    }
+</style>

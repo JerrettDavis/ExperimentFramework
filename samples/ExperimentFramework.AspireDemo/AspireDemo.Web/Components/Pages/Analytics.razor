@@ -1,0 +1,481 @@
+@page "/analytics"
+@using AspireDemo.Web
+@inject ExperimentApiClient ExperimentApi
+
+<PageTitle>Analytics</PageTitle>
+
+<div class="analytics-page">
+    <div class="page-header">
+        <h1>Analytics & Audit Log</h1>
+        <p class="subtitle">Monitor experiment usage and track all system events</p>
+        <button class="refresh-btn" @onclick="RefreshData" disabled="@_loading">
+            @if (_loading)
+            {
+                <span class="btn-spinner"></span>
+            }
+            else
+            {
+                <span>R</span>
+            }
+            Refresh
+        </button>
+    </div>
+
+    <div class="analytics-grid">
+        <!-- Usage Statistics -->
+        <div class="analytics-section usage-section">
+            <h2>Usage Statistics</h2>
+
+            @if (_loading)
+            {
+                <div class="skeleton-grid">
+                    <div class="skeleton-usage-card"></div>
+                    <div class="skeleton-usage-card"></div>
+                </div>
+            }
+            else if (_usageStats.Count == 0)
+            {
+                <div class="empty-state">
+                    <p>No usage data yet. Try the experiments in the Live Demo!</p>
+                </div>
+            }
+            else
+            {
+                <div class="usage-charts">
+                    @foreach (var experiment in _usageStats)
+                    {
+                        <div class="usage-card">
+                            <h3>@FormatExperimentName(experiment.Key)</h3>
+                            <div class="usage-bars">
+                                @{
+                                    var total = experiment.Value.Values.Sum();
+                                }
+                                @foreach (var variant in experiment.Value.OrderByDescending(v => v.Value))
+                                {
+                                    var percentage = total > 0 ? (variant.Value * 100.0 / total) : 0;
+                                    <div class="usage-bar-container">
+                                        <div class="usage-bar-label">
+                                            <span class="variant-name">@variant.Key</span>
+                                            <span class="variant-count">@variant.Value calls</span>
+                                        </div>
+                                        <div class="usage-bar-track">
+                                            <div class="usage-bar-fill" style="width: @percentage.ToString("F0")%"></div>
+                                        </div>
+                                        <span class="usage-bar-percentage">@percentage.ToString("F0")%</span>
+                                    </div>
+                                }
+                            </div>
+                            <div class="usage-total">
+                                Total: <strong>@total</strong> calls
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Audit Log -->
+        <div class="analytics-section audit-section">
+            <h2>Audit Log</h2>
+
+            @if (_loading)
+            {
+                <div class="skeleton-table">
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                </div>
+            }
+            else if (_auditLog.Count == 0)
+            {
+                <div class="empty-state">
+                    <p>No audit events recorded yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="audit-table-container">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Event</th>
+                                <th>Experiment</th>
+                                <th>Trial</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in _auditLog)
+                            {
+                                <tr>
+                                    <td class="timestamp">@entry.Timestamp.ToString("HH:mm:ss")</td>
+                                    <td>
+                                        <span class="event-badge @GetEventClass(entry.EventType)">@entry.EventType</span>
+                                    </td>
+                                    <td>@(entry.ExperimentName ?? "-")</td>
+                                    <td>@(entry.TrialName ?? "-")</td>
+                                    <td class="details-cell">@TruncateDetails(entry.Details)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .analytics-page {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .page-header .subtitle {
+        flex: 1;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.15s;
+    }
+
+    .refresh-btn:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .refresh-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .analytics-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .analytics-section {
+        background: var(--theme-background, white);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .analytics-section {
+        background: #374151;
+        border-color: #4b5563;
+    }
+
+    .analytics-section h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.25rem;
+        color: var(--theme-text, #1f2937);
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(128,128,128,0.2);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+
+    /* Usage Charts */
+    .usage-charts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .usage-card {
+        padding: 1.25rem;
+        background: rgba(128,128,128,0.1);
+        border-radius: 8px;
+    }
+
+    .usage-card h3 {
+        margin: 0 0 1rem;
+        font-size: 1rem;
+        color: var(--theme-text, #374151);
+    }
+
+    .usage-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .usage-bar-container {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .usage-bar-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.875rem;
+        grid-column: 1 / -1;
+    }
+
+    .variant-name {
+        color: var(--theme-text, #374151);
+        font-weight: 500;
+    }
+
+    .variant-count {
+        color: #6b7280;
+    }
+
+    .usage-bar-track {
+        height: 8px;
+        background: rgba(128,128,128,0.2);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .usage-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .usage-bar-percentage {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #3b82f6;
+        min-width: 40px;
+        text-align: right;
+    }
+
+    .usage-total {
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(128,128,128,0.2);
+        font-size: 0.875rem;
+        color: #6b7280;
+        text-align: right;
+    }
+
+    /* Audit Table */
+    .audit-table-container {
+        overflow-x: auto;
+    }
+
+    .audit-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .audit-table th {
+        text-align: left;
+        padding: 0.75rem;
+        background: rgba(128,128,128,0.1);
+        color: #6b7280;
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid rgba(128,128,128,0.2);
+    }
+
+    .audit-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(128,128,128,0.1);
+        color: var(--theme-text, #374151);
+    }
+
+    .audit-table tr:hover td {
+        background: rgba(128,128,128,0.05);
+    }
+
+    .timestamp {
+        font-family: monospace;
+        color: #6b7280;
+    }
+
+    .event-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .event-badge.info {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .event-badge.warning {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .event-badge.error {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .event-badge.success {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .details-cell {
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #6b7280;
+        font-size: 0.75rem;
+    }
+
+    /* Skeleton loading styles */
+    .skeleton-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .skeleton-usage-card {
+        height: 150px;
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 8px;
+    }
+
+    :global(.theme-dark) .skeleton-usage-card {
+        background: linear-gradient(90deg, #4b5563 25%, #6b7280 50%, #4b5563 75%);
+        background-size: 200% 100%;
+    }
+
+    .skeleton-table {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .skeleton-row {
+        height: 40px;
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+    }
+
+    :global(.theme-dark) .skeleton-row {
+        background: linear-gradient(90deg, #4b5563 25%, #6b7280 50%, #4b5563 75%);
+        background-size: 200% 100%;
+    }
+
+    @@keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+</style>
+
+@code {
+    private Dictionary<string, Dictionary<string, int>> _usageStats = [];
+    private List<AuditLogEntry> _auditLog = [];
+    private bool _loading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        _loading = true;
+        try
+        {
+            _usageStats = await ExperimentApi.GetUsageStatsAsync();
+        }
+        catch
+        {
+            _usageStats = [];
+        }
+
+        try
+        {
+            _auditLog = await ExperimentApi.GetAuditLogAsync(50);
+        }
+        catch
+        {
+            _auditLog = [];
+        }
+
+        _loading = false;
+    }
+
+    private static string FormatExperimentName(string name) => name switch
+    {
+        "pricing-strategy" => "Pricing Strategy",
+        "notification-style" => "Notification Style",
+        "recommendation-algorithm" => "Recommendations",
+        "ui-theme" => "UI Theme",
+        _ => name
+    };
+
+    private static string GetEventClass(string eventType)
+    {
+        var lower = eventType.ToLower();
+        if (lower.Contains("error") || lower.Contains("fail")) return "error";
+        if (lower.Contains("warn")) return "warning";
+        if (lower.Contains("success") || lower.Contains("complete")) return "success";
+        return "info";
+    }
+
+    private static string TruncateDetails(string details)
+    {
+        if (string.IsNullOrEmpty(details)) return "-";
+        return details.Length > 100 ? details[..97] + "..." : details;
+    }
+}

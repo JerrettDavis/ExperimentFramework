@@ -1,0 +1,57 @@
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">ExperimentFramework Demo</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="experiments">
+                <span class="bi bi-toggles" aria-hidden="true"></span> Experiments
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="demo">
+                <span class="bi bi-play-circle" aria-hidden="true"></span> Live Demo
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="analytics">
+                <span class="bi bi-bar-chart" aria-hidden="true"></span> Analytics
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="config">
+                <span class="bi bi-gear" aria-hidden="true"></span> Configuration
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3 nav-divider"></div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="plugins">
+                <span class="bi bi-plug" aria-hidden="true"></span> Plugins
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+<style>
+    .nav-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.1);
+        margin: 0.5rem 0;
+    }
+</style>

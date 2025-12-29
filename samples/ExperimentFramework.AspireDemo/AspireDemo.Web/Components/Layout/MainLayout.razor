@@ -1,0 +1,134 @@
+@inherits LayoutComponentBase
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<div class="page @_themeClass" style="@_themeStyles">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            @if (ThemeService.CurrentTheme != null)
+            {
+                <span class="theme-indicator">
+                    Theme: <strong>@ThemeService.CurrentTheme.Name</strong>
+                </span>
+            }
+            <a href="https://github.com/anthropics/claude-code" target="_blank">ExperimentFramework Demo</a>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">X</a>
+</div>
+
+<style>
+    .page {
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .page.theme-dark {
+        background-color: var(--theme-background, #1f2937);
+        color: var(--theme-text, #f9fafb);
+    }
+
+    .page.theme-dark .sidebar {
+        background: linear-gradient(180deg, #111827 0%, #1f2937 100%);
+    }
+
+    .page.theme-dark main {
+        background-color: var(--theme-background, #1f2937);
+    }
+
+    .page.theme-dark .top-row {
+        background-color: #111827;
+        border-bottom-color: #374151;
+    }
+
+    .page.theme-dark .content {
+        background-color: var(--theme-background, #1f2937);
+    }
+
+    .page.theme-light {
+        background-color: var(--theme-background, #ffffff);
+        color: var(--theme-text, #1f2937);
+    }
+
+    .page.theme-system {
+        background-color: var(--theme-background, #f3f4f6);
+        color: var(--theme-text, #374151);
+    }
+
+    .page.theme-system .sidebar {
+        background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
+    }
+
+    .theme-indicator {
+        margin-right: 1rem;
+        padding: 0.25rem 0.75rem;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    .page.theme-dark .theme-indicator {
+        background: rgba(255, 255, 255, 0.1);
+    }
+</style>
+
+@code {
+    private string _themeClass = "";
+    private string _themeStyles = "";
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+        UpdateThemeStyles();
+    }
+
+    private void HandleThemeChanged()
+    {
+        if (_disposed) return;
+
+        try
+        {
+            UpdateThemeStyles();
+            InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Ignore errors during theme change - component might be disposed
+        }
+    }
+
+    private void UpdateThemeStyles()
+    {
+        var theme = ThemeService.CurrentTheme;
+        if (theme == null) return;
+
+        _themeClass = theme.Name.ToLower() switch
+        {
+            "dark" => "theme-dark",
+            "light" => "theme-light",
+            "system" => "theme-system",
+            _ => ""
+        };
+
+        _themeStyles = ThemeService.GetCssVariables();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}
