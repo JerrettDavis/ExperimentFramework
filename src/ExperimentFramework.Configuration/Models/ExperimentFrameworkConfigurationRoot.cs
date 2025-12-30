@@ -34,4 +34,9 @@ public sealed class ExperimentFrameworkConfigurationRoot
     /// Data plane configuration.
     /// </summary>
     public DataPlaneConfig? DataPlane { get; set; }
+
+    /// <summary>
+    /// Governance configuration for lifecycle, approval gates, and policies.
+    /// </summary>
+    public GovernanceConfig? Governance { get; set; }
 }
