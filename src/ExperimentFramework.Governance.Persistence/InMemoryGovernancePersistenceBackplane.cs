@@ -41,7 +41,18 @@ public sealed class InMemoryGovernancePersistenceBackplane : IGovernancePersiste
 
         // Generate new ETag
         var newETag = Guid.NewGuid().ToString();
-        var updatedState = state with { ETag = newETag };
+        var updatedState = new PersistedExperimentState
+        {
+            ExperimentName = state.ExperimentName,
+            CurrentState = state.CurrentState,
+            ConfigurationVersion = state.ConfigurationVersion,
+            LastModified = state.LastModified,
+            LastModifiedBy = state.LastModifiedBy,
+            ETag = newETag,
+            Metadata = state.Metadata,
+            TenantId = state.TenantId,
+            Environment = state.Environment
+        };
 
         if (expectedETag == null)
         {

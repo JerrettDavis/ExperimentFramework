@@ -24,6 +24,11 @@ public sealed class GovernanceConfig
     /// Whether to enable automatic versioning on configuration changes.
     /// </summary>
     public bool? EnableAutoVersioning { get; set; }
+
+    /// <summary>
+    /// Persistence configuration for durable governance state.
+    /// </summary>
+    public PersistenceConfig? Persistence { get; set; }
 }
 
 /// <summary>
@@ -104,6 +109,47 @@ public sealed class PolicyConfig
 
     /// <summary>
     /// Additional configuration properties for custom policies.
+    /// </summary>
+    public Dictionary<string, object>? Properties { get; set; }
+}
+
+/// <summary>
+/// Configuration for governance persistence backplane.
+/// </summary>
+public sealed class PersistenceConfig
+{
+    /// <summary>
+    /// Type of persistence backplane (inMemory, sql, redis, or custom type name).
+    /// </summary>
+    public required string Type { get; set; }
+
+    /// <summary>
+    /// Connection string (for SQL or Redis).
+    /// </summary>
+    public string? ConnectionString { get; set; }
+
+    /// <summary>
+    /// Whether to enable optimistic concurrency control (default: true).
+    /// </summary>
+    public bool? OptimisticConcurrency { get; set; }
+
+    /// <summary>
+    /// Whether to retain full history (default: true).
+    /// </summary>
+    public bool? RetainHistory { get; set; }
+
+    /// <summary>
+    /// Key prefix for Redis keys (default: "governance:").
+    /// </summary>
+    public string? KeyPrefix { get; set; }
+
+    /// <summary>
+    /// Database provider for SQL (sqlserver, postgresql, sqlite, or custom).
+    /// </summary>
+    public string? Provider { get; set; }
+
+    /// <summary>
+    /// Additional configuration properties for custom persistence backplanes.
     /// </summary>
     public Dictionary<string, object>? Properties { get; set; }
 }

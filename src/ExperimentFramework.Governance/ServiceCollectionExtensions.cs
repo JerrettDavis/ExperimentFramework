@@ -233,4 +233,15 @@ public class GovernanceBuilder
     {
         return WithPolicy(new ConflictPreventionPolicy(conflictingExperiments));
     }
+
+    /// <summary>
+    /// Configures persistence backplane for governance state.
+    /// </summary>
+    /// <param name="configurePersistence">Action to configure persistence.</param>
+    /// <returns>The builder for chaining.</returns>
+    public GovernanceBuilder UsePersistence(Action<IServiceCollection> configurePersistence)
+    {
+        configurePersistence(_services);
+        return this;
+    }
 }
