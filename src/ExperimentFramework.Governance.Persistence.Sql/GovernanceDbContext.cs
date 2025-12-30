@@ -1,4 +1,5 @@
 using ExperimentFramework.Governance.Persistence.Sql.Entities;
+using ExperimentFramework.Governance.Persistence.Sql.EntityConfigurations;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExperimentFramework.Governance.Persistence.Sql;
@@ -23,43 +24,11 @@ public sealed class GovernanceDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure composite key for ExperimentStates
-        modelBuilder.Entity<ExperimentStateEntity>()
-            .HasKey(e => new { e.ExperimentName, e.TenantId, e.Environment });
-
-        // Configure indexes for StateTransitions
-        modelBuilder.Entity<StateTransitionEntity>()
-            .HasIndex(e => new { e.ExperimentName, e.TenantId, e.Environment, e.Timestamp });
-
-        modelBuilder.Entity<StateTransitionEntity>()
-            .HasIndex(e => e.TransitionId)
-            .IsUnique();
-
-        // Configure indexes for ApprovalRecords
-        modelBuilder.Entity<ApprovalRecordEntity>()
-            .HasIndex(e => new { e.ExperimentName, e.TenantId, e.Environment, e.Timestamp });
-
-        modelBuilder.Entity<ApprovalRecordEntity>()
-            .HasIndex(e => e.TransitionId);
-
-        modelBuilder.Entity<ApprovalRecordEntity>()
-            .HasIndex(e => e.ApprovalId)
-            .IsUnique();
-
-        // Configure indexes for ConfigurationVersions
-        modelBuilder.Entity<ConfigurationVersionEntity>()
-            .HasIndex(e => new { e.ExperimentName, e.VersionNumber, e.TenantId, e.Environment })
-            .IsUnique();
-
-        // Configure indexes for PolicyEvaluations
-        modelBuilder.Entity<PolicyEvaluationEntity>()
-            .HasIndex(e => new { e.ExperimentName, e.TenantId, e.Environment, e.Timestamp });
-
-        modelBuilder.Entity<PolicyEvaluationEntity>()
-            .HasIndex(e => new { e.ExperimentName, e.PolicyName, e.Timestamp });
-
-        modelBuilder.Entity<PolicyEvaluationEntity>()
-            .HasIndex(e => e.EvaluationId)
-            .IsUnique();
+        // Apply entity configurations
+        modelBuilder.ApplyConfiguration(new ExperimentStateEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new StateTransitionEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new ApprovalRecordEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new ConfigurationVersionEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new PolicyEvaluationEntityConfiguration());
     }
 }
