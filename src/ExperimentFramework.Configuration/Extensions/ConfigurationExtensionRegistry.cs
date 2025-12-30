@@ -11,6 +11,7 @@ public sealed class ConfigurationExtensionRegistry
 {
     private readonly ConcurrentDictionary<string, IConfigurationDecoratorHandler> _decoratorHandlers = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, IConfigurationSelectionModeHandler> _selectionModeHandlers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, IConfigurationBackplaneHandler> _backplaneHandlers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Registers a decorator handler for the specified decorator type.
@@ -91,4 +92,44 @@ public sealed class ConfigurationExtensionRegistry
     /// </summary>
     public IEnumerable<IConfigurationSelectionModeHandler> GetSelectionModeHandlers() =>
         _selectionModeHandlers.Values;
+
+    /// <summary>
+    /// Registers a backplane handler for the specified backplane type.
+    /// </summary>
+    /// <param name="handler">The handler to register.</param>
+    /// <returns>True if registered, false if a handler for this type already exists.</returns>
+    public bool RegisterBackplaneHandler(IConfigurationBackplaneHandler handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        return _backplaneHandlers.TryAdd(handler.BackplaneType, handler);
+    }
+
+    /// <summary>
+    /// Gets the backplane handler for the specified type.
+    /// </summary>
+    /// <param name="backplaneType">The backplane type identifier.</param>
+    /// <returns>The handler, or null if not found.</returns>
+    public IConfigurationBackplaneHandler? GetBackplaneHandler(string backplaneType)
+    {
+        _backplaneHandlers.TryGetValue(backplaneType, out var handler);
+        return handler;
+    }
+
+    /// <summary>
+    /// Checks if a backplane type is registered.
+    /// </summary>
+    public bool HasBackplaneHandler(string backplaneType) =>
+        _backplaneHandlers.ContainsKey(backplaneType);
+
+    /// <summary>
+    /// Gets all registered backplane type identifiers.
+    /// </summary>
+    public IEnumerable<string> GetRegisteredBackplaneTypes() =>
+        _backplaneHandlers.Keys;
+
+    /// <summary>
+    /// Gets all registered backplane handlers.
+    /// </summary>
+    public IEnumerable<IConfigurationBackplaneHandler> GetBackplaneHandlers() =>
+        _backplaneHandlers.Values;
 }

@@ -94,6 +94,12 @@ public static class ServiceCollectionExtensions
         var configBuilder = new ConfigurationExperimentBuilder(typeResolver, extensionRegistry, logger);
         var frameworkBuilder = configBuilder.Build(configRoot);
 
+        // Configure data plane if specified in configuration
+        if (configRoot.DataPlane != null)
+        {
+            ConfigureDataPlane(services, configRoot.DataPlane, extensionRegistry, logger);
+        }
+
         // Register with the existing framework
         services.AddExperimentFramework(frameworkBuilder);
 
@@ -213,6 +219,98 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton(watcher);
         services.AddHostedService(sp => sp.GetRequiredService<ConfigurationFileWatcher>());
+    }
+
+    /// <summary>
+    /// Configures data plane services from configuration.
+    /// </summary>
+    private static void ConfigureDataPlane(
+        IServiceCollection services,
+        Models.DataPlaneConfig dataPlaneConfig,
+        ConfigurationExtensionRegistry? extensionRegistry,
+        ILogger? logger)
+    {
+        // Configure data plane options if any general options are specified
+        if (dataPlaneConfig.EnableExposureEvents.HasValue ||
+            dataPlaneConfig.EnableAssignmentEvents.HasValue ||
+            dataPlaneConfig.EnableOutcomeEvents.HasValue ||
+            dataPlaneConfig.EnableAnalysisSignals.HasValue ||
+            dataPlaneConfig.EnableErrorEvents.HasValue ||
+            dataPlaneConfig.SamplingRate.HasValue ||
+            dataPlaneConfig.BatchSize.HasValue ||
+            dataPlaneConfig.FlushIntervalMs.HasValue)
+        {
+            // Use reflection to call AddDataBackplane from ExperimentFramework.DataPlane
+            var dataPlaneAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(a => a.GetName().Name == "ExperimentFramework.DataPlane");
+
+            if (dataPlaneAssembly != null)
+            {
+                var extensionsType = dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.ServiceCollectionExtensions");
+                if (extensionsType != null)
+                {
+                    var addDataBackplaneMethod = extensionsType.GetMethod(
+                        "AddDataBackplane",
+                        new[] { typeof(IServiceCollection), typeof(Action<>).MakeGenericType(
+                            dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.Abstractions.Configuration.DataPlaneOptions")!) });
+
+                    if (addDataBackplaneMethod != null)
+                    {
+                        // Create the options configuration action
+                        var optionsType = dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.Abstractions.Configuration.DataPlaneOptions");
+                        if (optionsType != null)
+                        {
+                            var actionType = typeof(Action<>).MakeGenericType(optionsType);
+                            var configureAction = Delegate.CreateDelegate(actionType, null, 
+                                ((Action<object>)((options) =>
+                                {
+                                    if (dataPlaneConfig.EnableExposureEvents.HasValue)
+                                        optionsType.GetProperty("EnableExposureEvents")!.SetValue(options, dataPlaneConfig.EnableExposureEvents.Value);
+                                    if (dataPlaneConfig.EnableAssignmentEvents.HasValue)
+                                        optionsType.GetProperty("EnableAssignmentEvents")!.SetValue(options, dataPlaneConfig.EnableAssignmentEvents.Value);
+                                    if (dataPlaneConfig.EnableOutcomeEvents.HasValue)
+                                        optionsType.GetProperty("EnableOutcomeEvents")!.SetValue(options, dataPlaneConfig.EnableOutcomeEvents.Value);
+                                    if (dataPlaneConfig.EnableAnalysisSignals.HasValue)
+                                        optionsType.GetProperty("EnableAnalysisSignals")!.SetValue(options, dataPlaneConfig.EnableAnalysisSignals.Value);
+                                    if (dataPlaneConfig.EnableErrorEvents.HasValue)
+                                        optionsType.GetProperty("EnableErrorEvents")!.SetValue(options, dataPlaneConfig.EnableErrorEvents.Value);
+                                    if (dataPlaneConfig.SamplingRate.HasValue)
+                                        optionsType.GetProperty("SamplingRate")!.SetValue(options, dataPlaneConfig.SamplingRate.Value);
+                                    if (dataPlaneConfig.BatchSize.HasValue)
+                                        optionsType.GetProperty("BatchSize")!.SetValue(options, dataPlaneConfig.BatchSize.Value);
+                                    if (dataPlaneConfig.FlushIntervalMs.HasValue)
+                                        optionsType.GetProperty("FlushInterval")!.SetValue(options, TimeSpan.FromMilliseconds(dataPlaneConfig.FlushIntervalMs.Value));
+                                })).Method);
+
+                            addDataBackplaneMethod.Invoke(null, new object[] { services, configureAction });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Configure backplane if specified
+        if (dataPlaneConfig.Backplane != null)
+        {
+            var backplaneConfig = dataPlaneConfig.Backplane;
+            logger?.LogInformation("Configuring data backplane of type '{BackplaneType}' from configuration", backplaneConfig.Type);
+
+            // Try to get a registered handler from the extension registry
+            var handler = extensionRegistry?.GetBackplaneHandler(backplaneConfig.Type);
+
+            if (handler != null)
+            {
+                handler.ConfigureServices(services, backplaneConfig, logger);
+            }
+            else
+            {
+                logger?.LogWarning(
+                    "No handler registered for backplane type '{BackplaneType}'. " +
+                    "Register a handler using ConfigurationExtensionRegistry.RegisterBackplaneHandler() or " +
+                    "ensure the appropriate NuGet package is installed (e.g., ExperimentFramework.DataPlane.Kafka).",
+                    backplaneConfig.Type);
+            }
+        }
     }
 }
 

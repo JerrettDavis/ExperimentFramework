@@ -29,4 +29,9 @@ public sealed class ExperimentFrameworkConfigurationRoot
     /// Named experiments with multiple trials.
     /// </summary>
     public List<ExperimentConfig>? Experiments { get; set; }
+
+    /// <summary>
+    /// Data plane configuration.
+    /// </summary>
+    public DataPlaneConfig? DataPlane { get; set; }
 }
