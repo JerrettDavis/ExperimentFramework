@@ -1,5 +1,4 @@
 using ExperimentFramework.DataPlane.AzureServiceBus;
-using FluentAssertions;
 using Xunit;
 
 namespace ExperimentFramework.DataPlane.AzureServiceBus.Tests;
@@ -16,11 +15,11 @@ public class AzureServiceBusDataBackplaneOptionsTests
         };
 
         // Assert
-        options.UseTypeSpecificDestinations.Should().BeFalse();
-        options.MaxRetryAttempts.Should().Be(3);
-        options.BatchSize.Should().Be(100);
-        options.EnableSessions.Should().BeFalse();
-        options.SessionStrategy.Should().Be(ServiceBusSessionStrategy.ByExperimentKey);
+        Assert.False(options.UseTypeSpecificDestinations);
+        Assert.Equal(3, options.MaxRetryAttempts);
+        Assert.Equal(100, options.BatchSize);
+        Assert.False(options.EnableSessions);
+        Assert.Equal(ServiceBusSessionStrategy.ByExperimentKey, options.SessionStrategy);
     }
 
     [Fact]
@@ -41,15 +40,15 @@ public class AzureServiceBusDataBackplaneOptionsTests
         };
 
         // Assert
-        options.ConnectionString.Should().NotBeNullOrEmpty();
-        options.QueueName.Should().Be("custom-queue");
-        options.UseTypeSpecificDestinations.Should().BeTrue();
-        options.MessageTimeToLiveMinutes.Should().Be(1440);
-        options.MaxRetryAttempts.Should().Be(5);
-        options.BatchSize.Should().Be(200);
-        options.EnableSessions.Should().BeTrue();
-        options.SessionStrategy.Should().Be(ServiceBusSessionStrategy.BySubjectId);
-        options.ClientId.Should().Be("test-client");
+        Assert.NotEmpty(options.ConnectionString);
+        Assert.Equal("custom-queue", options.QueueName);
+        Assert.True(options.UseTypeSpecificDestinations);
+        Assert.Equal(1440, options.MessageTimeToLiveMinutes);
+        Assert.Equal(5, options.MaxRetryAttempts);
+        Assert.Equal(200, options.BatchSize);
+        Assert.True(options.EnableSessions);
+        Assert.Equal(ServiceBusSessionStrategy.BySubjectId, options.SessionStrategy);
+        Assert.Equal("test-client", options.ClientId);
     }
 
     [Fact]
@@ -63,8 +62,8 @@ public class AzureServiceBusDataBackplaneOptionsTests
         };
 
         // Assert
-        options.QueueName.Should().Be("experiment-queue");
-        options.TopicName.Should().BeNull();
+        Assert.Equal("experiment-queue", options.QueueName);
+        Assert.Null(options.TopicName);
     }
 
     [Fact]
@@ -78,7 +77,7 @@ public class AzureServiceBusDataBackplaneOptionsTests
         };
 
         // Assert
-        options.TopicName.Should().Be("experiment-topic");
-        options.QueueName.Should().BeNull();
+        Assert.Equal("experiment-topic", options.TopicName);
+        Assert.Null(options.QueueName);
     }
 }

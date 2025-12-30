@@ -1,6 +1,5 @@
 using ExperimentFramework.Configuration.Models;
 using ExperimentFramework.DataPlane.Kafka.Configuration;
-using FluentAssertions;
 using Xunit;
 
 namespace ExperimentFramework.DataPlane.Kafka.Tests;
@@ -14,7 +13,7 @@ public class KafkaBackplaneConfigurationHandlerTests
         var handler = new KafkaBackplaneConfigurationHandler();
 
         // Act & Assert
-        handler.BackplaneType.Should().Be("kafka");
+        Assert.Equal("kafka", handler.BackplaneType);
     }
 
     [Fact]
@@ -32,8 +31,8 @@ public class KafkaBackplaneConfigurationHandlerTests
         var errors = handler.Validate(config, "dataPlane.backplane");
 
         // Assert
-        errors.Should().HaveCount(1);
-        errors.First().Message.Should().Contain("brokers");
+        Assert.Single(errors);
+        Assert.Contains("brokers", errors.First().Message);
     }
 
     [Fact]
@@ -54,6 +53,6 @@ public class KafkaBackplaneConfigurationHandlerTests
         var errors = handler.Validate(config, "dataPlane.backplane");
 
         // Assert
-        errors.Should().BeEmpty();
+        Assert.Empty(errors);
     }
 }

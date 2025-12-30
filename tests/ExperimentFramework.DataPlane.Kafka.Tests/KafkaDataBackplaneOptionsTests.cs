@@ -1,5 +1,4 @@
 using ExperimentFramework.DataPlane.Kafka;
-using FluentAssertions;
 using Xunit;
 
 namespace ExperimentFramework.DataPlane.Kafka.Tests;
@@ -16,14 +15,14 @@ public class KafkaDataBackplaneOptionsTests
         };
 
         // Assert
-        options.PartitionStrategy.Should().Be(KafkaPartitionStrategy.ByExperimentKey);
-        options.BatchSize.Should().Be(500);
-        options.LingerMs.Should().Be(100);
-        options.EnableIdempotence.Should().BeTrue();
-        options.CompressionType.Should().Be("snappy");
-        options.Acks.Should().Be("all");
-        options.MaxInFlight.Should().Be(5);
-        options.RequestTimeoutMs.Should().Be(30000);
+        Assert.Equal(KafkaPartitionStrategy.ByExperimentKey, options.PartitionStrategy);
+        Assert.Equal(500, options.BatchSize);
+        Assert.Equal(100, options.LingerMs);
+        Assert.True(options.EnableIdempotence);
+        Assert.Equal("snappy", options.CompressionType);
+        Assert.Equal("all", options.Acks);
+        Assert.Equal(5, options.MaxInFlight);
+        Assert.Equal(30000, options.RequestTimeoutMs);
     }
 
     [Fact]
@@ -44,14 +43,14 @@ public class KafkaDataBackplaneOptionsTests
         };
 
         // Assert
-        options.Brokers.Should().HaveCount(2);
-        options.Topic.Should().Be("custom-topic");
-        options.PartitionStrategy.Should().Be(KafkaPartitionStrategy.BySubjectId);
-        options.BatchSize.Should().Be(1000);
-        options.LingerMs.Should().Be(200);
-        options.EnableIdempotence.Should().BeFalse();
-        options.CompressionType.Should().Be("gzip");
-        options.Acks.Should().Be("1");
-        options.ClientId.Should().Be("test-client");
+        Assert.Equal(2, options.Brokers.Count);
+        Assert.Equal("custom-topic", options.Topic);
+        Assert.Equal(KafkaPartitionStrategy.BySubjectId, options.PartitionStrategy);
+        Assert.Equal(1000, options.BatchSize);
+        Assert.Equal(200, options.LingerMs);
+        Assert.False(options.EnableIdempotence);
+        Assert.Equal("gzip", options.CompressionType);
+        Assert.Equal("1", options.Acks);
+        Assert.Equal("test-client", options.ClientId);
     }
 }

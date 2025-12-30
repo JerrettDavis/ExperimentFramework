@@ -1,6 +1,5 @@
 using ExperimentFramework.Configuration.Models;
 using ExperimentFramework.DataPlane.AzureServiceBus.Configuration;
-using FluentAssertions;
 using Xunit;
 
 namespace ExperimentFramework.DataPlane.AzureServiceBus.Tests;
@@ -14,7 +13,7 @@ public class AzureServiceBusBackplaneConfigurationHandlerTests
         var handler = new AzureServiceBusBackplaneConfigurationHandler();
 
         // Act & Assert
-        handler.BackplaneType.Should().Be("azureServiceBus");
+        Assert.Equal("azureServiceBus", handler.BackplaneType);
     }
 
     [Fact]
@@ -32,8 +31,8 @@ public class AzureServiceBusBackplaneConfigurationHandlerTests
         var errors = handler.Validate(config, "dataPlane.backplane");
 
         // Assert
-        errors.Should().HaveCount(1);
-        errors.First().Message.Should().Contain("connectionString");
+        Assert.Single(errors);
+        Assert.Contains("connectionString", errors.First().Message);
     }
 
     [Fact]
@@ -54,7 +53,7 @@ public class AzureServiceBusBackplaneConfigurationHandlerTests
         var errors = handler.Validate(config, "dataPlane.backplane");
 
         // Assert
-        errors.Should().BeEmpty();
+        Assert.Empty(errors);
     }
 
     [Fact]
@@ -76,7 +75,7 @@ public class AzureServiceBusBackplaneConfigurationHandlerTests
         var errors = handler.Validate(config, "dataPlane.backplane");
 
         // Assert
-        errors.Should().BeEmpty();
+        Assert.Empty(errors);
     }
 
     [Fact]
@@ -98,6 +97,6 @@ public class AzureServiceBusBackplaneConfigurationHandlerTests
         var errors = handler.Validate(config, "dataPlane.backplane");
 
         // Assert
-        errors.Should().BeEmpty();
+        Assert.Empty(errors);
     }
 }
