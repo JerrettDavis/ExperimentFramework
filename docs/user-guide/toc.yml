@@ -58,11 +58,13 @@
     - name: Audit Logging
       href: audit.md
 
-# Administration
-- name: Administration
+# Administration & Governance
+- name: Administration & Governance
   items:
     - name: Admin API
       href: admin-api.md
+    - name: Experiment Governance
+      href: governance.md
 
 # Scientific Experimentation
 - name: Scientific Experimentation

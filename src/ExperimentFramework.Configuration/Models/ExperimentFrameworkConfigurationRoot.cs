@@ -29,4 +29,9 @@ public sealed class ExperimentFrameworkConfigurationRoot
     /// Named experiments with multiple trials.
     /// </summary>
     public List<ExperimentConfig>? Experiments { get; set; }
+
+    /// <summary>
+    /// Governance configuration for lifecycle, approval gates, and policies.
+    /// </summary>
+    public GovernanceConfig? Governance { get; set; }
 }

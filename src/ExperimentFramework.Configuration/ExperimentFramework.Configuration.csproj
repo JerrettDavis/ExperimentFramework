@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
   </ItemGroup>
 
   <ItemGroup>
