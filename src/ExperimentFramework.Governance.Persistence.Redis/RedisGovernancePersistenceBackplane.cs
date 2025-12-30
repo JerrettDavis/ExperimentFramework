@@ -81,51 +81,30 @@ public sealed class RedisGovernancePersistenceBackplane : IGovernancePersistence
         }
         else
         {
-            // Optimistic concurrency using Lua script
-            var script = @"
-                local current = redis.call('GET', KEYS[1])
-                if current == false then
-                    return {err='not_found'}
-                end
-                local currentState = cjson.decode(current)
-                if currentState.ETag ~= ARGV[1] then
-                    return {err='conflict', actualETag=currentState.ETag}
-                end
-                redis.call('SET', KEYS[1], ARGV[2])
-                return {ok='success'}
-            ";
-
+            // Optimistic concurrency using Redis transactions
             try
             {
-                var result = await Db.ScriptEvaluateAsync(
-                    script,
-                    new RedisKey[] { key },
-                    new RedisValue[] { expectedETag, json });
-
-                if (result.IsNull)
+                // Get current value to check ETag
+                var currentJson = await Db.StringGetAsync(key);
+                
+                if (currentJson.IsNullOrEmpty)
                 {
-                    return PersistenceResult<PersistedExperimentState>.Failure("Script evaluation failed");
-                }
-
-                var resultDict = (RedisValue[])result!;
-                if (resultDict.Length > 0 && resultDict[0].ToString() == "err")
-                {
-                    if (resultDict.Length > 1)
-                    {
-                        var errType = resultDict[1].ToString();
-                        if (errType == "conflict")
-                        {
-                            var actualETag = resultDict.Length > 2 ? resultDict[2].ToString() : "unknown";
-                            _logger.LogWarning(
-                                "Concurrency conflict for experiment {ExperimentName}. Expected: {Expected}, Actual: {Actual}",
-                                state.ExperimentName, expectedETag, actualETag);
-                            return PersistenceResult<PersistedExperimentState>.Conflict(
-                                $"ETag mismatch. Expected: {expectedETag}, Actual: {actualETag}");
-                        }
-                    }
                     return PersistenceResult<PersistedExperimentState>.Failure("Entity not found");
                 }
 
+                var currentState = JsonSerializer.Deserialize<PersistedExperimentState>((string)currentJson!);
+                
+                if (currentState?.ETag != expectedETag)
+                {
+                    _logger.LogWarning(
+                        "Concurrency conflict for experiment {ExperimentName}. Expected: {Expected}, Actual: {Actual}",
+                        state.ExperimentName, expectedETag, currentState?.ETag ?? "null");
+                    return PersistenceResult<PersistedExperimentState>.Conflict(
+                        $"ETag mismatch. Expected: {expectedETag}, Actual: {currentState?.ETag ?? "null"}");
+                }
+
+                // ETag matches, update the value
+                await Db.StringSetAsync(key, json);
                 return PersistenceResult<PersistedExperimentState>.Ok(updatedState, newETag);
             }
             catch (Exception ex)

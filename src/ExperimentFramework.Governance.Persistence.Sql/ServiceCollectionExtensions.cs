@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<GovernanceDbContext>(options =>
             options.UseSqlServer(connectionString));
 
-        services.TryAddSingleton<IGovernancePersistenceBackplane, SqlGovernancePersistenceBackplane>();
+        services.TryAddScoped<IGovernancePersistenceBackplane, SqlGovernancePersistenceBackplane>();
 
         return services;
     }
@@ -39,7 +39,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddDbContext<GovernanceDbContext>(configureDbContext);
 
-        services.TryAddSingleton<IGovernancePersistenceBackplane, SqlGovernancePersistenceBackplane>();
+        services.TryAddScoped<IGovernancePersistenceBackplane, SqlGovernancePersistenceBackplane>();
 
         return services;
     }
