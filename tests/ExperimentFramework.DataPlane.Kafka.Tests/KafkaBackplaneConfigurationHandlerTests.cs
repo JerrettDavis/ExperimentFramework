@@ -1,58 +1,62 @@
 using ExperimentFramework.Configuration.Models;
 using ExperimentFramework.DataPlane.Kafka.Configuration;
-using Xunit;
+using TinyBDD;
+using TinyBDD.Xunit;
+using Xunit.Abstractions;
 
 namespace ExperimentFramework.DataPlane.Kafka.Tests;
 
-public class KafkaBackplaneConfigurationHandlerTests
+[Feature("Kafka backplane DSL configuration handler")]
+public class KafkaBackplaneConfigurationHandlerTests(ITestOutputHelper output) : TinyBddXunitBase(output)
 {
+    [Scenario("Handler has correct backplane type")]
     [Fact]
-    public void BackplaneType_ShouldBeKafka()
-    {
-        // Arrange
-        var handler = new KafkaBackplaneConfigurationHandler();
+    public Task Handler_has_kafka_backplane_type()
+        => Given("a Kafka backplane configuration handler", () => new KafkaBackplaneConfigurationHandler())
+            .Then("backplane type should be kafka", 
+                handler => handler.BackplaneType == "kafka")
+            .AssertPassed();
 
-        // Act & Assert
-        Assert.Equal("kafka", handler.BackplaneType);
-    }
-
+    [Scenario("Validation returns error when brokers are missing")]
     [Fact]
-    public void Validate_ShouldReturnError_WhenBrokersAreMissing()
-    {
-        // Arrange
-        var handler = new KafkaBackplaneConfigurationHandler();
-        var config = new DataPlaneBackplaneConfig
-        {
-            Type = "kafka",
-            Options = new Dictionary<string, object>()
-        };
-
-        // Act
-        var errors = handler.Validate(config, "dataPlane.backplane");
-
-        // Assert
-        Assert.Single(errors);
-        Assert.Contains("brokers", errors.First().Message);
-    }
-
-    [Fact]
-    public void Validate_ShouldReturnNoErrors_WhenBrokersAreProvided()
-    {
-        // Arrange
-        var handler = new KafkaBackplaneConfigurationHandler();
-        var config = new DataPlaneBackplaneConfig
-        {
-            Type = "kafka",
-            Options = new Dictionary<string, object>
+    public Task Validation_returns_error_when_brokers_missing()
+        => Given("a handler and config without brokers", () => 
             {
-                ["brokers"] = new List<object> { "localhost:9092" }
-            }
-        };
+                var handler = new KafkaBackplaneConfigurationHandler();
+                var config = new DataPlaneBackplaneConfig
+                {
+                    Type = "kafka",
+                    Options = new Dictionary<string, object>()
+                };
+                return (handler, config);
+            })
+            .When("validating the configuration", 
+                state => state.handler.Validate(state.config, "dataPlane.backplane"))
+            .Then("should have one error", 
+                errors => errors.Count() == 1)
+            .And("error message should mention brokers", 
+                errors => errors.First().Message.Contains("brokers"))
+            .AssertPassed();
 
-        // Act
-        var errors = handler.Validate(config, "dataPlane.backplane");
-
-        // Assert
-        Assert.Empty(errors);
-    }
+    [Scenario("Validation returns no errors when brokers are provided")]
+    [Fact]
+    public Task Validation_returns_no_errors_when_brokers_provided()
+        => Given("a handler and config with brokers", () =>
+            {
+                var handler = new KafkaBackplaneConfigurationHandler();
+                var config = new DataPlaneBackplaneConfig
+                {
+                    Type = "kafka",
+                    Options = new Dictionary<string, object>
+                    {
+                        ["brokers"] = new List<object> { "localhost:9092" }
+                    }
+                };
+                return (handler, config);
+            })
+            .When("validating the configuration", 
+                state => state.handler.Validate(state.config, "dataPlane.backplane"))
+            .Then("should have no errors", 
+                errors => !errors.Any())
+            .AssertPassed();
 }
