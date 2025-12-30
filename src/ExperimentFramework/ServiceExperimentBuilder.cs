@@ -557,6 +557,19 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
     #endregion
 
     /// <summary>
+    /// Checks if the trial has a custom selection mode configured.
+    /// </summary>
+    /// <returns>True if trial has its own selection mode, false otherwise.</returns>
+    private bool HasTrialSelectionMode()
+    {
+        // Trial has a custom selection mode if any of these are true:
+        // 1. A selector name was explicitly set
+        // 2. A custom mode identifier was set
+        // 3. The mode was changed from the default BooleanFeatureFlag
+        return _selectorName != null || _modeIdentifier != null || _mode != SelectionMode.BooleanFeatureFlag;
+    }
+
+    /// <summary>
     /// Builds an immutable experiment definition from the configured state.
     /// </summary>
     /// <param name="convention">
@@ -589,15 +602,11 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
         var effectiveSelectorName = _selectorName;
 
         // If trial doesn't have a selection mode configured but experiment does, use experiment's
-        if (_experimentSelectionMode.HasValue)
+        if (_experimentSelectionMode.HasValue && !HasTrialSelectionMode())
         {
-            // Only override if trial-level mode is still the default
-            if (_mode == SelectionMode.BooleanFeatureFlag && _selectorName == null && _modeIdentifier == null)
-            {
-                effectiveMode = _experimentSelectionMode.Value;
-                effectiveModeIdentifier = _experimentModeIdentifier;
-                effectiveSelectorName = _experimentSelectorName;
-            }
+            effectiveMode = _experimentSelectionMode.Value;
+            effectiveModeIdentifier = _experimentModeIdentifier;
+            effectiveSelectorName = _experimentSelectorName;
         }
 
         // For custom modes, use a placeholder if no selector name is provided.

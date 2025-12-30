@@ -7,7 +7,7 @@ using Xunit;
 namespace ExperimentFramework.Tests;
 
 /// <summary>
-/// Tests for shared experiment key functionality where multiple trials use the same configuration.
+/// Tests for shared experiment selection mode functionality where multiple trials use the same selection mode configuration.
 /// </summary>
 public sealed class SharedExperimentKeyTests
 {
