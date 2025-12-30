@@ -168,6 +168,14 @@ The Redis persistence backplane uses the following structures:
 
 Keys are prefixed for namespacing and include tenant/environment in the key path.
 
+**Note on Concurrency:** The current Redis implementation provides basic optimistic concurrency checking but has a theoretical race condition between ETag verification and update. For scenarios requiring strict transactional guarantees, use the SQL backplane. Redis is best suited for:
+- Multi-instance coordination
+- Fast read-heavy workloads
+- Complementary caching layer
+- Development/testing environments
+
+For production workloads with strict consistency requirements, the SQL backplane is recommended as the authoritative governance store.
+
 ## Custom Persistence Backplanes
 
 To implement a custom backplane, implement `IGovernancePersistenceBackplane`:

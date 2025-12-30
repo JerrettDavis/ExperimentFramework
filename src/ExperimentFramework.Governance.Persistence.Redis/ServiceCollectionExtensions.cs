@@ -21,8 +21,12 @@ public static class ServiceCollectionExtensions
         string connectionString,
         string keyPrefix = "governance:")
     {
-        services.TryAddSingleton<IConnectionMultiplexer>(_ =>
-            ConnectionMultiplexer.Connect(connectionString));
+        // Only add ConnectionMultiplexer if not already registered
+        if (!services.Any(x => x.ServiceType == typeof(IConnectionMultiplexer)))
+        {
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(connectionString));
+        }
 
         services.TryAddSingleton<IGovernancePersistenceBackplane>(sp =>
         {
