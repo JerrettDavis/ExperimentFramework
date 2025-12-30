@@ -1,0 +1,70 @@
+# Governance with Redis Persistence Example
+#
+# This example demonstrates how to configure experiment governance
+# with Redis-based persistence for distributed, low-latency deployments.
+#
+# Features:
+# - Multi-instance coordination
+# - Fast state reads
+# - Atomic operations
+# - TTL support for ephemeral data
+# - Distributed locking
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  # Governance configuration with Redis
+  governance:
+    initialState: Draft
+    enableAutoVersioning: true
+    
+    # Redis persistence for distributed scenarios
+    persistence:
+      type: redis
+      connectionString: ${REDIS_CONNECTION}
+      keyPrefix: "prod:governance:"
+      optimisticConcurrency: true
+      retainHistory: true
+    
+    # Streamlined approval workflow
+    approvalGates:
+      - type: automatic
+        fromState: Draft
+        toState: PendingApproval
+      
+      - type: automatic
+        fromState: PendingApproval
+        toState: Approved
+        properties:
+          # Could add custom validation logic
+          autoApproveAfter: "00:15:00"
+      
+      - type: roleBased
+        fromState: Approved
+        toState: Running
+        allowedRoles:
+          - deployment-automation
+    
+    # Minimal policy set for fast experiments
+    policies:
+      - type: trafficLimit
+        maxTrafficPercentage: 25.0
+        minStableTime: "00:10:00"
+      
+      - type: errorRate
+        maxErrorRate: 0.10
+
+  trials:
+    - serviceType: IRecommendationService
+      selectionMode:
+        type: percentage
+        percentage: 10
+      control:
+        key: baseline
+        implementationType: BaselineRecommendations
+      conditions:
+        - key: ml-powered
+          implementationType: MLRecommendations
+      errorPolicy:
+        type: fallbackToControl
