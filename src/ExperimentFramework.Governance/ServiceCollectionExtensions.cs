@@ -3,8 +3,33 @@ using ExperimentFramework.Governance.Policy;
 using ExperimentFramework.Governance.Versioning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace ExperimentFramework.Governance;
+
+/// <summary>
+/// Options for configuring governance features.
+/// </summary>
+internal class GovernanceOptions
+{
+    public List<(ExperimentLifecycleState?, ExperimentLifecycleState, IApprovalGate)> ApprovalGates { get; } = new();
+    public List<IExperimentPolicy> Policies { get; } = new();
+}
+
+/// <summary>
+/// Holder for configured governance services.
+/// </summary>
+internal class GovernanceConfiguration
+{
+    public GovernanceConfiguration(IApprovalManager approvalManager, IPolicyEvaluator policyEvaluator)
+    {
+        ApprovalManager = approvalManager;
+        PolicyEvaluator = policyEvaluator;
+    }
+
+    public IApprovalManager ApprovalManager { get; }
+    public IPolicyEvaluator PolicyEvaluator { get; }
+}
 
 /// <summary>
 /// Extension methods for registering governance services.
@@ -23,6 +48,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IVersionManager, VersionManager>();
         services.TryAddSingleton<IPolicyEvaluator, PolicyEvaluator>();
 
+        services.AddOptions<GovernanceOptions>();
+
         return services;
     }
 
@@ -40,6 +67,26 @@ public static class ServiceCollectionExtensions
 
         var builder = new GovernanceBuilder(services);
         configure(builder);
+
+        // Post-build: register gates and policies from options
+        services.AddSingleton(sp =>
+        {
+            var approvalManager = sp.GetRequiredService<IApprovalManager>();
+            var policyEvaluator = sp.GetRequiredService<IPolicyEvaluator>();
+            var options = sp.GetRequiredService<IOptions<GovernanceOptions>>().Value;
+
+            foreach (var (fromState, toState, gate) in options.ApprovalGates)
+            {
+                approvalManager.RegisterGate(fromState, toState, gate);
+            }
+
+            foreach (var policy in options.Policies)
+            {
+                policyEvaluator.RegisterPolicy(policy);
+            }
+
+            return new GovernanceConfiguration(approvalManager, policyEvaluator);
+        });
 
         return services;
     }
@@ -73,11 +120,10 @@ public class GovernanceBuilder
         ExperimentLifecycleState toState,
         IApprovalGate gate)
     {
-        _services.AddSingleton(sp =>
+        // Store gate for post-configuration
+        _services.Configure<GovernanceOptions>(options =>
         {
-            var manager = sp.GetRequiredService<IApprovalManager>();
-            manager.RegisterGate(fromState, toState, gate);
-            return manager;
+            options.ApprovalGates.Add((fromState, toState, gate));
         });
 
         return this;
@@ -90,11 +136,10 @@ public class GovernanceBuilder
     /// <returns>The builder for chaining.</returns>
     public GovernanceBuilder WithPolicy(IExperimentPolicy policy)
     {
-        _services.AddSingleton(sp =>
+        // Store policy for post-configuration
+        _services.Configure<GovernanceOptions>(options =>
         {
-            var evaluator = sp.GetRequiredService<IPolicyEvaluator>();
-            evaluator.RegisterPolicy(policy);
-            return evaluator;
+            options.Policies.Add(policy);
         });
 
         return this;
