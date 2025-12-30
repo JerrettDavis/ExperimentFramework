@@ -8,12 +8,12 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ExperimentFramework.DataPlane</PackageId>
-    <Authors>JD</Authors>
+    <Authors>Jerrett Davis</Authors>
     <Description>Reference implementations of data backplane for ExperimentFramework. Includes in-memory, logging, and composite backplane implementations.</Description>
     <PackageTags>experiments;ab-testing;data-plane;telemetry;observability;beta</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/jerrettdavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jerrettdavis/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
