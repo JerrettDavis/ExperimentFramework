@@ -131,6 +131,43 @@ builder.Services.AddLoggingDataBackplane();
 
 Events are logged at `Information` level with JSON serialization.
 
+### OpenTelemetry Backplane
+
+Emits events as OpenTelemetry Activities (spans) and structured logs:
+
+```csharp
+builder.Services.AddOpenTelemetryDataBackplane();
+```
+
+**Features:**
+- Emits data plane events as Activities with semantic tags
+- Uses activity source: `"ExperimentFramework.DataPlane"`
+- Compatible with OpenTelemetry SDK exporters
+- No external OpenTelemetry package required (uses BCL types)
+- Automatic tagging for exposures, assignments, and analysis signals
+
+**Activity Tags:**
+- `dataplane.event.id` - Event identifier
+- `dataplane.event.type` - Event type (Exposure, Assignment, etc.)
+- `experiment.name` - Experiment name
+- `experiment.variant` - Variant key
+- `experiment.subject.id` - Subject identifier
+- `experiment.selection.reason` - Why variant was selected
+- `analysis.signal.type` - Signal type (for analysis signals)
+- And many more semantic tags...
+
+**Example OpenTelemetry SDK configuration:**
+
+```csharp
+using OpenTelemetry.Trace;
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSource("ExperimentFramework.DataPlane")
+        .AddConsoleExporter()  // or other exporters
+    );
+```
+
 ### Composite Backplane
 
 Route events to multiple destinations:
@@ -138,7 +175,7 @@ Route events to multiple destinations:
 ```csharp
 builder.Services.AddCompositeDataBackplane(
     sp => ActivatorUtilities.CreateInstance<LoggingDataBackplane>(sp),
-    sp => ActivatorUtilities.CreateInstance<InMemoryDataBackplane>(sp)
+    sp => ActivatorUtilities.CreateInstance<OpenTelemetryDataBackplane>(sp)
     // Add more backplane factories...
 );
 ```
@@ -241,7 +278,11 @@ builder.Services.AddDataBackplane(options =>
     options.EnableExposureEvents = true;
     options.SamplingRate = 1.0;
 });
-builder.Services.AddLoggingDataBackplane();
+
+// Choose your backplane implementation
+builder.Services.AddOpenTelemetryDataBackplane();  // or AddLoggingDataBackplane() or AddInMemoryDataBackplane()
+
+// Optional: Register subject identity provider
 builder.Services.AddSingleton<ISubjectIdentityProvider, MyIdentityProvider>();
 
 // 2. Configure experiments with exposure logging
@@ -255,11 +296,17 @@ var experiments = ExperimentFrameworkBuilder.Create()
 
 builder.Services.AddExperimentFramework(experiments);
 
-// 3. Use normally - exposures are logged automatically
+// 3. Optional: Configure OpenTelemetry SDK to collect activities
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSource("ExperimentFramework.DataPlane")
+        .AddConsoleExporter());  // or other exporters
+
+// 4. Use normally - exposures are logged automatically
 var service = app.Services.GetRequiredService<IMyService>();
 await service.DoWorkAsync();
 
-// 4. Check backplane health
+// 5. Check backplane health
 var backplane = app.Services.GetRequiredService<IDataBackplane>();
 var health = await backplane.HealthAsync();
 Console.WriteLine($"Backplane healthy: {health.IsHealthy}");

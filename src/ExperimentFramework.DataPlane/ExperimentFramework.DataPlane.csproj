@@ -8,7 +8,6 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ExperimentFramework.DataPlane</PackageId>
-    <Version>1.0.0</Version>
     <Authors>JD</Authors>
     <Description>Reference implementations of data backplane for ExperimentFramework. Includes in-memory, logging, and composite backplane implementations.</Description>
     <PackageTags>experiments;ab-testing;data-plane;telemetry;observability;beta</PackageTags>

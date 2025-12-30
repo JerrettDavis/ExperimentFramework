@@ -56,6 +56,22 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Adds an OpenTelemetry data backplane.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection for chaining.</returns>
+    /// <remarks>
+    /// This backplane emits events as OpenTelemetry Activities (spans) and structured logs.
+    /// Configure an OpenTelemetry SDK with appropriate exporters to collect these events.
+    /// Activity source name: "ExperimentFramework.DataPlane"
+    /// </remarks>
+    public static IServiceCollection AddOpenTelemetryDataBackplane(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IDataBackplane, OpenTelemetryDataBackplane>();
+        return services;
+    }
+
+    /// <summary>
     /// Adds a composite data backplane with multiple implementations.
     /// </summary>
     /// <param name="services">The service collection.</param>

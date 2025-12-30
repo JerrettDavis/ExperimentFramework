@@ -8,7 +8,6 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>ExperimentFramework.DataPlane.Abstractions</PackageId>
-    <Version>1.0.0</Version>
     <Authors>JD</Authors>
     <Description>Core abstractions for pluggable data backplane in ExperimentFramework. Defines contracts for exposure logging, assignment tracking, and experimentation telemetry.</Description>
     <PackageTags>experiments;ab-testing;data-plane;telemetry;observability;beta</PackageTags>
