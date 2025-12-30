@@ -1,38 +1,52 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace ExperimentFramework.DataPlane.SqlServer.Data;
 
-[Table("ExperimentEvents")]
+/// <summary>
+/// Entity representing an experiment event in SQL Server.
+/// </summary>
 public sealed class ExperimentEventEntity
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    /// <summary>
+    /// Gets or sets the unique database identifier.
+    /// </summary>
     public long Id { get; set; }
 
-    [Required]
-    [MaxLength(100)]
+    /// <summary>
+    /// Gets or sets the event ID from the data plane envelope.
+    /// </summary>
     public required string EventId { get; set; }
 
-    [Required]
+    /// <summary>
+    /// Gets or sets the event timestamp.
+    /// </summary>
     public required DateTimeOffset Timestamp { get; set; }
 
-    [Required]
-    [MaxLength(50)]
+    /// <summary>
+    /// Gets or sets the event type.
+    /// </summary>
     public required string EventType { get; set; }
 
-    [Required]
-    [MaxLength(20)]
+    /// <summary>
+    /// Gets or sets the schema version.
+    /// </summary>
     public required string SchemaVersion { get; set; }
 
-    [Required]
+    /// <summary>
+    /// Gets or sets the JSON-serialized payload.
+    /// </summary>
     public required string PayloadJson { get; set; }
 
-    [MaxLength(100)]
+    /// <summary>
+    /// Gets or sets the correlation ID.
+    /// </summary>
     public string? CorrelationId { get; set; }
 
+    /// <summary>
+    /// Gets or sets the JSON-serialized metadata.
+    /// </summary>
     public string? MetadataJson { get; set; }
 
-    [Required]
+    /// <summary>
+    /// Gets or sets when the record was created in the database.
+    /// </summary>
     public DateTimeOffset CreatedAt { get; set; }
 }
