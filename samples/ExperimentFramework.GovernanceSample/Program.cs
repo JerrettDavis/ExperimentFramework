@@ -1,8 +1,11 @@
 using ExperimentFramework.Audit;
 using ExperimentFramework.Governance;
+using ExperimentFramework.Governance.Persistence;
+using ExperimentFramework.Governance.Persistence.Sql;
 using ExperimentFramework.Governance.Policy;
 using ExperimentFramework.Governance.Versioning;
 using ExperimentFramework.Admin;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.FeatureManagement;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,9 +18,18 @@ builder.Services.AddFeatureManagement();
 // Register audit sink
 builder.Services.AddSingleton<IAuditSink, ConsoleAuditSink>();
 
-// Register governance with approval gates and policies
+// Register governance with approval gates, policies, and persistence
 builder.Services.AddExperimentGovernance(gov =>
 {
+    // Configure persistence backplane
+    // For demo purposes, using in-memory EF Core
+    // In production, use SQL Server or PostgreSQL with a real connection string
+    gov.UsePersistence(p =>
+    {
+        p.AddSqlGovernancePersistence(options =>
+            options.UseInMemoryDatabase("GovernanceDemo"));
+    });
+    
     // Automatic approval for Draft → PendingApproval
     gov.WithAutomaticApproval(
         ExperimentLifecycleState.Draft,
@@ -46,6 +58,13 @@ builder.Services.AddExperimentGovernance(gov =>
         allowedStartTime: TimeSpan.FromHours(9),
         allowedEndTime: TimeSpan.FromHours(17));
 });
+
+// Initialize database
+using (var scope = builder.Services.BuildServiceProvider().CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<GovernanceDbContext>();
+    dbContext.Database.EnsureCreated();
+}
 
 var app = builder.Build();
 
@@ -148,6 +167,105 @@ app.MapPost("/demo/policy", async (
 })
 .WithName("DemoEvaluatePolicies")
 .WithTags("Demo");
+
+// Persistence demo endpoints
+app.MapGet("/demo/persistence/state/{experimentName}", async (
+    string experimentName,
+    IGovernancePersistenceBackplane backplane) =>
+{
+    var state = await backplane.GetExperimentStateAsync(experimentName);
+    
+    if (state == null)
+        return Results.NotFound(new { error = $"Experiment '{experimentName}' not found" });
+    
+    return Results.Ok(new
+    {
+        experimentName = state.ExperimentName,
+        currentState = state.CurrentState.ToString(),
+        configurationVersion = state.ConfigurationVersion,
+        lastModified = state.LastModified,
+        lastModifiedBy = state.LastModifiedBy,
+        etag = state.ETag
+    });
+})
+.WithName("GetPersistedState")
+.WithTags("Persistence Demo");
+
+app.MapGet("/demo/persistence/history/{experimentName}", async (
+    string experimentName,
+    IGovernancePersistenceBackplane backplane) =>
+{
+    var transitions = await backplane.GetStateTransitionHistoryAsync(experimentName);
+    
+    return Results.Ok(new
+    {
+        experimentName,
+        totalTransitions = transitions.Count,
+        history = transitions.Select(t => new
+        {
+            transitionId = t.TransitionId,
+            fromState = t.FromState.ToString(),
+            toState = t.ToState.ToString(),
+            timestamp = t.Timestamp,
+            actor = t.Actor,
+            reason = t.Reason
+        })
+    });
+})
+.WithName("GetStateHistory")
+.WithTags("Persistence Demo");
+
+app.MapGet("/demo/persistence/versions/{experimentName}", async (
+    string experimentName,
+    IGovernancePersistenceBackplane backplane) =>
+{
+    var versions = await backplane.GetAllConfigurationVersionsAsync(experimentName);
+    
+    return Results.Ok(new
+    {
+        experimentName,
+        totalVersions = versions.Count,
+        versions = versions.Select(v => new
+        {
+            versionNumber = v.VersionNumber,
+            createdAt = v.CreatedAt,
+            createdBy = v.CreatedBy,
+            changeDescription = v.ChangeDescription,
+            isRollback = v.IsRollback,
+            rolledBackFrom = v.RolledBackFrom,
+            lifecycleState = v.LifecycleState?.ToString()
+        })
+    });
+})
+.WithName("GetConfigurationVersions")
+.WithTags("Persistence Demo");
+
+app.MapGet("/demo/persistence/approvals/{experimentName}", async (
+    string experimentName,
+    IGovernancePersistenceBackplane backplane) =>
+{
+    var approvals = await backplane.GetApprovalRecordsAsync(experimentName);
+    
+    return Results.Ok(new
+    {
+        experimentName,
+        totalApprovals = approvals.Count,
+        approvals = approvals.Select(a => new
+        {
+            approvalId = a.ApprovalId,
+            transitionId = a.TransitionId,
+            fromState = a.FromState?.ToString(),
+            toState = a.ToState.ToString(),
+            isApproved = a.IsApproved,
+            approver = a.Approver,
+            reason = a.Reason,
+            timestamp = a.Timestamp,
+            gateName = a.GateName
+        })
+    });
+})
+.WithName("GetApprovalHistory")
+.WithTags("Persistence Demo");
 
 app.Run();
 
