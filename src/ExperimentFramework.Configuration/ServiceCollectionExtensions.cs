@@ -240,53 +240,7 @@ public static class ServiceCollectionExtensions
             dataPlaneConfig.BatchSize.HasValue ||
             dataPlaneConfig.FlushIntervalMs.HasValue)
         {
-            // Use reflection to call AddDataBackplane from ExperimentFramework.DataPlane
-            var dataPlaneAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "ExperimentFramework.DataPlane");
-
-            if (dataPlaneAssembly != null)
-            {
-                var extensionsType = dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.ServiceCollectionExtensions");
-                if (extensionsType != null)
-                {
-                    var addDataBackplaneMethod = extensionsType.GetMethod(
-                        "AddDataBackplane",
-                        new[] { typeof(IServiceCollection), typeof(Action<>).MakeGenericType(
-                            dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.Abstractions.Configuration.DataPlaneOptions")!) });
-
-                    if (addDataBackplaneMethod != null)
-                    {
-                        // Create the options configuration action
-                        var optionsType = dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.Abstractions.Configuration.DataPlaneOptions");
-                        if (optionsType != null)
-                        {
-                            var actionType = typeof(Action<>).MakeGenericType(optionsType);
-                            var configureAction = Delegate.CreateDelegate(actionType, null, 
-                                ((Action<object>)((options) =>
-                                {
-                                    if (dataPlaneConfig.EnableExposureEvents.HasValue)
-                                        optionsType.GetProperty("EnableExposureEvents")!.SetValue(options, dataPlaneConfig.EnableExposureEvents.Value);
-                                    if (dataPlaneConfig.EnableAssignmentEvents.HasValue)
-                                        optionsType.GetProperty("EnableAssignmentEvents")!.SetValue(options, dataPlaneConfig.EnableAssignmentEvents.Value);
-                                    if (dataPlaneConfig.EnableOutcomeEvents.HasValue)
-                                        optionsType.GetProperty("EnableOutcomeEvents")!.SetValue(options, dataPlaneConfig.EnableOutcomeEvents.Value);
-                                    if (dataPlaneConfig.EnableAnalysisSignals.HasValue)
-                                        optionsType.GetProperty("EnableAnalysisSignals")!.SetValue(options, dataPlaneConfig.EnableAnalysisSignals.Value);
-                                    if (dataPlaneConfig.EnableErrorEvents.HasValue)
-                                        optionsType.GetProperty("EnableErrorEvents")!.SetValue(options, dataPlaneConfig.EnableErrorEvents.Value);
-                                    if (dataPlaneConfig.SamplingRate.HasValue)
-                                        optionsType.GetProperty("SamplingRate")!.SetValue(options, dataPlaneConfig.SamplingRate.Value);
-                                    if (dataPlaneConfig.BatchSize.HasValue)
-                                        optionsType.GetProperty("BatchSize")!.SetValue(options, dataPlaneConfig.BatchSize.Value);
-                                    if (dataPlaneConfig.FlushIntervalMs.HasValue)
-                                        optionsType.GetProperty("FlushInterval")!.SetValue(options, TimeSpan.FromMilliseconds(dataPlaneConfig.FlushIntervalMs.Value));
-                                })).Method);
-
-                            addDataBackplaneMethod.Invoke(null, new object[] { services, configureAction });
-                        }
-                    }
-                }
-            }
+            ConfigureDataPlaneOptions(services, dataPlaneConfig);
         }
 
         // Configure backplane if specified
@@ -311,6 +265,81 @@ public static class ServiceCollectionExtensions
                     backplaneConfig.Type);
             }
         }
+    }
+
+    /// <summary>
+    /// Helper method to configure data plane options using reflection.
+    /// </summary>
+    private static void ConfigureDataPlaneOptions(IServiceCollection services, Models.DataPlaneConfig dataPlaneConfig)
+    {
+        try
+        {
+            // Try to find the DataPlane assembly
+            var dataPlaneAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(a => a.GetName().Name == "ExperimentFramework.DataPlane");
+
+            if (dataPlaneAssembly == null)
+            {
+                // DataPlane not loaded, skip configuration
+                return;
+            }
+
+            var extensionsType = dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.ServiceCollectionExtensions");
+            var optionsType = dataPlaneAssembly.GetType("ExperimentFramework.DataPlane.Abstractions.Configuration.DataPlaneOptions");
+
+            if (extensionsType == null || optionsType == null)
+            {
+                return;
+            }
+
+            var addDataBackplaneMethod = extensionsType.GetMethod(
+                "AddDataBackplane",
+                new[] { typeof(IServiceCollection), typeof(Action<>).MakeGenericType(optionsType) });
+
+            if (addDataBackplaneMethod == null)
+            {
+                return;
+            }
+
+            // Create configuration action
+            var configureAction = CreateDataPlaneOptionsAction(optionsType, dataPlaneConfig);
+            addDataBackplaneMethod.Invoke(null, new object[] { services, configureAction });
+        }
+        catch (Exception)
+        {
+            // Silently fail if DataPlane assembly is not available
+            // This is expected if only the Configuration package is referenced
+        }
+    }
+
+    /// <summary>
+    /// Creates an action delegate to configure DataPlaneOptions.
+    /// </summary>
+    private static Delegate CreateDataPlaneOptionsAction(Type optionsType, Models.DataPlaneConfig config)
+    {
+        var actionType = typeof(Action<>).MakeGenericType(optionsType);
+        
+        Action<object> configAction = (options) =>
+        {
+            if (config.EnableExposureEvents.HasValue)
+                optionsType.GetProperty("EnableExposureEvents")?.SetValue(options, config.EnableExposureEvents.Value);
+            if (config.EnableAssignmentEvents.HasValue)
+                optionsType.GetProperty("EnableAssignmentEvents")?.SetValue(options, config.EnableAssignmentEvents.Value);
+            if (config.EnableOutcomeEvents.HasValue)
+                optionsType.GetProperty("EnableOutcomeEvents")?.SetValue(options, config.EnableOutcomeEvents.Value);
+            if (config.EnableAnalysisSignals.HasValue)
+                optionsType.GetProperty("EnableAnalysisSignals")?.SetValue(options, config.EnableAnalysisSignals.Value);
+            if (config.EnableErrorEvents.HasValue)
+                optionsType.GetProperty("EnableErrorEvents")?.SetValue(options, config.EnableErrorEvents.Value);
+            if (config.SamplingRate.HasValue)
+                optionsType.GetProperty("SamplingRate")?.SetValue(options, config.SamplingRate.Value);
+            if (config.BatchSize.HasValue)
+                optionsType.GetProperty("BatchSize")?.SetValue(options, config.BatchSize.Value);
+            if (config.FlushIntervalMs.HasValue)
+                optionsType.GetProperty("FlushInterval")?.SetValue(options, TimeSpan.FromMilliseconds(config.FlushIntervalMs.Value));
+        };
+
+        return Delegate.CreateDelegate(actionType, configAction.Target, configAction.Method);
     }
 }
 

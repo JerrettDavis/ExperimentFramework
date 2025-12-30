@@ -200,7 +200,7 @@ public sealed class KafkaDataBackplane : IDataBackplane, IDisposable
             KafkaPartitionStrategy.ByExperimentKey => ExtractExperimentKey(envelope),
             KafkaPartitionStrategy.BySubjectId => ExtractSubjectId(envelope),
             KafkaPartitionStrategy.ByTenantId => ExtractTenantId(envelope),
-            KafkaPartitionStrategy.RoundRobin => Guid.NewGuid().ToString(),
+            KafkaPartitionStrategy.RoundRobin => envelope.EventId, // Kafka will distribute based on hash
             _ => envelope.EventId
         };
     }
