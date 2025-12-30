@@ -54,6 +54,9 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
     private DateTimeOffset? _experimentStartTime;
     private DateTimeOffset? _experimentEndTime;
     private Func<IServiceProvider, bool>? _experimentPredicate;
+    private SelectionMode? _experimentSelectionMode;
+    private string? _experimentModeIdentifier;
+    private string? _experimentSelectorName;
 
     /// <summary>
     /// Configures trial selection to use a boolean feature flag.
@@ -580,9 +583,26 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
 
         _defaultKey ??= _trials.Keys.First();
 
+        // Apply experiment-level selection mode if trial doesn't have its own
+        var effectiveMode = _mode;
+        var effectiveModeIdentifier = _modeIdentifier;
+        var effectiveSelectorName = _selectorName;
+
+        // If trial doesn't have a selection mode configured but experiment does, use experiment's
+        if (_experimentSelectionMode.HasValue)
+        {
+            // Only override if trial-level mode is still the default
+            if (_mode == SelectionMode.BooleanFeatureFlag && _selectorName == null && _modeIdentifier == null)
+            {
+                effectiveMode = _experimentSelectionMode.Value;
+                effectiveModeIdentifier = _experimentModeIdentifier;
+                effectiveSelectorName = _experimentSelectorName;
+            }
+        }
+
         // For custom modes, use a placeholder if no selector name is provided.
         // The provider will use its own default naming convention at runtime.
-        var selectorName = _selectorName ?? _mode switch
+        var selectorName = effectiveSelectorName ?? effectiveMode switch
         {
             SelectionMode.BooleanFeatureFlag => convention.FeatureFlagNameFor(typeof(TService)),
             SelectionMode.ConfigurationValue => convention.ConfigurationKeyFor(typeof(TService)),
@@ -592,8 +612,8 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
 
         return new ServiceExperimentDefinition<TService>
         {
-            Mode = _mode,
-            ModeIdentifier = _modeIdentifier, // Will be derived from Mode if null
+            Mode = effectiveMode,
+            ModeIdentifier = effectiveModeIdentifier, // Will be derived from Mode if null
             SelectorName = selectorName,
             DefaultKey = _defaultKey,
             Trials = new Dictionary<string, Type>(_trials, StringComparer.Ordinal),
@@ -649,6 +669,14 @@ public sealed class ServiceExperimentBuilder<TService> : IExperimentDefinitionBu
     void IExperimentDefinitionBuilder.ApplyExperimentPredicate(Func<IServiceProvider, bool> predicate)
     {
         _experimentPredicate = predicate;
+    }
+
+    /// <inheritdoc />
+    void IExperimentDefinitionBuilder.ApplyExperimentSelectionMode(SelectionMode mode, string? modeIdentifier, string? selectorName)
+    {
+        _experimentSelectionMode = mode;
+        _experimentModeIdentifier = modeIdentifier;
+        _experimentSelectorName = selectorName;
     }
 
     /// <inheritdoc />

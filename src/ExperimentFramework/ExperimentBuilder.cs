@@ -1,5 +1,6 @@
 using ExperimentFramework.Models;
 using ExperimentFramework.Naming;
+using ExperimentFramework.Selection;
 
 namespace ExperimentFramework;
 
@@ -34,6 +35,11 @@ public sealed class ExperimentBuilder
     private DateTimeOffset? _endTime;
     private Func<IServiceProvider, bool>? _activationPredicate;
     private Dictionary<string, object>? _metadata;
+    
+    // Selection mode fields
+    private SelectionMode? _selectionMode;
+    private string? _modeIdentifier;
+    private string? _selectorName;
 
     internal ExperimentBuilder(string name)
     {
@@ -66,6 +72,103 @@ public sealed class ExperimentBuilder
         trialBuilder.SetExperimentName(_name);
         configure(trialBuilder);
         _trialDefinitions.Add(trialBuilder);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures all trials in this experiment to use a boolean feature flag for selection.
+    /// </summary>
+    /// <param name="featureName">
+    /// The name of the feature flag to evaluate. If <see langword="null"/>, a default name will be
+    /// derived from each service type using the configured naming convention.
+    /// </param>
+    /// <returns>The current builder instance for fluent chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// When the feature flag is enabled, the trial key <c>"true"</c> is selected.
+    /// When disabled, the trial key <c>"false"</c> is selected.
+    /// </para>
+    /// <para>
+    /// This mode is typically used for simple on/off experiments or gradual rollouts.
+    /// All trials under this experiment will share the same feature flag configuration.
+    /// </para>
+    /// </remarks>
+    public ExperimentBuilder UsingFeatureFlag(string? featureName = null)
+    {
+        _selectionMode = SelectionMode.BooleanFeatureFlag;
+        _selectorName = featureName;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures all trials in this experiment to use a configuration value for selection.
+    /// </summary>
+    /// <param name="configKey">
+    /// The configuration key whose value will be treated as the trial key.
+    /// If <see langword="null"/>, a default key will be derived from each service type
+    /// using the configured naming convention.
+    /// </param>
+    /// <returns>The current builder instance for fluent chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// The configuration value is interpreted as a string and matched directly against the
+    /// registered trial keys.
+    /// </para>
+    /// <para>
+    /// This mode is well-suited for multi-variant experiments (for example, <c>"A"</c>, <c>"B"</c>, <c>"Control"</c>).
+    /// All trials under this experiment will share the same configuration key.
+    /// </para>
+    /// </remarks>
+    public ExperimentBuilder UsingConfigurationKey(string? configKey = null)
+    {
+        _selectionMode = SelectionMode.ConfigurationValue;
+        _selectorName = configKey;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures all trials in this experiment to use a custom selection mode provider.
+    /// </summary>
+    /// <param name="modeIdentifier">
+    /// The identifier of the custom selection mode provider. This must match the
+    /// <see cref="ISelectionModeProvider.ModeIdentifier"/> of a registered provider.
+    /// </param>
+    /// <param name="selectorName">
+    /// The selector name passed to the provider (e.g., flag key, configuration key).
+    /// If <see langword="null"/>, the provider's default naming convention is used.
+    /// </param>
+    /// <returns>The current builder instance for fluent chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Custom modes allow external packages to extend the framework with new selection
+    /// strategies without modifying the core library.
+    /// </para>
+    /// <para>
+    /// Example usage:
+    /// <code>
+    /// .Experiment("payment-experiment", exp => exp
+    ///     .UsingCustomMode("OpenFeature", "payment-provider")
+    ///     .Trial&lt;IPayment&gt;(t => t
+    ///         .AddControl&lt;Stripe&gt;()
+    ///         .AddCondition&lt;PayPal&gt;("paypal")))
+    /// </code>
+    /// </para>
+    /// <para>
+    /// The provider must be registered in the <see cref="SelectionModeRegistry"/> before
+    /// the experiment is invoked. All trials under this experiment will share the same custom mode.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="modeIdentifier"/> is null or empty.
+    /// </exception>
+    public ExperimentBuilder UsingCustomMode(string modeIdentifier, string? selectorName = null)
+    {
+        if (string.IsNullOrEmpty(modeIdentifier))
+            throw new ArgumentNullException(nameof(modeIdentifier));
+
+        _selectionMode = SelectionMode.Custom;
+        _modeIdentifier = modeIdentifier;
+        _selectorName = selectorName;
         return this;
     }
 
@@ -175,6 +278,8 @@ public sealed class ExperimentBuilder
                     builder.ApplyExperimentEndTime(_endTime.Value);
                 if (_activationPredicate != null)
                     builder.ApplyExperimentPredicate(_activationPredicate);
+                if (_selectionMode.HasValue)
+                    builder.ApplyExperimentSelectionMode(_selectionMode.Value, _modeIdentifier, _selectorName);
 
                 builtDefinitions.Add(builder.Build(namingConvention));
             }
@@ -232,6 +337,11 @@ internal interface IExperimentDefinitionBuilder : IExperimentDefinition
     /// Applies an experiment-level activation predicate to this trial.
     /// </summary>
     void ApplyExperimentPredicate(Func<IServiceProvider, bool> predicate);
+
+    /// <summary>
+    /// Applies an experiment-level selection mode to this trial.
+    /// </summary>
+    void ApplyExperimentSelectionMode(SelectionMode mode, string? modeIdentifier, string? selectorName);
 
     /// <summary>
     /// Builds the experiment definition.
