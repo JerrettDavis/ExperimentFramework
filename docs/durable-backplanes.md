@@ -77,33 +77,71 @@ If no unified `topic` is specified, events are routed to type-specific topics:
 
 **Package**: `ExperimentFramework.DataPlane.AzureServiceBus`
 
-**Status**: Coming Soon
-
 A cloud-hosted durable messaging backplane for Azure environments.
 
-#### Planned Features
+#### Features
 
 - Queue and topic/subscription support
-- Message grouping for ordering guarantees
-- Dead-letter handling and retry semantics
+- Message grouping with sessions for ordering guarantees
+- Dead-letter handling and retry semantics with exponential backoff
 - Integration with Azure-native data processing
 - Configurable TTL and retention policies
+- Batching for improved throughput
 
-#### Example Configuration (Preview)
+#### Configuration Example
 
 ```yaml
 dataPlane:
   backplane:
     type: azureServiceBus
     options:
-      connectionString: "Endpoint=sb://..."
-      queueName: experiment-events
-      # OR use topics
-      topicName: experiment-events
-      subscriptionName: analytics-processor
+      connectionString: "Endpoint=sb://myns.servicebus.windows.net/;..."
+      queueName: experiment-events  # or use topicName
+      batchSize: 100
       maxRetryAttempts: 3
       messageTimeToLiveMinutes: 1440  # 24 hours
+      enableSessions: false
+      sessionStrategy: experimentKey  # experimentKey, subjectId, tenantId
 ```
+
+#### Programmatic Configuration
+
+```csharp
+services.AddAzureServiceBusDataBackplane(options =>
+{
+    options.ConnectionString = "Endpoint=sb://...";
+    options.QueueName = "experiment-events";
+    options.BatchSize = 100;
+    options.MaxRetryAttempts = 3;
+});
+```
+
+#### Destination Modes
+
+**Queue Mode** (single consumer):
+```yaml
+options:
+  queueName: experiment-events
+```
+
+**Topic Mode** (multiple subscribers):
+```yaml
+options:
+  topicName: experiment-events
+```
+
+**Type-Specific Destinations**:
+```yaml
+options:
+  useTypeSpecificDestinations: true
+```
+
+#### Use Cases
+
+- Reliable delivery across Azure services
+- Integration with Azure-native workflows (Functions, Logic Apps)
+- Multi-subscriber scenarios with topics
+- Guaranteed message ordering with sessions
 
 ---
 
@@ -247,6 +285,7 @@ Console.WriteLine($"Healthy: {health.IsHealthy}, Message: {health.Message}");
 See the [samples directory](/samples/ExperimentDefinitions/) for complete examples:
 
 - `kafka-backplane-example.yaml` - Kafka configuration
+- `azure-service-bus-backplane-example.yaml` - Azure Service Bus configuration
 - More examples coming soon
 
 ---
@@ -257,7 +296,7 @@ See the [samples directory](/samples/ExperimentDefinitions/) for complete exampl
 # Kafka backplane
 dotnet add package ExperimentFramework.DataPlane.Kafka
 
-# Azure Service Bus (coming soon)
+# Azure Service Bus
 dotnet add package ExperimentFramework.DataPlane.AzureServiceBus
 
 # SQL Server (coming soon)
