@@ -22,17 +22,23 @@ An **Experiment** is a named container that groups related trials. Experiments c
 ```csharp
 ExperimentFrameworkBuilder.Create()
     .Experiment("q1-2025-cloud-migration", exp => exp
+        .UsingFeatureFlag("UseCloudDb")  // Shared selection mode for all trials
         .Trial<IDatabase>(t => t
-            .UsingFeatureFlag("UseCloudDb")
             .AddControl<LocalDatabase>()
             .AddCondition<CloudDatabase>("cloud"))
         .Trial<ICache>(t => t
-            .UsingConfigurationKey("Cache:Provider")
             .AddControl<InMemoryCache>()
             .AddCondition<RedisCache>("redis"))
         .ActiveFrom(DateTimeOffset.Parse("2025-01-01"))
         .ActiveUntil(DateTimeOffset.Parse("2025-03-31")));
 ```
+
+Experiments allow you to:
+- Group related trials that should activate together
+- Share selection modes across multiple service interfaces
+- Apply time bounds to all trials
+- Use a common activation predicate
+- Track experiment metadata
 
 ### Trials
 

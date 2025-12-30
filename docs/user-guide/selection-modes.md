@@ -616,6 +616,138 @@ Do you need user-specific consistency?
                         └─ No: Use Configuration Value
 ```
 
+## Shared Selection Mode for Multiple Trials
+
+When multiple trials within a named experiment need to share the same selection configuration, you can define the selection mode at the experiment level. This eliminates redundancy and simplifies maintenance.
+
+### When to Use
+
+- Multiple related services should switch together based on the same flag
+- Coordinated rollout across multiple interfaces
+- Reducing configuration duplication
+- Grouped trials that represent a single feature change
+
+### Configuration
+
+Define the selection mode once at the experiment level:
+
+```csharp
+var experiments = ExperimentFrameworkBuilder.Create()
+    .Experiment("q1-2025-cloud-migration", exp => exp
+        .UsingFeatureFlag("UseCloudDb")  // Shared across all trials
+        .Trial<IDatabase>(t => t
+            .AddControl<LocalDatabase>()
+            .AddCondition<CloudDatabase>("true"))
+        .Trial<ICache>(t => t
+            .AddControl<InMemoryCache>()
+            .AddCondition<RedisCache>("true"))
+        .ActiveFrom(DateTimeOffset.Parse("2025-01-01"))
+        .ActiveUntil(DateTimeOffset.Parse("2025-03-31")));
+
+services.AddExperimentFramework(experiments);
+```
+
+Both `IDatabase` and `ICache` trials share the same `UseCloudDb` feature flag. When the flag is enabled, both services use their condition implementations; when disabled, both use their control implementations.
+
+### Available Methods
+
+All selection modes can be configured at the experiment level:
+
+**Boolean Feature Flags:**
+```csharp
+.Experiment("migration", exp => exp
+    .UsingFeatureFlag("MigrationEnabled")
+    .Trial<IDatabase>(t => ...)
+    .Trial<ICache>(t => ...))
+```
+
+**Configuration Values:**
+```csharp
+.Experiment("environment-config", exp => exp
+    .UsingConfigurationKey("Environment:Mode")
+    .Trial<IDatabase>(t => ...)
+    .Trial<ICache>(t => ...))
+```
+
+**Custom Modes:**
+```csharp
+.Experiment("custom-routing", exp => exp
+    .UsingCustomMode("StickyRouting", "my-experiment")
+    .Trial<IPayment>(t => ...)
+    .Trial<INotification>(t => ...))
+```
+
+**Extension Package Methods:**
+
+For `ExperimentFramework.FeatureManagement`:
+```csharp
+.Experiment("variant-test", exp => exp
+    .UsingVariantFeatureFlag("ProviderVariant")
+    .Trial<IEmail>(t => ...)
+    .Trial<ISms>(t => ...))
+```
+
+For `ExperimentFramework.OpenFeature`:
+```csharp
+.Experiment("feature-rollout", exp => exp
+    .UsingOpenFeature("payment-experiment")
+    .Trial<IPayment>(t => ...)
+    .Trial<IRefund>(t => ...))
+```
+
+### Trial-Level Overrides
+
+Individual trials can override the experiment-level selection mode when needed:
+
+```csharp
+.Experiment("mixed-config", exp => exp
+    .UsingFeatureFlag("UseCloudDb")           // Experiment-level default
+    .Trial<IDatabase>(t => t
+        .AddControl<LocalDatabase>()
+        .AddCondition<CloudDatabase>("true"))  // Uses experiment flag
+    .Trial<ITaxProvider>(t => t
+        .UsingFeatureFlag("UseTaxCalculation") // Override with different flag
+        .AddControl<DefaultTaxProvider>()
+        .AddCondition<OkTaxProvider>("true")))
+```
+
+In this example:
+- `IDatabase` uses the experiment-level `UseCloudDb` flag
+- `ITaxProvider` overrides with its own `UseTaxCalculation` flag
+
+### Benefits
+
+**Before (without shared selection mode):**
+```csharp
+.Experiment("migration", exp => exp
+    .Trial<IDatabase>(t => t
+        .UsingFeatureFlag("UseCloudDb")      // Repetitive
+        .AddControl<LocalDatabase>()
+        .AddCondition<CloudDatabase>("true"))
+    .Trial<ICache>(t => t
+        .UsingFeatureFlag("UseCloudDb")      // Repetitive
+        .AddControl<InMemoryCache>()
+        .AddCondition<RedisCache>("true")))
+```
+
+**After (with shared selection mode):**
+```csharp
+.Experiment("migration", exp => exp
+    .UsingFeatureFlag("UseCloudDb")          // Single declaration
+    .Trial<IDatabase>(t => t
+        .AddControl<LocalDatabase>()
+        .AddCondition<CloudDatabase>("true"))
+    .Trial<ICache>(t => t
+        .AddControl<InMemoryCache>()
+        .AddCondition<RedisCache>("true")))
+```
+
+This approach:
+- Reduces configuration duplication
+- Makes the shared dependency explicit
+- Simplifies flag management
+- Maintains consistency across related trials
+
 ## Combining Multiple Experiments
 
 You can define multiple experiments on different services:
