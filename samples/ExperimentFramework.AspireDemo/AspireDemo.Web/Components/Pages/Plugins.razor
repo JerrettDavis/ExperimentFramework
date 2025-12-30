@@ -1,8 +1,9 @@
 @page "/plugins"
 @using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
 @inject ExperimentApiClient ExperimentApi
 
-<PageTitle>Plugin System</PageTitle>
+<SetPageTitle Title="Integrations - OptimizeLab" />
 
 <div class="plugins-page">
     <div class="page-header">
@@ -353,7 +354,7 @@
     }
 
     .plugin-card {
-        background: var(--theme-background, white);
+        background: white;
         border-radius: 12px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         padding: 1.5rem;
@@ -363,8 +364,8 @@
     }
 
     :global(.theme-dark) .plugin-card {
-        background: #374151;
-        border-color: #4b5563;
+        background: #1f2937 !important;
+        border-color: #374151 !important;
     }
 
     .plugin-card:hover {
@@ -653,12 +654,12 @@
         grid-column: 1 / -1;
         text-align: center;
         padding: 4rem 2rem;
-        background: var(--theme-background, white);
+        background: white;
         border-radius: 12px;
         border: 2px dashed rgba(128,128,128,0.3);
     }
 
-    :global(.theme-dark) .empty-state { background: #374151; }
+    :global(.theme-dark) .empty-state { background: #1f2937 !important; border-color: #374151 !important; }
 
     .empty-icon {
         font-size: 2rem;
@@ -680,13 +681,13 @@
 
     /* Audit Section */
     .audit-section {
-        background: var(--theme-background, white);
+        background: white;
         border-radius: 12px;
         padding: 1.5rem;
         border: 1px solid rgba(128,128,128,0.2);
     }
 
-    :global(.theme-dark) .audit-section { background: #374151; border-color: #4b5563; }
+    :global(.theme-dark) .audit-section { background: #1f2937 !important; border-color: #374151 !important; }
 
     .section-title {
         display: flex;
@@ -779,6 +780,57 @@
 
     :global(.theme-dark) .skeleton-services { background: #4b5563; }
 
+    :global(.theme-dark) .plugin-title-area h3 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .section-header h4 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .section-title h2 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .empty-state h3 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .empty-state p {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .audit-type {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .service-item {
+        background: rgba(55, 65, 81, 0.5);
+    }
+
+    :global(.theme-dark) .impl-type {
+        color: #e5e7eb;
+        background: rgba(75, 85, 99, 0.5);
+    }
+
+    :global(.theme-dark) .plugin-info-row {
+        background: rgba(55, 65, 81, 0.5);
+    }
+
+    :global(.theme-dark) .info-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .error-banner {
+        background: rgba(220, 38, 38, 0.2);
+        border-color: #dc2626;
+    }
+
+    :global(.theme-dark) .success-banner {
+        background: rgba(22, 163, 74, 0.2);
+        border-color: #16a34a;
+    }
+
     @@keyframes shimmer {
         0% { background-position: -200% 0; }
         100% { background-position: 200% 0; }
@@ -797,12 +849,18 @@
     private bool _loading = true;
     private bool _discovering = false;
     private bool _reloading = false;
+    private bool _dataLoaded = false;
     private string? _error;
     private string? _success;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await RefreshPlugins();
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await RefreshPlugins();
+            StateHasChanged();
+        }
     }
 
     private async Task RefreshPlugins()

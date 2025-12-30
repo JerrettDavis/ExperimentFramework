@@ -97,6 +97,40 @@ public class ExperimentApiClient(HttpClient httpClient)
     }
 
     // ============================================================================
+    // DSL Configuration
+    // ============================================================================
+
+    public async Task<DslValidationResponse?> ValidateDslAsync(string yaml, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync("/api/dsl/validate", new { yaml }, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<DslValidationResponse>(cancellationToken);
+        }
+        return null;
+    }
+
+    public async Task<DslApplyResponse?> ApplyDslAsync(string yaml, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync("/api/dsl/apply", new { yaml }, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<DslApplyResponse>(cancellationToken);
+        }
+        return null;
+    }
+
+    public async Task<DslCurrentResponse?> GetCurrentDslAsync(CancellationToken cancellationToken = default)
+    {
+        return await httpClient.GetFromJsonAsync<DslCurrentResponse>("/api/dsl/current", cancellationToken);
+    }
+
+    public async Task<object?> GetDslSchemaAsync(CancellationToken cancellationToken = default)
+    {
+        return await httpClient.GetFromJsonAsync<object>("/api/dsl/schema", cancellationToken);
+    }
+
+    // ============================================================================
     // Plugins
     // ============================================================================
 
@@ -314,4 +348,53 @@ public class ActivePluginImplementation
     public string ImplementationType { get; set; } = "";
     public string? Alias { get; set; }
     public DateTime ActivatedAt { get; set; }
+}
+
+// ============================================================================
+// DSL DTOs
+// ============================================================================
+
+public class DslValidationResponse
+{
+    public bool IsValid { get; set; }
+    public List<DslValidationError> Errors { get; set; } = [];
+    public List<ExperimentPreview> ParsedExperiments { get; set; } = [];
+}
+
+public class DslApplyResponse
+{
+    public bool Success { get; set; }
+    public List<AppliedExperiment> Changes { get; set; } = [];
+    public List<DslValidationError> Errors { get; set; } = [];
+}
+
+public class DslCurrentResponse
+{
+    public string Yaml { get; set; } = "";
+    public DateTime? LastApplied { get; set; }
+    public bool HasUnappliedChanges { get; set; }
+}
+
+public class DslValidationError
+{
+    public string Path { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string Severity { get; set; } = "error";
+    public int Line { get; set; } = 1;
+    public int Column { get; set; } = 1;
+    public int EndLine { get; set; } = 1;
+    public int EndColumn { get; set; } = 1;
+}
+
+public class ExperimentPreview
+{
+    public string Name { get; set; } = "";
+    public int TrialCount { get; set; }
+    public string Action { get; set; } = "";
+}
+
+public class AppliedExperiment
+{
+    public string Name { get; set; } = "";
+    public string Action { get; set; } = "";
 }

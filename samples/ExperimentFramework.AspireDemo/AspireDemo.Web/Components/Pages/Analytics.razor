@@ -1,370 +1,571 @@
 @page "/analytics"
 @using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
 @inject ExperimentApiClient ExperimentApi
 
-<PageTitle>Analytics</PageTitle>
+<SetPageTitle Title="Analytics - OptimizeLab" />
 
-<div class="analytics-page">
-    <div class="page-header">
-        <h1>Analytics & Audit Log</h1>
-        <p class="subtitle">Monitor experiment usage and track all system events</p>
-        <button class="refresh-btn" @onclick="RefreshData" disabled="@_loading">
-            @if (_loading)
-            {
-                <span class="btn-spinner"></span>
-            }
-            else
-            {
-                <span>R</span>
-            }
-            Refresh
-        </button>
+<div class="analytics-console">
+    <!-- Header -->
+    <header class="console-header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>Analytics</h1>
+                <p class="header-subtitle">Monitor experiment performance and audit trail</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" @onclick="RefreshData" disabled="@_loading">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    @(_loading ? "Refreshing..." : "Refresh")
+                </button>
+                <button class="btn-primary" disabled title="Coming soon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                    Export Report
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Summary Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="9" y1="21" x2="9" y2="9"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">@(_loading ? "-" : _usageStats.Count.ToString())</div>
+                <div class="stat-label">Tracked Experiments</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">@(_loading ? "-" : _totalCalls.ToString("N0"))</div>
+                <div class="stat-label">Total Selections</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">@(_loading ? "-" : _auditLog.Count.ToString())</div>
+                <div class="stat-label">Audit Events</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">@(_loading || _auditLog.Count == 0 ? "-" : FormatTimeAgo(_auditLog.First().Timestamp))</div>
+                <div class="stat-label">Last Activity</div>
+            </div>
+        </div>
     </div>
 
     <div class="analytics-grid">
-        <!-- Usage Statistics -->
-        <div class="analytics-section usage-section">
-            <h2>Usage Statistics</h2>
-
-            @if (_loading)
-            {
-                <div class="skeleton-grid">
-                    <div class="skeleton-usage-card"></div>
-                    <div class="skeleton-usage-card"></div>
-                </div>
-            }
-            else if (_usageStats.Count == 0)
-            {
-                <div class="empty-state">
-                    <p>No usage data yet. Try the experiments in the Live Demo!</p>
-                </div>
-            }
-            else
-            {
-                <div class="usage-charts">
-                    @foreach (var experiment in _usageStats)
-                    {
-                        <div class="usage-card">
-                            <h3>@FormatExperimentName(experiment.Key)</h3>
-                            <div class="usage-bars">
-                                @{
-                                    var total = experiment.Value.Values.Sum();
-                                }
-                                @foreach (var variant in experiment.Value.OrderByDescending(v => v.Value))
-                                {
-                                    var percentage = total > 0 ? (variant.Value * 100.0 / total) : 0;
-                                    <div class="usage-bar-container">
-                                        <div class="usage-bar-label">
-                                            <span class="variant-name">@variant.Key</span>
-                                            <span class="variant-count">@variant.Value calls</span>
+        <!-- Variant Distribution -->
+        <section class="card distribution-section">
+            <div class="card-header">
+                <h2>Variant Distribution</h2>
+                <span class="card-subtitle">Selection breakdown by experiment</span>
+            </div>
+            <div class="card-body">
+                @if (_loading)
+                {
+                    <div class="skeleton-charts">
+                        <div class="skeleton-chart"></div>
+                        <div class="skeleton-chart"></div>
+                    </div>
+                }
+                else if (_usageStats.Count == 0)
+                {
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                        <p>No usage data yet</p>
+                        <span class="empty-hint">Run experiments in the Test Lab to generate data</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="distribution-grid">
+                        @foreach (var experiment in _usageStats)
+                        {
+                            var total = experiment.Value.Values.Sum();
+                            <div class="distribution-card">
+                                <div class="distribution-header">
+                                    <span class="distribution-name">@FormatExperimentName(experiment.Key)</span>
+                                    <span class="distribution-total">@total.ToString("N0") total</span>
+                                </div>
+                                <div class="distribution-bars">
+                                    @foreach (var variant in experiment.Value.OrderByDescending(v => v.Value))
+                                    {
+                                        var percentage = total > 0 ? (variant.Value * 100.0 / total) : 0;
+                                        var colorClass = GetVariantColor(experiment.Value.Keys.ToList().IndexOf(variant.Key));
+                                        <div class="bar-row">
+                                            <div class="bar-info">
+                                                <span class="bar-indicator @colorClass"></span>
+                                                <span class="bar-name">@variant.Key</span>
+                                                <span class="bar-count">@variant.Value</span>
+                                            </div>
+                                            <div class="bar-track">
+                                                <div class="bar-fill @colorClass" style="width: @percentage.ToString("F0")%"></div>
+                                            </div>
+                                            <span class="bar-percent">@percentage.ToString("F1")%</span>
                                         </div>
-                                        <div class="usage-bar-track">
-                                            <div class="usage-bar-fill" style="width: @percentage.ToString("F0")%"></div>
-                                        </div>
-                                        <span class="usage-bar-percentage">@percentage.ToString("F0")%</span>
-                                    </div>
-                                }
+                                    }
+                                </div>
                             </div>
-                            <div class="usage-total">
-                                Total: <strong>@total</strong> calls
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
 
         <!-- Audit Log -->
-        <div class="analytics-section audit-section">
-            <h2>Audit Log</h2>
-
-            @if (_loading)
-            {
-                <div class="skeleton-table">
-                    <div class="skeleton-row"></div>
-                    <div class="skeleton-row"></div>
-                    <div class="skeleton-row"></div>
-                    <div class="skeleton-row"></div>
-                </div>
-            }
-            else if (_auditLog.Count == 0)
-            {
-                <div class="empty-state">
-                    <p>No audit events recorded yet.</p>
-                </div>
-            }
-            else
-            {
-                <div class="audit-table-container">
-                    <table class="audit-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Event</th>
-                                <th>Experiment</th>
-                                <th>Trial</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var entry in _auditLog)
-                            {
+        <section class="card audit-section">
+            <div class="card-header">
+                <h2>Audit Log</h2>
+                <span class="card-subtitle">Recent system events and changes</span>
+            </div>
+            <div class="card-body">
+                @if (_loading)
+                {
+                    <div class="skeleton-table">
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            <div class="skeleton-row"></div>
+                        }
+                    </div>
+                }
+                else if (_auditLog.Count == 0)
+                {
+                    <div class="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <p>No audit events recorded</p>
+                        <span class="empty-hint">Events will appear here as experiments are modified</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="audit-table-wrapper">
+                        <table class="audit-table">
+                            <thead>
                                 <tr>
-                                    <td class="timestamp">@entry.Timestamp.ToString("HH:mm:ss")</td>
-                                    <td>
-                                        <span class="event-badge @GetEventClass(entry.EventType)">@entry.EventType</span>
-                                    </td>
-                                    <td>@(entry.ExperimentName ?? "-")</td>
-                                    <td>@(entry.TrialName ?? "-")</td>
-                                    <td class="details-cell">@TruncateDetails(entry.Details)</td>
+                                    <th>Timestamp</th>
+                                    <th>Event Type</th>
+                                    <th>Experiment</th>
+                                    <th>Details</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </div>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in _auditLog.Take(20))
+                                {
+                                    <tr>
+                                        <td class="timestamp-cell">
+                                            <span class="time">@entry.Timestamp.ToString("HH:mm:ss")</span>
+                                            <span class="date">@entry.Timestamp.ToString("MMM d")</span>
+                                        </td>
+                                        <td>
+                                            <span class="event-tag @GetEventClass(entry.EventType)">
+                                                @GetEventIcon(entry.EventType)
+                                                @FormatEventType(entry.EventType)
+                                            </span>
+                                        </td>
+                                        <td class="experiment-cell">
+                                            @if (!string.IsNullOrEmpty(entry.ExperimentName))
+                                            {
+                                                <code>@entry.ExperimentName</code>
+                                            }
+                                            else
+                                            {
+                                                <span class="muted">-</span>
+                                            }
+                                        </td>
+                                        <td class="details-cell" title="@entry.Details">
+                                            @TruncateDetails(entry.Details)
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (_auditLog.Count > 20)
+                    {
+                        <div class="table-footer">
+                            <span class="showing-text">Showing 20 of @_auditLog.Count events</span>
+                        </div>
+                    }
+                }
+            </div>
+        </section>
     </div>
 </div>
 
 <style>
-    .analytics-page {
-        padding: 1.5rem;
+    .analytics-console {
         max-width: 1400px;
         margin: 0 auto;
     }
 
-    .page-header {
+    /* Header */
+    .console-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .header-content {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
+        justify-content: space-between;
+        align-items: flex-start;
         gap: 1rem;
-        margin-bottom: 2rem;
+        flex-wrap: wrap;
     }
 
-    .page-header h1 {
+    .header-title h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
         margin: 0;
-        font-size: 2rem;
-        color: var(--theme-text, #1f2937);
+        letter-spacing: -0.02em;
     }
 
-    .page-header .subtitle {
-        flex: 1;
-        color: #6b7280;
-        margin: 0;
+    .header-subtitle {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 0;
     }
 
-    .refresh-btn {
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .btn-primary, .btn-secondary {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
+        padding: 0.625rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
         font-weight: 500;
-        transition: all 0.15s;
+        border: none;
+        cursor: pointer;
+        transition: all 150ms ease;
     }
 
-    .refresh-btn:hover:not(:disabled) {
-        background: #2563eb;
+    .btn-primary {
+        background: var(--color-primary, #6366f1);
+        color: white;
     }
 
-    .refresh-btn:disabled {
+    .btn-primary:hover:not(:disabled) {
+        background: var(--color-primary-hover, #4f46e5);
+    }
+
+    .btn-primary:disabled {
         opacity: 0.6;
         cursor: not-allowed;
     }
 
-    .btn-spinner {
-        width: 14px;
-        height: 14px;
-        border: 2px solid rgba(255,255,255,0.3);
-        border-top-color: white;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
+    .btn-secondary {
+        background: var(--color-bg-secondary, white);
+        color: var(--color-text-primary, #0f172a);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
     }
 
-    @@keyframes spin {
-        to { transform: rotate(360deg); }
+    .btn-secondary:hover:not(:disabled) {
+        background: var(--color-bg-tertiary, #f1f5f9);
     }
 
-    .analytics-grid {
+    /* Stats Row */
+    .stats-row {
         display: grid;
-        gap: 1.5rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
 
-    .analytics-section {
-        background: var(--theme-background, white);
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        padding: 1.5rem;
-        border: 1px solid rgba(128,128,128,0.2);
-    }
-
-    :global(.theme-dark) .analytics-section {
-        background: #374151;
-        border-color: #4b5563;
-    }
-
-    .analytics-section h2 {
-        margin: 0 0 1.5rem;
-        font-size: 1.25rem;
-        color: var(--theme-text, #1f2937);
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid rgba(128,128,128,0.2);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 2rem;
-        color: #6b7280;
-    }
-
-    /* Usage Charts */
-    .usage-charts {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .usage-card {
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
         padding: 1.25rem;
-        background: rgba(128,128,128,0.1);
-        border-radius: 8px;
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 10px;
     }
 
-    .usage-card h3 {
-        margin: 0 0 1rem;
-        font-size: 1rem;
-        color: var(--theme-text, #374151);
+    .stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
 
-    .usage-bars {
+    .stat-icon.blue { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+    .stat-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .stat-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .stat-icon.amber { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+    .stat-content {
+        min-width: 0;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        line-height: 1.2;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+        margin-top: 0.125rem;
+    }
+
+    /* Analytics Grid */
+    .analytics-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* Cards */
+    .card {
+        background: var(--color-bg-secondary, white);
+        border-radius: 12px;
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+    }
+
+    .card-header h2 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0;
+    }
+
+    .card-subtitle {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--color-text-muted, #94a3b8);
+        margin-top: 0.125rem;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    /* Distribution Grid */
+    .distribution-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+
+    .distribution-card {
+        padding: 1.25rem;
+        background: var(--color-bg-tertiary, rgba(148, 163, 184, 0.08));
+        border-radius: 10px;
+    }
+
+    .distribution-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .distribution-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .distribution-total {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .distribution-bars {
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
     }
 
-    .usage-bar-container {
+    .bar-row {
         display: grid;
         grid-template-columns: 1fr auto;
-        gap: 0.5rem;
+        gap: 0.75rem;
         align-items: center;
     }
 
-    .usage-bar-label {
+    .bar-info {
         display: flex;
-        justify-content: space-between;
-        font-size: 0.875rem;
+        align-items: center;
+        gap: 0.5rem;
         grid-column: 1 / -1;
     }
 
-    .variant-name {
-        color: var(--theme-text, #374151);
-        font-weight: 500;
-    }
-
-    .variant-count {
-        color: #6b7280;
-    }
-
-    .usage-bar-track {
+    .bar-indicator {
+        width: 8px;
         height: 8px;
-        background: rgba(128,128,128,0.2);
-        border-radius: 4px;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    .bar-indicator.color-1 { background: #6366f1; }
+    .bar-indicator.color-2 { background: #10b981; }
+    .bar-indicator.color-3 { background: #f59e0b; }
+    .bar-indicator.color-4 { background: #8b5cf6; }
+
+    .bar-name {
+        font-size: 0.8rem;
+        color: var(--color-text-primary, #0f172a);
+        flex: 1;
+    }
+
+    .bar-count {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .bar-track {
+        height: 6px;
+        background: var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 3px;
         overflow: hidden;
     }
 
-    .usage-bar-fill {
+    .bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, #3b82f6, #2563eb);
-        border-radius: 4px;
-        transition: width 0.5s ease;
+        border-radius: 3px;
+        transition: width 500ms ease;
     }
 
-    .usage-bar-percentage {
+    .bar-fill.color-1 { background: #6366f1; }
+    .bar-fill.color-2 { background: #10b981; }
+    .bar-fill.color-3 { background: #f59e0b; }
+    .bar-fill.color-4 { background: #8b5cf6; }
+
+    .bar-percent {
         font-size: 0.75rem;
         font-weight: 600;
-        color: #3b82f6;
-        min-width: 40px;
-        text-align: right;
-    }
-
-    .usage-total {
-        margin-top: 1rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid rgba(128,128,128,0.2);
-        font-size: 0.875rem;
-        color: #6b7280;
+        color: var(--color-text-secondary, #64748b);
+        min-width: 45px;
         text-align: right;
     }
 
     /* Audit Table */
-    .audit-table-container {
+    .audit-table-wrapper {
         overflow-x: auto;
     }
 
     .audit-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.875rem;
     }
 
     .audit-table th {
         text-align: left;
-        padding: 0.75rem;
-        background: rgba(128,128,128,0.1);
-        color: #6b7280;
-        font-weight: 500;
+        padding: 0.75rem 1rem;
+        background: var(--color-bg-tertiary, rgba(148, 163, 184, 0.08));
+        color: var(--color-text-muted, #94a3b8);
+        font-size: 0.7rem;
+        font-weight: 600;
         text-transform: uppercase;
-        font-size: 0.75rem;
         letter-spacing: 0.05em;
-        border-bottom: 1px solid rgba(128,128,128,0.2);
     }
 
     .audit-table td {
-        padding: 0.75rem;
-        border-bottom: 1px solid rgba(128,128,128,0.1);
-        color: var(--theme-text, #374151);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--color-border, rgba(148, 163, 184, 0.1));
+        font-size: 0.8rem;
     }
 
-    .audit-table tr:hover td {
-        background: rgba(128,128,128,0.05);
+    .audit-table tbody tr:hover td {
+        background: var(--color-bg-tertiary, rgba(148, 163, 184, 0.05));
     }
 
-    .timestamp {
-        font-family: monospace;
-        color: #6b7280;
+    .timestamp-cell {
+        white-space: nowrap;
     }
 
-    .event-badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
+    .timestamp-cell .time {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        color: var(--color-text-primary, #0f172a);
+        font-size: 0.8rem;
+    }
+
+    .timestamp-cell .date {
+        display: block;
+        font-size: 0.7rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .event-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.25rem 0.625rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
         font-weight: 500;
     }
 
-    .event-badge.info {
-        background: #dbeafe;
-        color: #1d4ed8;
+    .event-tag.selection { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+    .event-tag.modification { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .event-tag.creation { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .event-tag.error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+    .experiment-cell code {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.75rem;
+        background: var(--color-bg-tertiary, rgba(148, 163, 184, 0.1));
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--color-text-primary, #0f172a);
     }
 
-    .event-badge.warning {
-        background: #fef3c7;
-        color: #d97706;
-    }
-
-    .event-badge.error {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-
-    .event-badge.success {
-        background: #d1fae5;
-        color: #059669;
+    .experiment-cell .muted {
+        color: var(--color-text-muted, #94a3b8);
     }
 
     .details-cell {
@@ -372,28 +573,57 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: #6b7280;
+        color: var(--color-text-secondary, #64748b);
+    }
+
+    .table-footer {
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+        text-align: center;
+    }
+
+    .showing-text {
         font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
     }
 
-    /* Skeleton loading styles */
-    .skeleton-grid {
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .empty-state svg {
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        font-size: 0.95rem;
+        margin: 0 0 0.5rem;
+        color: var(--color-text-secondary, #64748b);
+    }
+
+    .empty-hint {
+        font-size: 0.8rem;
+    }
+
+    /* Skeleton */
+    .skeleton-charts {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
     }
 
-    .skeleton-usage-card {
+    .skeleton-chart {
         height: 150px;
-        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background: linear-gradient(90deg,
+            var(--color-bg-tertiary, #e5e7eb) 25%,
+            var(--color-bg-secondary, #f3f4f6) 50%,
+            var(--color-bg-tertiary, #e5e7eb) 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
-        border-radius: 8px;
-    }
-
-    :global(.theme-dark) .skeleton-usage-card {
-        background: linear-gradient(90deg, #4b5563 25%, #6b7280 50%, #4b5563 75%);
-        background-size: 200% 100%;
+        border-radius: 10px;
     }
 
     .skeleton-table {
@@ -403,32 +633,79 @@
     }
 
     .skeleton-row {
-        height: 40px;
-        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        height: 48px;
+        background: linear-gradient(90deg,
+            var(--color-bg-tertiary, #e5e7eb) 25%,
+            var(--color-bg-secondary, #f3f4f6) 50%,
+            var(--color-bg-tertiary, #e5e7eb) 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
-        border-radius: 4px;
-    }
-
-    :global(.theme-dark) .skeleton-row {
-        background: linear-gradient(90deg, #4b5563 25%, #6b7280 50%, #4b5563 75%);
-        background-size: 200% 100%;
+        border-radius: 6px;
     }
 
     @@keyframes shimmer {
         0% { background-position: -200% 0; }
         100% { background-position: 200% 0; }
     }
+
+    /* Dark Theme */
+    :global(.theme-dark) .stat-card,
+    :global(.theme-dark) .card {
+        background: var(--color-bg-secondary, #1e293b);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    :global(.theme-dark) .distribution-card {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Responsive */
+    @@media (max-width: 900px) {
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .header-content {
+            flex-direction: column;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .header-actions button {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-card {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
 </style>
 
 @code {
     private Dictionary<string, Dictionary<string, int>> _usageStats = [];
     private List<AuditLogEntry> _auditLog = [];
-    private bool _loading = false;
+    private bool _loading = true;
+    private bool _dataLoaded = false;
+    private int _totalCalls = 0;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await RefreshData();
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await RefreshData();
+            StateHasChanged();
+        }
     }
 
     private async Task RefreshData()
@@ -437,10 +714,12 @@
         try
         {
             _usageStats = await ExperimentApi.GetUsageStatsAsync();
+            _totalCalls = _usageStats.Values.SelectMany(v => v.Values).Sum();
         }
         catch
         {
             _usageStats = [];
+            _totalCalls = 0;
         }
 
         try
@@ -464,18 +743,54 @@
         _ => name
     };
 
+    private static string GetVariantColor(int index) => $"color-{(index % 4) + 1}";
+
     private static string GetEventClass(string eventType)
     {
         var lower = eventType.ToLower();
+        if (lower.Contains("select")) return "selection";
+        if (lower.Contains("modif") || lower.Contains("updat")) return "modification";
+        if (lower.Contains("creat")) return "creation";
         if (lower.Contains("error") || lower.Contains("fail")) return "error";
-        if (lower.Contains("warn")) return "warning";
-        if (lower.Contains("success") || lower.Contains("complete")) return "success";
-        return "info";
+        return "selection";
+    }
+
+    private static MarkupString GetEventIcon(string eventType)
+    {
+        var lower = eventType.ToLower();
+        if (lower.Contains("select"))
+            return new MarkupString("<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><polyline points='20 6 9 17 4 12'/></svg>");
+        if (lower.Contains("modif") || lower.Contains("updat"))
+            return new MarkupString("<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'/><path d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'/></svg>");
+        if (lower.Contains("creat"))
+            return new MarkupString("<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='16'/><line x1='8' y1='12' x2='16' y2='12'/></svg>");
+        return new MarkupString("<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/></svg>");
+    }
+
+    private static string FormatEventType(string eventType)
+    {
+        return eventType switch
+        {
+            "VariantSelected" => "Selection",
+            "ExperimentModified" => "Modified",
+            "ExperimentCreated" => "Created",
+            "ExperimentStopped" => "Stopped",
+            _ => eventType
+        };
+    }
+
+    private static string FormatTimeAgo(DateTime timestamp)
+    {
+        var diff = DateTime.UtcNow - timestamp;
+        if (diff.TotalMinutes < 1) return "Just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        return $"{(int)diff.TotalDays}d ago";
     }
 
     private static string TruncateDetails(string details)
     {
         if (string.IsNullOrEmpty(details)) return "-";
-        return details.Length > 100 ? details[..97] + "..." : details;
+        return details.Length > 80 ? details[..77] + "..." : details;
     }
 }

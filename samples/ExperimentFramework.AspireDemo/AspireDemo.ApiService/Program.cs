@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using AspireDemo.ApiService.Services;
 using ExperimentFramework;
 using ExperimentFramework.Audit;
 using ExperimentFramework.Targeting;
@@ -14,6 +15,7 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(p => p.AllowAnyOrig
 // Experiment state management (in-memory for demo)
 builder.Services.AddSingleton<ExperimentStateManager>();
 builder.Services.AddSingleton<PluginStateManager>();
+builder.Services.AddSingleton<RuntimeExperimentManager>();
 
 // Register all experiment implementations
 builder.Services.AddSingleton<TieredPricing>();
@@ -492,9 +494,9 @@ app.MapDelete("/api/plugins/active/{interface}", async (string @interface, Plugi
 // Configuration & DSL Endpoints
 // ============================================================================
 
-app.MapGet("/api/config/yaml", (ExperimentStateManager state) =>
+app.MapGet("/api/config/yaml", (RuntimeExperimentManager dslManager) =>
 {
-    var yaml = GenerateYamlDsl(state.GetAllExperiments());
+    var yaml = dslManager.ExportCurrentConfiguration();
     return Results.Text(yaml, "text/yaml");
 })
 .WithName("GetConfigYaml")
@@ -529,13 +531,158 @@ app.MapGet("/api/config/info", (ExperimentStateManager state) =>
             new { Name = "Targeting", Enabled = true, Description = "User/context-based experiment targeting" },
             new { Name = "Audit Logging", Enabled = true, Description = "In-memory audit event recording" },
             new { Name = "Theme Switching", Enabled = true, Description = "Live UI theme experimentation" },
-            new { Name = "YAML DSL Export", Enabled = true, Description = "Export experiments as YAML configuration" }
+            new { Name = "YAML DSL Export", Enabled = true, Description = "Export experiments as YAML configuration" },
+            new { Name = "DSL Editor", Enabled = true, Description = "Runtime configuration via YAML DSL" }
         }
     };
     return Results.Ok(info);
 })
 .WithName("GetConfigInfo")
 .WithTags("Configuration");
+
+// ============================================================================
+// DSL Configuration Endpoints
+// ============================================================================
+
+app.MapPost("/api/dsl/validate", (DslRequest request, RuntimeExperimentManager dslManager) =>
+{
+    var result = dslManager.Validate(request.Yaml);
+    return Results.Ok(result);
+})
+.WithName("ValidateDsl")
+.WithTags("DSL");
+
+app.MapPost("/api/dsl/apply", async (DslRequest request, RuntimeExperimentManager dslManager, InMemoryAuditSink auditSink) =>
+{
+    var result = dslManager.Apply(request.Yaml);
+
+    if (result.Success)
+    {
+        await auditSink.RecordAsync(new AuditEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            Timestamp = DateTimeOffset.UtcNow,
+            EventType = AuditEventType.ExperimentModified,
+            ExperimentName = "DSL",
+            SelectedTrialKey = $"Applied {result.Changes.Count} changes",
+            Details = new Dictionary<string, object>
+            {
+                ["changes"] = result.Changes.Select(c => $"{c.Action}: {c.Name}").ToList()
+            }
+        });
+    }
+
+    return Results.Ok(result);
+})
+.WithName("ApplyDsl")
+.WithTags("DSL");
+
+app.MapGet("/api/dsl/current", (RuntimeExperimentManager dslManager) =>
+{
+    var yaml = dslManager.ExportCurrentConfiguration();
+    var (lastYaml, lastApplied) = dslManager.GetLastApplied();
+
+    return Results.Ok(new
+    {
+        Yaml = yaml,
+        LastApplied = lastApplied,
+        HasUnappliedChanges = lastYaml != null && lastYaml != yaml
+    });
+})
+.WithName("GetCurrentDsl")
+.WithTags("DSL");
+
+app.MapGet("/api/dsl/schema", () =>
+{
+    // Return a simplified JSON Schema for the DSL
+    var schema = new
+    {
+        type = "object",
+        properties = new
+        {
+            experiments = new
+            {
+                type = "array",
+                items = new
+                {
+                    type = "object",
+                    required = new[] { "name", "trials" },
+                    properties = new
+                    {
+                        name = new { type = "string", description = "Unique experiment identifier" },
+                        metadata = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                displayName = new { type = "string" },
+                                description = new { type = "string" },
+                                category = new { type = "string" }
+                            }
+                        },
+                        trials = new
+                        {
+                            type = "array",
+                            items = new
+                            {
+                                type = "object",
+                                required = new[] { "serviceType", "control" },
+                                properties = new
+                                {
+                                    serviceType = new { type = "string", description = "Service interface type" },
+                                    selectionMode = new
+                                    {
+                                        type = "object",
+                                        properties = new
+                                        {
+                                            type = new { type = "string", @enum = new[] { "configurationKey", "featureFlag", "rollout", "targeting" } },
+                                            key = new { type = "string" }
+                                        }
+                                    },
+                                    control = new
+                                    {
+                                        type = "object",
+                                        properties = new
+                                        {
+                                            key = new { type = "string" },
+                                            typeName = new { type = "string" }
+                                        }
+                                    },
+                                    conditions = new
+                                    {
+                                        type = "array",
+                                        items = new
+                                        {
+                                            type = "object",
+                                            properties = new
+                                            {
+                                                key = new { type = "string" },
+                                                typeName = new { type = "string" },
+                                                displayName = new { type = "string" }
+                                            }
+                                        }
+                                    },
+                                    errorPolicy = new
+                                    {
+                                        type = "object",
+                                        properties = new
+                                        {
+                                            type = new { type = "string", @enum = new[] { "throw", "fallbackToControl", "fallbackTo", "tryInOrder" } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    return Results.Ok(schema);
+})
+.WithName("GetDslSchema")
+.WithTags("DSL");
 
 app.MapDefaultEndpoints();
 app.Run();
@@ -592,41 +739,6 @@ static RecommendationResult SimulatePluginRecommendations(string implementationT
             0.85
         )
     };
-}
-
-static string GenerateYamlDsl(IEnumerable<ExperimentInfo> experiments)
-{
-    var sb = new System.Text.StringBuilder();
-    sb.AppendLine("# ExperimentFramework Configuration");
-    sb.AppendLine("# Generated from current runtime state");
-    sb.AppendLine($"# Timestamp: {DateTime.UtcNow:O}");
-    sb.AppendLine();
-    sb.AppendLine("experiments:");
-
-    foreach (var exp in experiments)
-    {
-        sb.AppendLine($"  - name: {exp.Name}");
-        sb.AppendLine($"    displayName: \"{exp.DisplayName}\"");
-        sb.AppendLine($"    description: \"{exp.Description}\"");
-        sb.AppendLine($"    category: {exp.Category}");
-        sb.AppendLine($"    status: {exp.Status}");
-        sb.AppendLine($"    activeVariant: {exp.ActiveVariant}");
-        sb.AppendLine("    variants:");
-        foreach (var variant in exp.Variants)
-        {
-            sb.AppendLine($"      - key: {variant.Name}");
-            sb.AppendLine($"        displayName: \"{variant.DisplayName}\"");
-            sb.AppendLine($"        description: \"{variant.Description}\"");
-            if (variant.Name == exp.ActiveVariant)
-                sb.AppendLine("        isDefault: true");
-        }
-        sb.AppendLine($"    selectionMode: ConfigurationValue");
-        sb.AppendLine($"    configKey: \"Experiments:{GetConfigKey(exp.Name)}\"");
-        sb.AppendLine($"    errorPolicy: RedirectAndReplayDefault");
-        sb.AppendLine();
-    }
-
-    return sb.ToString();
 }
 
 // ============================================================================
@@ -690,11 +802,11 @@ public class ExperimentStateManager
             Name = "ui-theme",
             DisplayName = "UI Theme",
             Description = "Test different visual themes for user preference",
-            ActiveVariant = "light",
+            ActiveVariant = "system",
             Variants = [
+                new VariantInfo { Name = "system", DisplayName = "System Default", Description = "Follows user's OS preference" },
                 new VariantInfo { Name = "light", DisplayName = "Light Theme", Description = "Clean white background with blue accents" },
-                new VariantInfo { Name = "dark", DisplayName = "Dark Theme", Description = "Dark background for reduced eye strain" },
-                new VariantInfo { Name = "system", DisplayName = "System Default", Description = "Follows user's OS preference" }
+                new VariantInfo { Name = "dark", DisplayName = "Dark Theme", Description = "Dark background for reduced eye strain" }
             ],
             Category = "UX",
             Status = "Active"
@@ -727,6 +839,59 @@ public class ExperimentStateManager
 
     public Dictionary<string, Dictionary<string, int>> GetUsageStats() =>
         _usageStats.ToDictionary(x => x.Key, x => x.Value.ToDictionary(y => y.Key, y => y.Value));
+
+    // DSL Support Methods
+
+    public IEnumerable<ExperimentInfo> GetDslExperiments() =>
+        _experiments.Values.Where(e => e.Source == ExperimentSource.Dsl);
+
+    public bool AddExperiment(ExperimentInfo experiment)
+    {
+        experiment.Source = ExperimentSource.Dsl;
+        experiment.LastModified = DateTime.UtcNow;
+        return _experiments.TryAdd(experiment.Name, experiment);
+    }
+
+    public bool UpdateExperiment(string name, ExperimentInfo updated)
+    {
+        if (!_experiments.TryGetValue(name, out var existing)) return false;
+
+        updated.LastModified = DateTime.UtcNow;
+        updated.Source = existing.Source; // Preserve source
+        _experiments[name] = updated;
+        return true;
+    }
+
+    public bool RemoveExperiment(string name)
+    {
+        if (!_experiments.TryGetValue(name, out var exp)) return false;
+        if (exp.Source != ExperimentSource.Dsl) return false; // Only allow removing DSL experiments
+
+        return _experiments.TryRemove(name, out _);
+    }
+
+    public Dictionary<string, ExperimentInfo> CreateSnapshot() =>
+        _experiments.ToDictionary(kvp => kvp.Key, kvp => new ExperimentInfo
+        {
+            Name = kvp.Value.Name,
+            DisplayName = kvp.Value.DisplayName,
+            Description = kvp.Value.Description,
+            ActiveVariant = kvp.Value.ActiveVariant,
+            Variants = kvp.Value.Variants.ToList(),
+            Category = kvp.Value.Category,
+            Status = kvp.Value.Status,
+            LastModified = kvp.Value.LastModified,
+            Source = kvp.Value.Source
+        });
+
+    public void RestoreSnapshot(Dictionary<string, ExperimentInfo> snapshot)
+    {
+        _experiments.Clear();
+        foreach (var kvp in snapshot)
+        {
+            _experiments[kvp.Key] = kvp.Value;
+        }
+    }
 }
 
 public class ExperimentInfo
@@ -739,7 +904,16 @@ public class ExperimentInfo
     public required string Category { get; set; }
     public required string Status { get; set; }
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
+    public ExperimentSource Source { get; set; } = ExperimentSource.Code;
 }
+
+public enum ExperimentSource
+{
+    Code,
+    Dsl
+}
+
+public record DslRequest(string Yaml);
 
 public class VariantInfo
 {
@@ -765,7 +939,7 @@ public class InMemoryAuditSink : IAuditSink
             EventType = auditEvent.EventType.ToString(),
             ExperimentName = auditEvent.ExperimentName,
             TrialName = auditEvent.SelectedTrialKey,
-            Details = auditEvent.ToString()
+            Details = auditEvent.ToString() ?? ""
         };
 
         _events.Enqueue(entry);

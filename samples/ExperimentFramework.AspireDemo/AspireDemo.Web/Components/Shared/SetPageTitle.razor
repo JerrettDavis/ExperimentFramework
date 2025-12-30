@@ -1,0 +1,21 @@
+@inject IJSRuntime JS
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "OptimizeLab";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("setPageTitle", Title);
+            }
+            catch
+            {
+                // JS interop may not be available
+            }
+        }
+    }
+}

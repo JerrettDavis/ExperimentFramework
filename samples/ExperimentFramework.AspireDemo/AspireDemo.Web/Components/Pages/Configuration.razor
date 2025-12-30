@@ -1,9 +1,10 @@
 @page "/config"
 @using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
 @inject ExperimentApiClient ExperimentApi
 @inject IJSRuntime JS
 
-<PageTitle>Configuration</PageTitle>
+<SetPageTitle Title="Settings - OptimizeLab" />
 
 <div class="config-page">
     <div class="page-header">
@@ -207,7 +208,7 @@
     }
 
     .info-card {
-        background: var(--theme-background, white);
+        background: white;
         border-radius: 12px;
         padding: 1.25rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -216,8 +217,8 @@
     }
 
     :global(.theme-dark) .info-card {
-        background: #374151;
-        border-color: #4b5563;
+        background: #1f2937;
+        border-color: #374151;
     }
 
     .framework-card { border-left-color: #3b82f6; }
@@ -266,6 +267,11 @@
         border-radius: 4px;
     }
 
+    :global(.theme-dark) .version-badge {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+    }
+
     .stats-row {
         display: flex;
         gap: 2rem;
@@ -311,7 +317,7 @@
     .category-tag.ux { background: #ede9fe; color: #7c3aed; }
 
     .section {
-        background: var(--theme-background, white);
+        background: white;
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -320,8 +326,8 @@
     }
 
     :global(.theme-dark) .section {
-        background: #374151;
-        border-color: #4b5563;
+        background: #1f2937;
+        border-color: #374151;
     }
 
     .section h2 {
@@ -417,19 +423,32 @@
     }
 
     .yaml-code, .csharp-code {
-        background: #1f2937;
-        color: #e5e7eb;
+        background: #1e1e1e;
+        color: #d4d4d4;
         padding: 1rem;
         border-radius: 8px;
         overflow-x: auto;
         font-size: 0.8rem;
-        line-height: 1.5;
+        line-height: 1.6;
         max-height: 400px;
         overflow-y: auto;
+        border: 1px solid #333;
+        margin: 0;
     }
 
     .yaml-code code, .csharp-code code {
-        font-family: 'Consolas', 'Monaco', monospace;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        color: inherit;
+        background: transparent;
+        white-space: pre;
+        display: block;
+    }
+
+    /* Ensure no browser default styling interferes */
+    .yaml-code code::selection,
+    .csharp-code code::selection {
+        background: #264f78;
+        color: #ffffff;
     }
 
     /* Skeleton loading styles */
@@ -445,6 +464,54 @@
         background-size: 200% 100%;
     }
 
+    /* Dark mode overrides */
+    :global(.theme-dark) .info-card h3 {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .info-label {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .info-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .stat-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .stat-label {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .section-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    :global(.theme-dark) .section-header {
+        border-color: #374151;
+    }
+
+    :global(.theme-dark) .copy-btn {
+        background: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .copy-btn:hover {
+        background: #4b5563;
+    }
+
+    :global(.theme-dark) .feature-name {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .feature-desc {
+        color: #9ca3af;
+    }
+
     @@keyframes shimmer {
         0% { background-position: -200% 0; }
         100% { background-position: 200% 0; }
@@ -454,12 +521,18 @@
 @code {
     private FrameworkInfo? _info;
     private string _yamlConfig = "";
-    private bool _loading = false;
+    private bool _loading = true;
     private bool _copied = false;
+    private bool _dataLoaded = false;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await RefreshData();
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await RefreshData();
+            StateHasChanged();
+        }
     }
 
     private async Task RefreshData()

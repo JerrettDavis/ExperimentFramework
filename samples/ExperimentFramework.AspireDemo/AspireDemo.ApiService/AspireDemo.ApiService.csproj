@@ -11,6 +11,7 @@
     <ProjectReference Include="..\..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
     <ProjectReference Include="..\..\..\src\ExperimentFramework.Targeting\ExperimentFramework.Targeting.csproj" />
     <ProjectReference Include="..\..\..\src\ExperimentFramework.Audit\ExperimentFramework.Audit.csproj" />
+    <ProjectReference Include="..\..\..\src\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>

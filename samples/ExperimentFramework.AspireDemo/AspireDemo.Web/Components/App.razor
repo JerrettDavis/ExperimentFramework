@@ -5,16 +5,111 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <title>OptimizeLab</title>
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["AspireDemo.Web.styles.css"]" />
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
+    <script src="theme.js"></script>
+    <style>
+        /* Prevent flash of unstyled content - applied via CSS media query */
+        @@media (prefers-color-scheme: dark) {
+            html:not(.theme-light) body,
+            html:not(.theme-light) .page {
+                background-color: #111827 !important;
+                color: #f3f4f6 !important;
+            }
+        }
+
+        /* Dark mode base styles - apply immediately when .theme-dark is on html or body */
+        html.theme-dark,
+        html.theme-dark body,
+        body.theme-dark {
+            background-color: #111827 !important;
+            color: #f3f4f6 !important;
+        }
+
+        html.theme-dark .page,
+        body.theme-dark .page {
+            background-color: #111827 !important;
+            color: #f3f4f6 !important;
+        }
+
+        /* Card dark mode fallback */
+        html.theme-dark .demo-card,
+        html.theme-dark .info-card,
+        html.theme-dark .plugin-card,
+        html.theme-dark .section,
+        html.theme-dark .audit-section,
+        html.theme-dark .empty-state,
+        html.theme-dark .card,
+        html.theme-dark .panel,
+        html.theme-dark .stat-card,
+        body.theme-dark .demo-card,
+        body.theme-dark .info-card,
+        body.theme-dark .plugin-card,
+        body.theme-dark .section,
+        body.theme-dark .audit-section,
+        body.theme-dark .empty-state,
+        body.theme-dark .card,
+        body.theme-dark .panel,
+        body.theme-dark .stat-card {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+        }
+
+        /* Form elements dark mode */
+        html.theme-dark input,
+        html.theme-dark textarea,
+        html.theme-dark select,
+        body.theme-dark input,
+        body.theme-dark textarea,
+        body.theme-dark select {
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #e5e7eb !important;
+        }
+
+        /* Buttons dark mode */
+        html.theme-dark .toggle-btn,
+        html.theme-dark .btn-secondary,
+        body.theme-dark .toggle-btn,
+        body.theme-dark .btn-secondary {
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #e5e7eb !important;
+        }
+
+        /* Labels and text */
+        html.theme-dark label,
+        html.theme-dark .info-label,
+        html.theme-dark .section-title,
+        body.theme-dark label,
+        body.theme-dark .info-label,
+        body.theme-dark .section-title {
+            color: #9ca3af !important;
+        }
+
+        html.theme-dark .info-value,
+        body.theme-dark .info-value {
+            color: #e5e7eb !important;
+        }
+
+        /* Recommendations list */
+        html.theme-dark .recommendations-list li,
+        body.theme-dark .recommendations-list li {
+            background-color: rgba(55, 65, 81, 0.5) !important;
+            border-color: #4b5563 !important;
+            color: #e5e7eb !important;
+        }
+    </style>
 </head>
 
 <body>
-    <Routes @rendermode="RenderMode.InteractiveServer" />
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="monaco/monaco-interop.js"></script>
 </body>
 
 </html>
