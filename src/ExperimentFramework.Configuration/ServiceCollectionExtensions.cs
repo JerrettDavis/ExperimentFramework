@@ -97,6 +97,13 @@ public static class ServiceCollectionExtensions
         // Register with the existing framework
         services.AddExperimentFramework(frameworkBuilder);
 
+        // Apply governance configuration if present
+        if (configRoot.Governance != null)
+        {
+            var governanceHandler = new Extensions.Handlers.GovernanceConfigurationHandler(logger);
+            governanceHandler.ApplyGovernanceConfiguration(services, configRoot.Governance);
+        }
+
         // Set up hot reload if enabled
         if (options.EnableHotReload)
         {
@@ -177,7 +184,16 @@ public static class ServiceCollectionExtensions
         configBuilder.MergeInto(builder, configRoot);
 
         // Register the merged builder
-        return services.AddExperimentFramework(builder);
+        services.AddExperimentFramework(builder);
+
+        // Apply governance configuration if present
+        if (configRoot.Governance != null)
+        {
+            var governanceHandler = new Extensions.Handlers.GovernanceConfigurationHandler(logger);
+            governanceHandler.ApplyGovernanceConfiguration(services, configRoot.Governance);
+        }
+
+        return services;
     }
 
     private static void SetupHotReload(

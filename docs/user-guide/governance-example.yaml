@@ -1,0 +1,70 @@
+# Example: Complete governance configuration with YAML DSL
+
+experimentFramework:
+  # Governance configuration
+  governance:
+    # Enable automatic versioning on configuration changes
+    enableAutoVersioning: true
+    
+    # Define approval gates for lifecycle transitions
+    approvalGates:
+      # Automatic approval for Draft → PendingApproval
+      - type: automatic
+        fromState: Draft
+        toState: PendingApproval
+      
+      # Manual approval for PendingApproval → Approved
+      - type: manual
+        fromState: PendingApproval
+        toState: Approved
+      
+      # Role-based approval for Approved → Running
+      - type: roleBased
+        fromState: Approved
+        toState: Running
+        allowedRoles:
+          - operator
+          - sre
+      
+      # Role-based approval for ramping (SRE only)
+      - type: roleBased
+        fromState: Running
+        toState: Ramping
+        allowedRoles:
+          - sre
+    
+    # Define policy guardrails
+    policies:
+      # Traffic limit: max 10% until 30 minutes stable
+      - type: trafficLimit
+        maxTrafficPercentage: 10.0
+        minStableTime: '00:30:00'
+      
+      # Error rate: must stay below 5%
+      - type: errorRate
+        maxErrorRate: 0.05
+      
+      # Time window: only allow changes during business hours
+      - type: timeWindow
+        allowedStartTime: '09:00'
+        allowedEndTime: '17:00'
+      
+      # Conflict prevention: don't run these experiments together
+      - type: conflictPrevention
+        conflictingExperiments:
+          - checkout-redesign
+          - payment-flow-v2
+          - shipping-calculator-update
+  
+  # Regular experiment configuration
+  trials:
+    - serviceType: IPaymentProcessor
+      selectionMode:
+        type: featureFlag
+        flagName: UseNewPaymentProcessor
+      control:
+        key: legacy
+        implementationType: LegacyPaymentProcessor
+      conditions:
+        - key: "true"
+          implementationType: NewPaymentProcessor
