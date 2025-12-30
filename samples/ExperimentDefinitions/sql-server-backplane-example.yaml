@@ -1,0 +1,56 @@
+# Example: SQL Server Data Backplane Configuration
+#
+# This example demonstrates how to configure a durable SQL Server backplane
+# for experiment telemetry using the declarative DSL.
+
+experimentFramework:
+  # Global framework settings
+  settings:
+    proxyStrategy: sourceGenerators
+    namingConvention: default
+
+  # Data plane configuration
+  dataPlane:
+    # Enable/disable event types
+    enableExposureEvents: true
+    enableAssignmentEvents: true
+    enableOutcomeEvents: true
+    enableAnalysisSignals: true
+    enableErrorEvents: true
+    
+    # Sampling and batching
+    samplingRate: 1.0
+    batchSize: 100
+    flushIntervalMs: 5000
+    
+    # Backplane configuration
+    backplane:
+      type: sqlServer
+      options:
+        # SQL Server connection string
+        connectionString: "Server=localhost;Database=ExperimentFramework;Trusted_Connection=True;"
+        
+        # Schema and table configuration
+        schema: dbo
+        tableName: ExperimentEvents
+        
+        # Performance settings
+        batchSize: 100
+        commandTimeoutSeconds: 30
+        
+        # Idempotency and migrations
+        enableIdempotency: true
+        autoMigrate: false  # Set to true for automatic migrations (development only)
+  
+  # Experiment definitions
+  trials:
+    - serviceType: IRecommendationService
+      selectionMode:
+        type: featureFlag
+        flagName: UseMLRecommendations
+      control:
+        key: control
+        implementationType: RuleBasedRecommendations
+      conditions:
+        - key: "true"
+          implementationType: MLRecommendations

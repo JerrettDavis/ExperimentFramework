@@ -149,31 +149,79 @@ options:
 
 **Package**: `ExperimentFramework.DataPlane.SqlServer`
 
-**Status**: Coming Soon
+A relational, append-only persistence backplane for queryable event storage with EF Core 10.
 
-A relational, append-only persistence backplane for queryable event storage.
+#### Features
 
-#### Planned Features
-
-- Normalized or denormalized tables for events
+- Normalized tables with EF Core 10 migrations
 - Explicit schema versioning
-- Indexing strategies for common joins
-- Retention and partitioning guidance
-- Transactional writes with idempotency keys
+- Optimized indexes for common joins (by event type, timestamp, correlation ID)
+- Idempotency support with unique event ID constraint
+- Transactional writes with ACID guarantees
+- Batching for improved throughput
+- Optional auto-migration on startup
 
-#### Example Configuration (Preview)
+#### Configuration Example
 
 ```yaml
 dataPlane:
   backplane:
     type: sqlServer
     options:
-      connectionString: "Server=...;Database=ExperimentData;..."
+      connectionString: "Server=localhost;Database=ExperimentFramework;..."
       schema: dbo
-      eventsTable: ExperimentEvents
-      batchInsertSize: 100
+      tableName: ExperimentEvents
+      batchSize: 100
       enableIdempotency: true
+      autoMigrate: false  # Set true for dev, false for production
 ```
+
+#### Programmatic Configuration
+
+```csharp
+services.AddSqlServerDataBackplane(options =>
+{
+    options.ConnectionString = "Server=localhost;Database=ExperimentFramework;...";
+    options.Schema = "dbo";
+    options.TableName = "ExperimentEvents";
+    options.BatchSize = 100;
+    options.EnableIdempotency = true;
+});
+```
+
+#### Database Schema
+
+```sql
+CREATE TABLE [dbo].[ExperimentEvents] (
+    [Id] bigint IDENTITY PRIMARY KEY,
+    [EventId] nvarchar(100) UNIQUE NOT NULL,
+    [Timestamp] datetimeoffset NOT NULL,
+    [EventType] nvarchar(50) NOT NULL,
+    [SchemaVersion] nvarchar(20) NOT NULL,
+    [PayloadJson] nvarchar(max) NOT NULL,
+    [CorrelationId] nvarchar(100),
+    [MetadataJson] nvarchar(max),
+    [CreatedAt] datetimeoffset DEFAULT SYSDATETIMEOFFSET()
+);
+```
+
+#### Migrations
+
+```bash
+# Apply migrations
+dotnet ef database update --project src/ExperimentFramework.DataPlane.SqlServer
+
+# Generate SQL script
+dotnet ef migrations script --output migrations.sql
+```
+
+#### Use Cases
+
+- Direct SQL querying of experiment data
+- Long-term audit and compliance
+- Smaller deployments without streaming infrastructure
+- Joining experiments with business data
+- Ad-hoc analysis with SQL tools
 
 ---
 
@@ -286,7 +334,7 @@ See the [samples directory](/samples/ExperimentDefinitions/) for complete exampl
 
 - `kafka-backplane-example.yaml` - Kafka configuration
 - `azure-service-bus-backplane-example.yaml` - Azure Service Bus configuration
-- More examples coming soon
+- `sql-server-backplane-example.yaml` - SQL Server configuration
 
 ---
 
@@ -299,7 +347,7 @@ dotnet add package ExperimentFramework.DataPlane.Kafka
 # Azure Service Bus
 dotnet add package ExperimentFramework.DataPlane.AzureServiceBus
 
-# SQL Server (coming soon)
+# SQL Server
 dotnet add package ExperimentFramework.DataPlane.SqlServer
 ```
 
