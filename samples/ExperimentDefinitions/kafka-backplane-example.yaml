@@ -1,0 +1,60 @@
+# Example: Kafka Data Backplane Configuration
+#
+# This example demonstrates how to configure a durable Kafka backplane
+# for experiment telemetry using the declarative DSL.
+
+experimentFramework:
+  # Global framework settings
+  settings:
+    proxyStrategy: sourceGenerators
+    namingConvention: default
+
+  # Data plane configuration
+  dataPlane:
+    # Enable/disable event types
+    enableExposureEvents: true
+    enableAssignmentEvents: true
+    enableOutcomeEvents: true
+    enableAnalysisSignals: true
+    enableErrorEvents: true
+    
+    # Sampling and batching
+    samplingRate: 1.0
+    batchSize: 500
+    flushIntervalMs: 1000
+    
+    # Backplane configuration
+    backplane:
+      type: kafka
+      options:
+        # Kafka broker addresses
+        brokers:
+          - localhost:9092
+          - broker2:9092
+        
+        # Optional: unified topic (if not specified, events route to type-specific topics)
+        topic: experiment-events
+        
+        # Partitioning strategy: experimentKey, subjectId, tenantId, or roundRobin
+        partitionBy: experimentKey
+        
+        # Kafka producer settings
+        batchSize: 1000
+        lingerMs: 100
+        enableIdempotence: true
+        compressionType: snappy
+        acks: all
+        clientId: experiment-framework-producer
+  
+  # Experiment definitions
+  trials:
+    - serviceType: IRecommendationService
+      selectionMode:
+        type: featureFlag
+        flagName: UseMLRecommendations
+      control:
+        key: control
+        implementationType: RuleBasedRecommendations
+      conditions:
+        - key: "true"
+          implementationType: MLRecommendations
