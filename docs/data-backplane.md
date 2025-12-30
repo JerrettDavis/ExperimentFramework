@@ -136,12 +136,11 @@ Events are logged at `Information` level with JSON serialization.
 Route events to multiple destinations:
 
 ```csharp
-builder.Services.AddCompositeDataBackplane(backplanes =>
-{
-    backplanes.AddSingleton<IDataBackplane, LoggingDataBackplane>();
-    backplanes.AddSingleton<IDataBackplane, InMemoryDataBackplane>();
-    // Add custom implementations...
-});
+builder.Services.AddCompositeDataBackplane(
+    sp => ActivatorUtilities.CreateInstance<LoggingDataBackplane>(sp),
+    sp => ActivatorUtilities.CreateInstance<InMemoryDataBackplane>(sp)
+    // Add more backplane factories...
+);
 ```
 
 ### Custom Implementation

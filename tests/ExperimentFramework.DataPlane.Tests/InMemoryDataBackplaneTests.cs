@@ -44,7 +44,7 @@ public class InMemoryDataBackplaneTests
     }
 
     [Fact]
-    public void Clear_RemovesAllEvents()
+    public async Task Clear_RemovesAllEvents()
     {
         // Arrange
         var backplane = new InMemoryDataBackplane(NullLogger<InMemoryDataBackplane>.Instance);
@@ -56,7 +56,7 @@ public class InMemoryDataBackplaneTests
             SchemaVersion = "1.0.0",
             Payload = new { Test = "value" }
         };
-        backplane.PublishAsync(envelope).AsTask().Wait();
+        await backplane.PublishAsync(envelope);
 
         // Act
         backplane.Clear();

@@ -59,19 +59,20 @@ public static class ServiceCollectionExtensions
     /// Adds a composite data backplane with multiple implementations.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configure">Action to configure the backplanes.</param>
+    /// <param name="backplaneFactories">Factories to create backplane instances.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddCompositeDataBackplane(
         this IServiceCollection services,
-        Action<IServiceCollection> configure)
+        params Func<IServiceProvider, IDataBackplane>[] backplaneFactories)
     {
-        var backplaneServices = new ServiceCollection();
-        configure(backplaneServices);
+        if (backplaneFactories == null || backplaneFactories.Length == 0)
+        {
+            throw new ArgumentException("At least one backplane factory must be provided", nameof(backplaneFactories));
+        }
 
         services.TryAddSingleton<IDataBackplane>(sp =>
         {
-            var backplaneProvider = backplaneServices.BuildServiceProvider();
-            var backplanes = backplaneProvider.GetServices<IDataBackplane>();
+            var backplanes = backplaneFactories.Select(factory => factory(sp)).ToList();
             return new CompositeDataBackplane(backplanes);
         });
 
