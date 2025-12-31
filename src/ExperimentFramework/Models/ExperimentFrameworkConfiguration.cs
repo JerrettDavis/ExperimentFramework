@@ -1,4 +1,5 @@
 using ExperimentFramework.Decorators;
+using ExperimentFramework.ServiceRegistration;
 
 namespace ExperimentFramework.Models;
 
@@ -34,8 +35,28 @@ namespace ExperimentFramework.Models;
 /// If true, uses DispatchProxy-based runtime proxies instead of source-generated compile-time proxies.
 /// Defaults to false (source generators).
 /// </param>
+/// <param name="RegistrationSafetyEnabled">
+/// If true, uses the registration plan system to validate and safely mutate service registrations.
+/// Defaults to true for enterprise safety.
+/// </param>
+/// <param name="RegistrationValidationMode">
+/// The validation mode to use when registration safety is enabled.
+/// Defaults to Strict mode.
+/// </param>
+/// <param name="DefaultMultiRegistrationBehavior">
+/// The default behavior for handling multi-registration scenarios.
+/// Defaults to Replace.
+/// </param>
+/// <param name="EmitRegistrationReport">
+/// If true, generates and logs a registration plan report.
+/// Defaults to false.
+/// </param>
 internal sealed record ExperimentFrameworkConfiguration(
     IExperimentDecoratorFactory[] DecoratorFactories,
     IExperimentDefinition[] Definitions,
-    bool UseRuntimeProxies = false
+    bool UseRuntimeProxies = false,
+    bool RegistrationSafetyEnabled = true,
+    ValidationMode RegistrationValidationMode = ValidationMode.Strict,
+    MultiRegistrationBehavior DefaultMultiRegistrationBehavior = MultiRegistrationBehavior.Replace,
+    bool EmitRegistrationReport = false
 );

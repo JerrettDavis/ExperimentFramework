@@ -6,6 +6,8 @@ using ExperimentFramework.Selection.Providers;
 using ExperimentFramework.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using ExperimentFramework.ServiceRegistration;
+using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework;
 
@@ -79,6 +81,87 @@ public static class ServiceCollectionExtensions
         // Register the experiment registry as singleton
         services.AddSingleton(sp => new ExperimentRegistry(config.Definitions, sp));
 
+        // Use registration safety if enabled (default)
+        if (config.RegistrationSafetyEnabled)
+        {
+            ApplyExperimentsWithRegistrationSafety(services, config);
+        }
+        else
+        {
+            ApplyExperimentsDirectly(services, config);
+        }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Applies experiment configurations using the registration plan system for safety.
+    /// </summary>
+    private static void ApplyExperimentsWithRegistrationSafety(
+        IServiceCollection services,
+        ExperimentFrameworkConfiguration config)
+    {
+        // Step 1: Capture snapshot before mutations
+        var snapshot = ServiceGraphSnapshot.Capture(services);
+
+        // Step 2: Build registration plan
+        var planBuilder = new RegistrationPlanBuilder()
+            .WithValidationMode(config.RegistrationValidationMode)
+            .WithDefaultBehavior(config.DefaultMultiRegistrationBehavior);
+
+        var plan = planBuilder.BuildFromDefinitions(snapshot, config.Definitions, config);
+
+        // Step 3: Generate and log report if requested
+        if (config.EmitRegistrationReport)
+        {
+            var report = RegistrationPlanReport.GenerateTextReport(plan);
+            
+            // Try to get logger from services if available
+            var serviceProvider = services.BuildServiceProvider();
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            var logger = loggerFactory?.CreateLogger("ExperimentFramework.Registration");
+            
+            if (logger != null)
+            {
+                logger.LogInformation("ExperimentFramework Registration Plan:\n{Report}", report);
+            }
+            else
+            {
+                // Fallback to console if no logger available
+                Console.WriteLine("ExperimentFramework Registration Plan:");
+                Console.WriteLine(report);
+            }
+        }
+
+        // Step 4: Validate plan
+        if (!plan.IsValid)
+        {
+            var report = RegistrationPlanReport.GenerateTextReport(plan);
+            throw new InvalidOperationException(
+                $"ExperimentFramework registration plan validation failed. " +
+                $"The following issues were found:\n\n{report}\n\n" +
+                $"To disable validation (not recommended), call builder.DisableRegistrationSafety() " +
+                $"or use builder.WithRegistrationValidationMode(ValidationMode.Warn).");
+        }
+
+        // Step 5: Execute plan
+        var result = RegistrationPlanExecutor.Execute(plan, services);
+
+        if (!result.Success)
+        {
+            throw new InvalidOperationException(
+                $"Failed to apply ExperimentFramework registration plan: {result.ErrorMessage}. " +
+                $"All changes have been automatically rolled back.");
+        }
+    }
+
+    /// <summary>
+    /// Applies experiment configurations directly without registration safety (legacy mode).
+    /// </summary>
+    private static void ApplyExperimentsDirectly(
+        IServiceCollection services,
+        ExperimentFrameworkConfiguration config)
+    {
         // For each experiment definition, configure the service with a generated proxy
         foreach (var definition in config.Definitions)
         {
@@ -127,9 +210,42 @@ public static class ServiceCollectionExtensions
             // All proxies are singleton (they create scopes internally)
             services.Add(new ServiceDescriptor(serviceType, proxyFactory, ServiceLifetime.Singleton));
         }
-
-        return services;
     }
+
+    /// <summary>
+    /// Creates a service descriptor with a proxy factory for the given service type.
+    /// </summary>
+    /// <param name="serviceType">The service type to create a proxy for.</param>
+    /// <param name="config">The experiment framework configuration.</param>
+    /// <returns>A service descriptor with the proxy factory.</returns>
+    internal static ServiceDescriptor CreateProxyFactoryDescriptor(
+        Type serviceType,
+        ExperimentFrameworkConfiguration config)
+    {
+        Func<IServiceProvider, object> proxyFactory;
+
+        if (config.UseRuntimeProxies)
+        {
+            proxyFactory = CreateRuntimeProxyFactory(serviceType, config);
+        }
+        else
+        {
+            var generatedProxyType = TryFindGeneratedProxy(serviceType);
+            if (generatedProxyType == null)
+            {
+                throw new InvalidOperationException(
+                    $"No source-generated proxy found for {serviceType.FullName}. " +
+                    $"Ensure your composition root method is decorated with [ExperimentCompositionRoot] attribute " +
+                    $"or calls .UseSourceGenerators() on the builder, " +
+                    $"and the project references ExperimentFramework.Generators as an analyzer. " +
+                    $"Alternatively, call .UseDispatchProxy() to use runtime proxies instead.");
+            }
+            proxyFactory = CreateGeneratedProxyFactory(serviceType, generatedProxyType, config);
+        }
+
+        return new ServiceDescriptor(serviceType, proxyFactory, ServiceLifetime.Singleton);
+    }
+
 
 
     /// <summary>

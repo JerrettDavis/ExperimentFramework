@@ -142,8 +142,7 @@ public sealed class RegistrationPlanBuilder
         var serviceType = definition.ServiceType;
         var operationId = Guid.NewGuid().ToString("N");
 
-        // Find the proxy descriptor that will be created by the framework
-        // For now, we'll create a placeholder that matches the existing behavior
+        // Find the existing descriptor
         var existingDescriptor = snapshot.Descriptors.FirstOrDefault(d => d.ServiceType == serviceType);
 
         if (existingDescriptor == null)
@@ -153,12 +152,9 @@ public sealed class RegistrationPlanBuilder
                 "Ensure the service is registered before configuring experiments.");
         }
 
-        // Create a placeholder descriptor for the proxy
-        // In the actual implementation, this would be the proxy factory
-        var proxyDescriptor = new ServiceDescriptor(
-            serviceType,
-            sp => throw new NotImplementedException("Proxy factory placeholder"),
-            ServiceLifetime.Singleton); // Proxies are always singletons
+        // Create the proxy descriptor with the actual proxy factory
+        // This will be handled by ServiceCollectionExtensions.CreateProxyFactoryDescriptor
+        var proxyDescriptor = ServiceCollectionExtensions.CreateProxyFactoryDescriptor(serviceType, config);
 
         // Match predicate: find descriptors for this service type
         Func<ServiceDescriptor, bool> matchPredicate = d => d.ServiceType == serviceType;
@@ -176,7 +172,7 @@ public sealed class RegistrationPlanBuilder
             _defaultBehavior,
             serviceType,
             matchPredicate,
-            new[] { proxyDescriptor },
+            new[] { proxyDescriptor }.ToList(),
             expectedMatchCount: 1,
             allowNoMatches: false,
             metadata);
