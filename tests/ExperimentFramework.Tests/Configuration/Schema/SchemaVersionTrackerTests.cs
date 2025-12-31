@@ -6,9 +6,15 @@ using Xunit.Abstractions;
 namespace ExperimentFramework.Tests.Configuration.Schema;
 
 [Feature("Schema version tracker manages version history based on hash changes")]
-public class SchemaVersionTrackerTests(ITestOutputHelper output) : TinyBddXunitBase(output), IDisposable
+public class SchemaVersionTrackerTests : TinyBddXunitBase, IDisposable
 {
+    private readonly ITestOutputHelper _output;
     private readonly List<string> _tempFiles = new();
+
+    public SchemaVersionTrackerTests(ITestOutputHelper output) : base(output)
+    {
+        _output = output;
+    }
     
     private string GetTempHistoryFile()
     {
@@ -30,6 +36,7 @@ public class SchemaVersionTrackerTests(ITestOutputHelper output) : TinyBddXunitB
                 // Ignore cleanup errors in tests
             }
         }
+        GC.SuppressFinalize(this);
     }
 
     [Scenario("First time seeing extension returns version 1.0.0")]
