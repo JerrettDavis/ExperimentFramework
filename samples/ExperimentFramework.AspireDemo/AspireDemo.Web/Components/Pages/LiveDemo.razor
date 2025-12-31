@@ -882,10 +882,12 @@
 
     private async Task LoadInitialData()
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
         // Load experiments to get current variants
         try
         {
-            var experiments = await ExperimentApi.GetExperimentsAsync();
+            var experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
             foreach (var exp in experiments)
             {
                 _activeVariants[exp.Name] = exp.ActiveVariant;
@@ -896,18 +898,22 @@
         // Load plugins and active implementations
         try
         {
-            _plugins = await ExperimentApi.GetPluginsAsync();
-            _activePluginImpls = await ExperimentApi.GetActivePluginImplementationsAsync();
+            _plugins = await ExperimentApi.GetPluginsAsync().WaitAsync(cts.Token);
+            _activePluginImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
         }
         catch { }
 
         _initialLoading = false;
 
-        // Load initial demo data - run sequentially to avoid overwhelming the server
-        await CalculatePricing();
-        await GetNotificationPreview();
-        await GetRecommendations();
-        await GetTheme();
+        // Load initial demo data with timeout protection
+        try
+        {
+            await CalculatePricing().WaitAsync(cts.Token);
+            await GetNotificationPreview().WaitAsync(cts.Token);
+            await GetRecommendations().WaitAsync(cts.Token);
+            await GetTheme().WaitAsync(cts.Token);
+        }
+        catch { }
     }
 
     private record PluginImplInfo(string PluginId, string PluginName, string Type, string? Alias);

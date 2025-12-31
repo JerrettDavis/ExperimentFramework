@@ -953,13 +953,19 @@
     {
         _loading = true;
         _error = null;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
-            _experiments = await ExperimentApi.GetExperimentsAsync();
+            _experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
             foreach (var exp in _experiments)
             {
                 _killSwitches.TryAdd(exp.Name, false);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Request timed out. Please try again.";
+            _experiments = [];
         }
         catch (Exception ex)
         {

@@ -711,9 +711,10 @@
     private async Task RefreshData()
     {
         _loading = true;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
-            _usageStats = await ExperimentApi.GetUsageStatsAsync();
+            _usageStats = await ExperimentApi.GetUsageStatsAsync().WaitAsync(cts.Token);
             _totalCalls = _usageStats.Values.SelectMany(v => v.Values).Sum();
         }
         catch
@@ -724,7 +725,7 @@
 
         try
         {
-            _auditLog = await ExperimentApi.GetAuditLogAsync(50);
+            _auditLog = await ExperimentApi.GetAuditLogAsync(50).WaitAsync(cts.Token);
         }
         catch
         {

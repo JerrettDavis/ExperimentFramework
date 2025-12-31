@@ -38,6 +38,8 @@
 
             try
             {
+                // Ensure Monaco is loaded before initializing
+                await JS.InvokeVoidAsync("monacoEditor.loadMonaco");
                 await JS.InvokeVoidAsync("monacoEditor.initialize", _editorId, options, _dotNetRef);
                 _initialized = true;
 
@@ -45,6 +47,14 @@
                 {
                     await SetMarkersAsync(Markers);
                 }
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected, ignore
+            }
+            catch (TaskCanceledException)
+            {
+                // Operation canceled, ignore
             }
             catch (Exception ex)
             {

@@ -1,0 +1,88 @@
+@inherits ErrorBoundary
+
+@if (CurrentException is not null)
+{
+    <div class="error-boundary">
+        <div class="error-content">
+            <div class="error-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <h2>Something went wrong</h2>
+            <p class="error-message">@CurrentException.Message</p>
+            <button class="btn-recover" @onclick="Recover">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Try Again
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    @ChildContent
+}
+
+<style>
+    .error-boundary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        padding: 2rem;
+    }
+
+    .error-content {
+        text-align: center;
+        max-width: 400px;
+    }
+
+    .error-icon {
+        color: #ef4444;
+        margin-bottom: 1rem;
+    }
+
+    .error-content h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #1f2937);
+        margin-bottom: 0.5rem;
+    }
+
+    .error-message {
+        color: var(--color-text-secondary, #6b7280);
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-recover {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: var(--color-primary, #3b82f6);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-recover:hover {
+        background: var(--color-primary-hover, #2563eb);
+    }
+
+    :global(.theme-dark) .error-content h2 {
+        color: #f3f4f6;
+    }
+
+    :global(.theme-dark) .error-message {
+        color: #9ca3af;
+    }
+</style>

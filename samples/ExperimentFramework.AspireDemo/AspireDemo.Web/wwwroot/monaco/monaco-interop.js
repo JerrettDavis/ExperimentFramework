@@ -266,5 +266,5 @@ window.monacoEditor = {
     }
 };
 
-// Start loading Monaco immediately when the script loads
-window.monacoEditor.loadMonaco();
+// Don't load Monaco immediately - wait until it's actually needed
+// Components will call loadMonaco() when they need it

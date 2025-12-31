@@ -867,11 +867,16 @@
     {
         _loading = true;
         _error = null;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
-            _plugins = await ExperimentApi.GetPluginsAsync();
-            _activeImplementations = await ExperimentApi.GetActivePluginImplementationsAsync();
-            await LoadAuditEvents();
+            _plugins = await ExperimentApi.GetPluginsAsync().WaitAsync(cts.Token);
+            _activeImplementations = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            await LoadAuditEvents().WaitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Request timed out. Please try again.";
         }
         catch (Exception ex)
         {

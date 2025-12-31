@@ -294,16 +294,26 @@
     private async Task RefreshData()
     {
         _loading = true;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
-            _experiments = await ExperimentApi.GetExperimentsAsync();
-            _auditEvents = await ExperimentApi.GetAuditLogAsync(10);
-            var plugins = await ExperimentApi.GetPluginsAsync();
-            _pluginCount = plugins.Count;
+            // Run API calls with timeout protection
+            var experimentsTask = SafeApiCall(() => ExperimentApi.GetExperimentsAsync(), new List<ExperimentInfo>(), cts.Token);
+            var auditTask = SafeApiCall(() => ExperimentApi.GetAuditLogAsync(10), new List<AuditLogEntry>(), cts.Token);
+            var pluginsTask = SafeApiCall(() => ExperimentApi.GetPluginsAsync(), new List<PluginInfo>(), cts.Token);
+            var usageTask = SafeApiCall(() => ExperimentApi.GetUsageStatsAsync(), new Dictionary<string, Dictionary<string, int>>(), cts.Token);
 
-            // Calculate simulated impressions from usage stats
-            var usage = await ExperimentApi.GetUsageStatsAsync();
+            await Task.WhenAll(experimentsTask, auditTask, pluginsTask, usageTask);
+
+            _experiments = await experimentsTask;
+            _auditEvents = await auditTask;
+            _pluginCount = (await pluginsTask).Count;
+            var usage = await usageTask;
             _totalImpressions = usage.Values.SelectMany(v => v.Values).Sum();
+        }
+        catch (OperationCanceledException)
+        {
+            // Timeout - use defaults
         }
         catch
         {
@@ -312,6 +322,18 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task<T> SafeApiCall<T>(Func<Task<T>> apiCall, T defaultValue, CancellationToken ct)
+    {
+        try
+        {
+            return await apiCall().WaitAsync(ct);
+        }
+        catch
+        {
+            return defaultValue;
         }
     }
 

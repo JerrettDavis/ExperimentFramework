@@ -538,10 +538,11 @@
     private async Task RefreshData()
     {
         _loading = true;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         try
         {
-            _info = await ExperimentApi.GetConfigInfoAsync();
+            _info = await ExperimentApi.GetConfigInfoAsync().WaitAsync(cts.Token);
         }
         catch
         {
@@ -550,7 +551,7 @@
 
         try
         {
-            _yamlConfig = await ExperimentApi.GetConfigYamlAsync();
+            _yamlConfig = await ExperimentApi.GetConfigYamlAsync().WaitAsync(cts.Token);
         }
         catch
         {
