@@ -595,6 +595,60 @@ builder.Services.AddExperimentFrameworkFromConfiguration(builder.Configuration, 
 
 See the [Configuration Guide](docs/user-guide/configuration.md) for complete documentation.
 
+## Schema Stamping and Versioning (NEW)
+
+Track and version configuration schemas with deterministic hashing for enterprise governance and safe migrations:
+
+```bash
+dotnet add package ExperimentFramework.Configuration
+```
+
+### Features
+
+- **Deterministic Hashing**: Fast FNV-1a hashing for schema change detection
+- **Automatic Versioning**: Versions increment only when schemas actually change
+- **Per-Extension Schemas**: Each extension independently manages its schema
+- **Unified Schema Documents**: Single artifact for the entire solution
+- **Audit Trail**: Complete version history for compliance
+
+### Example Usage
+
+```csharp
+using ExperimentFramework.Configuration.Schema;
+
+// Compute deterministic schema hash
+var schema = new SchemaDefinition
+{
+    Types = [ /* configuration types */ ]
+};
+
+var normalized = SchemaHasher.NormalizeSchema(schema);
+var hash = SchemaHasher.ComputeHash(normalized);
+
+// Track version changes
+var tracker = new SchemaVersionTracker("schema-history.json");
+var version = tracker.GetVersionForHash("MyExtension", hash);
+
+// Same hash = same version, different hash = incremented version
+tracker.SaveHistory();
+
+// Generate unified schema for entire solution
+var unifiedDoc = new UnifiedSchemaDocument
+{
+    Schemas = extensionSchemas,
+    UnifiedHash = SchemaHasher.ComputeUnifiedHash(extensionSchemas.Values.Select(s => s.Metadata.SchemaHash))
+};
+```
+
+### Use Cases
+
+- **Migration Detection**: Automatically detect when configuration migrations are required
+- **CI/CD Validation**: Block deployments with unapproved schema changes
+- **Environment Compatibility**: Verify schema compatibility across environments
+- **Audit Compliance**: Maintain complete schema evolution history
+
+See the [Schema Stamping Guide](docs/user-guide/schema-stamping.md) for complete documentation.
+
 ## Configuration Example
 
 ### appsettings.json
