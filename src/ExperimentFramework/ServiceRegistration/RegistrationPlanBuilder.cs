@@ -142,10 +142,10 @@ public sealed class RegistrationPlanBuilder
         var serviceType = definition.ServiceType;
         var operationId = Guid.NewGuid().ToString("N");
 
-        // Find the existing descriptor
-        var existingDescriptor = snapshot.Descriptors.FirstOrDefault(d => d.ServiceType == serviceType);
+        // Find the existing descriptor(s)
+        var existingDescriptors = snapshot.Descriptors.Where(d => d.ServiceType == serviceType).ToList();
 
-        if (existingDescriptor == null)
+        if (existingDescriptors.Count == 0)
         {
             throw new InvalidOperationException(
                 $"Service type {serviceType.FullName} is not registered in the service collection. " +
@@ -153,7 +153,6 @@ public sealed class RegistrationPlanBuilder
         }
 
         // Create the proxy descriptor with the actual proxy factory
-        // This will be handled by ServiceCollectionExtensions.CreateProxyFactoryDescriptor
         var proxyDescriptor = ServiceCollectionExtensions.CreateProxyFactoryDescriptor(serviceType, config);
 
         // Match predicate: find descriptors for this service type
@@ -164,8 +163,13 @@ public sealed class RegistrationPlanBuilder
             new Dictionary<string, string>
             {
                 ["ExperimentName"] = definition.ServiceType.Name,
-                ["OriginalLifetime"] = existingDescriptor.Lifetime.ToString()
+                ["OriginalLifetime"] = existingDescriptors.First().Lifetime.ToString(),
+                ["OriginalCount"] = existingDescriptors.Count.ToString()
             });
+
+        // For multi-registration scenarios, use null to allow any count
+        // The operation will handle whatever it finds
+        int? expectedMatchCount = existingDescriptors.Count > 1 ? null : 1;
 
         return new ServiceGraphPatchOperation(
             operationId,
@@ -173,7 +177,7 @@ public sealed class RegistrationPlanBuilder
             serviceType,
             matchPredicate,
             new[] { proxyDescriptor }.ToList(),
-            expectedMatchCount: 1,
+            expectedMatchCount: expectedMatchCount,
             allowNoMatches: false,
             metadata);
     }
