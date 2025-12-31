@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Generators\ExperimentFramework.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

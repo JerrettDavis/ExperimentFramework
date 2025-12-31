@@ -155,6 +155,12 @@ jobs:
           /p:FileVersion=${{ env.FILE_VERSION }}
           /p:PackageVersion=${{ env.PACKAGE_VERSION }} || true
 
+      - name: Generate configuration schemas
+        run: |
+          dotnet run --project tools/ExperimentFramework.SchemaGenerator/ExperimentFramework.SchemaGenerator.csproj -- ./artifacts/schemas
+          echo "Generated schema files:"
+          ls -lh ./artifacts/schemas/
+
       - name: Upload packages as artifact
         uses: actions/upload-artifact@v4
         with:
@@ -162,6 +168,12 @@ jobs:
           path: |
             ./artifacts/*.nupkg
             ./artifacts/*.snupkg
+
+      - name: Upload schema files as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: configuration-schemas
+          path: ./artifacts/schemas/*.json
 
       - name: Create and push git tag
         shell: bash
@@ -184,6 +196,7 @@ jobs:
           files: |
             ./artifacts/*.nupkg
             ./artifacts/*.snupkg
+            ./artifacts/schemas/*.json
           generate_release_notes: true
 
       - name: Push to NuGet.org

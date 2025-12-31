@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>ef-schema-gen</ToolCommandName>
+    <PackageId>ExperimentFramework.SchemaGenerator</PackageId>
+    <Description>Command-line tool to generate schema JSON files for ExperimentFramework configuration</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>
