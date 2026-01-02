@@ -1,6 +1,7 @@
 using ExperimentFramework.Decorators;
 using ExperimentFramework.Models;
 using ExperimentFramework.Naming;
+using ExperimentFramework.ServiceRegistration;
 
 namespace ExperimentFramework;
 
@@ -33,6 +34,10 @@ public sealed class ExperimentFrameworkBuilder
     private readonly List<IExperimentDefinition> _definitions = [];
     private IExperimentNamingConvention _namingConvention = new DefaultExperimentNamingConvention();
     private bool _useRuntimeProxies;
+    private bool _registrationSafetyEnabled = true;
+    private ValidationMode _registrationValidationMode = ValidationMode.Strict;
+    private MultiRegistrationBehavior _defaultMultiRegistrationBehavior = MultiRegistrationBehavior.Replace;
+    private bool _emitRegistrationReport = false;
 
     private ExperimentFrameworkBuilder() { }
 
@@ -305,6 +310,121 @@ public sealed class ExperimentFrameworkBuilder
     }
 
     /// <summary>
+    /// Enables registration safety with strict validation (default).
+    /// </summary>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the framework uses the registration plan system to validate
+    /// and safely mutate service registrations. This provides:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Deterministic, previewable registration plans</description></item>
+    /// <item><description>Contract validation (assignability, lifetime safety, etc.)</description></item>
+    /// <item><description>Auditable change tracking</description></item>
+    /// <item><description>Automatic rollback on failure</description></item>
+    /// </list>
+    /// <para>
+    /// Registration safety is enabled by default with Strict validation mode.
+    /// </para>
+    /// </remarks>
+    public ExperimentFrameworkBuilder EnableRegistrationSafety()
+    {
+        _registrationSafetyEnabled = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Disables registration safety for maximum performance or when external validation is used.
+    /// </summary>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// When disabled, the framework reverts to direct service collection mutation
+    /// without validation or rollback capability. Use this only when:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>You have external validation mechanisms</description></item>
+    /// <item><description>Maximum startup performance is critical</description></item>
+    /// <item><description>You're in a tightly controlled environment</description></item>
+    /// </list>
+    /// <para>
+    /// <strong>Warning:</strong> Disabling registration safety removes important
+    /// guarantees and may lead to runtime failures if service registrations are
+    /// incompatible.
+    /// </para>
+    /// </remarks>
+    public ExperimentFrameworkBuilder DisableRegistrationSafety()
+    {
+        _registrationSafetyEnabled = false;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the validation mode for registration safety.
+    /// </summary>
+    /// <param name="mode">The validation mode to use.</param>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// Validation modes:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description><b>Strict</b> (default): Any error blocks startup with detailed report</description></item>
+    /// <item><description><b>Warn</b>: Errors logged as warnings, execution proceeds</description></item>
+    /// <item><description><b>Off</b>: No validation performed</description></item>
+    /// </list>
+    /// </remarks>
+    public ExperimentFrameworkBuilder WithRegistrationValidationMode(ValidationMode mode)
+    {
+        _registrationValidationMode = mode;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the default behavior for handling multi-registration scenarios.
+    /// </summary>
+    /// <param name="behavior">The multi-registration behavior.</param>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// Multi-registration behaviors:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description><b>Replace</b> (default): Remove matched descriptors and add proxy</description></item>
+    /// <item><description><b>Insert</b>: Add proxy before first match</description></item>
+    /// <item><description><b>Append</b>: Add proxy after last match</description></item>
+    /// <item><description><b>Merge</b>: Combine all matches into single router</description></item>
+    /// </list>
+    /// </remarks>
+    public ExperimentFrameworkBuilder WithDefaultMultiRegistrationBehavior(MultiRegistrationBehavior behavior)
+    {
+        _defaultMultiRegistrationBehavior = behavior;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables generation and logging of registration plan reports.
+    /// </summary>
+    /// <returns>The current builder instance.</returns>
+    /// <remarks>
+    /// <para>
+    /// When enabled, a detailed report of the registration plan will be generated
+    /// and logged during startup. This is useful for:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Debugging registration issues</description></item>
+    /// <item><description>Compliance and audit trails</description></item>
+    /// <item><description>Understanding service mutations</description></item>
+    /// </list>
+    /// </remarks>
+    public ExperimentFrameworkBuilder EmitRegistrationReport()
+    {
+        _emitRegistrationReport = true;
+        return this;
+    }
+
+    /// <summary>
     /// Builds the immutable framework configuration from the current builder state.
     /// </summary>
     /// <returns>An <see cref="ExperimentFrameworkConfiguration"/> instance.</returns>
@@ -313,5 +433,13 @@ public sealed class ExperimentFrameworkBuilder
     /// the configuration should be treated as immutable.
     /// </remarks>
     internal ExperimentFrameworkConfiguration Build()
-        => new(_decoratorFactories.ToArray(), _definitions.ToArray(), _useRuntimeProxies);
+        => new(
+            _decoratorFactories.ToArray(),
+            _definitions.ToArray(),
+            _useRuntimeProxies,
+            _registrationSafetyEnabled,
+            _registrationValidationMode,
+            _defaultMultiRegistrationBehavior,
+            _emitRegistrationReport
+        );
 }

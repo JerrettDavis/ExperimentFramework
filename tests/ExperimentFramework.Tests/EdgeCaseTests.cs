@@ -67,7 +67,11 @@ public sealed class EdgeCaseTests(ITestOutputHelper output) : TinyBddXunitBase(o
         var ex = Assert.Throws<InvalidOperationException>(() =>
             services.AddExperimentFramework(builder));
 
-        Assert.Contains("must be registered before calling AddExperimentFramework", ex.Message);
+        // Message can be from either the old direct path or new registration safety path
+        Assert.True(
+            ex.Message.Contains("must be registered before calling AddExperimentFramework") ||
+            ex.Message.Contains("is not registered in the service collection"),
+            $"Expected error message about service not being registered, got: {ex.Message}");
         Assert.Contains("ITestService", ex.Message);
     }
 

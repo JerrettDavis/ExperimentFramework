@@ -2,6 +2,36 @@
 
 A .NET library for routing service calls through configurable trials based on feature flags, configuration values, or custom routing logic.
 
+## ✨ New: Enterprise-Grade DI Mutation Safety
+
+ExperimentFramework now includes comprehensive service registration safety features to ensure deterministic, validated, and auditable dependency injection mutations:
+
+- **Deterministic Registration Plans** - Preview all changes before applying them
+- **Contract Guarantees** - Validate lifetimes, assignability, open generics, and more
+- **Multi-Registration Support** - Insert/Append/Merge/Replace semantics for `IEnumerable<T>`
+- **Auditable Changes** - JSON and text reports for support tickets and compliance
+- **Minimal Overhead** - Analysis at startup, fast runtime dispatch
+
+```csharp
+// Capture DI state before mutations
+var snapshot = ServiceGraphSnapshot.Capture(services);
+
+// Build and validate a registration plan
+var plan = new RegistrationPlanBuilder()
+    .WithValidationMode(ValidationMode.Strict)
+    .BuildFromDefinitions(snapshot, definitions, config);
+
+// Generate audit report
+var report = RegistrationPlanReport.GenerateTextReport(plan);
+
+// Execute with automatic rollback on failure
+var result = RegistrationPlanExecutor.Execute(plan, services);
+```
+
+**📖 [Full Documentation](docs/SERVICE_REGISTRATION_SAFETY.md)**
+
+---
+
 ## Fluent DSL Design
 
 ExperimentFramework provides multiple equivalent method names to create a natural, readable configuration DSL. This allows you to describe experiments using terminology that best fits your mental model:
