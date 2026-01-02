@@ -82,13 +82,16 @@ public sealed class ServiceGraphSnapshot
     /// <returns>A fingerprint string.</returns>
     private static string ComputeFingerprint(ServiceDescriptor[] descriptors)
     {
-        // Simple fingerprint based on count and service types
-        // In a real implementation, this might use a cryptographic hash
+        // Compute a hash-based fingerprint using all service types
         var typeNames = descriptors
             .Select(d => d.ServiceType.FullName)
             .Order()
             .ToArray();
 
-        return $"{descriptors.Length}:{string.Join(",", typeNames.Take(10))}";
+        // Use a simple but complete hash of all service types
+        var combined = string.Join("|", typeNames);
+        var hash = combined.GetHashCode();
+
+        return $"{descriptors.Length}:{hash:X8}";
     }
 }

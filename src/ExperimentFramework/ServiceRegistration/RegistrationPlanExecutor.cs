@@ -94,10 +94,11 @@ public sealed class RegistrationPlanExecutor
             {
                 rollbackOperations[i]();
             }
-            catch
+            catch (Exception ex)
             {
                 // Rollback failed - this is a critical error but we can't do much about it
-                // Log it but continue with other rollback operations
+                // Continue with other rollback operations and report the error
+                Console.Error.WriteLine($"Rollback operation {i} failed: {ex.Message}");
             }
         }
     }

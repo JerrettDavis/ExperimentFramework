@@ -68,7 +68,7 @@ public class ValidationFindingTests(ITestOutputHelper output) : TinyBddXunitBase
             {
                 try
                 {
-                    var _ = new ValidationFinding(ValidationSeverity.Error, props.nullRuleName!, typeof(ITestService), "desc");
+                    _ = new ValidationFinding(ValidationSeverity.Error, props.nullRuleName!, typeof(ITestService), "desc");
                     return false;
                 }
                 catch (ArgumentNullException)
@@ -80,7 +80,7 @@ public class ValidationFindingTests(ITestOutputHelper output) : TinyBddXunitBase
             {
                 try
                 {
-                    var _ = new ValidationFinding(ValidationSeverity.Error, "rule", props.nullServiceType!, "desc");
+                    _ = new ValidationFinding(ValidationSeverity.Error, "rule", props.nullServiceType!, "desc");
                     return false;
                 }
                 catch (ArgumentNullException)
@@ -92,7 +92,7 @@ public class ValidationFindingTests(ITestOutputHelper output) : TinyBddXunitBase
             {
                 try
                 {
-                    var _ = new ValidationFinding(ValidationSeverity.Error, "rule", typeof(ITestService), props.nullDescription!);
+                    _ = new ValidationFinding(ValidationSeverity.Error, "rule", typeof(ITestService), props.nullDescription!);
                     return false;
                 }
                 catch (ArgumentNullException)

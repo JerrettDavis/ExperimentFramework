@@ -73,18 +73,19 @@ public sealed class LifetimeSafetyValidator : IRegistrationValidator
                 .Where(d => d.ServiceType == operation.ServiceType)
                 .ToList();
 
-            foreach (var original in originalDescriptors)
+            var dangerousChanges = originalDescriptors
+                .Where(o => IsDangerousLifetimeChange(o.Lifetime, newDescriptor.Lifetime))
+                .ToList();
+
+            foreach (var original in dangerousChanges)
             {
                 // Check for lifetime violations
-                if (IsDangerousLifetimeChange(original.Lifetime, newDescriptor.Lifetime))
-                {
-                    yield return ValidationFinding.Error(
-                        "LifetimeSafety",
-                        operation.ServiceType,
-                        $"Changing lifetime from {original.Lifetime} to {newDescriptor.Lifetime} may cause scoped service capture issues.",
-                        $"Ensure the new lifetime ({newDescriptor.Lifetime}) is compatible with the original ({original.Lifetime}). " +
-                        "Typically, you can change Singleton->Scoped->Transient but not the reverse.");
-                }
+                yield return ValidationFinding.Error(
+                    "LifetimeSafety",
+                    operation.ServiceType,
+                    $"Changing lifetime from {original.Lifetime} to {newDescriptor.Lifetime} may cause scoped service capture issues.",
+                    $"Ensure the new lifetime ({newDescriptor.Lifetime}) is compatible with the original ({original.Lifetime}). " +
+                    "Typically, you can change Singleton->Scoped->Transient but not the reverse.");
             }
         }
     }
@@ -92,13 +93,9 @@ public sealed class LifetimeSafetyValidator : IRegistrationValidator
     private static bool IsDangerousLifetimeChange(ServiceLifetime from, ServiceLifetime to)
     {
         // Singleton can't safely become Scoped or Transient (might capture scoped dependencies)
+        // Singleton -> Scoped/Transient: Dangerous (scoped/transient captured in singleton)
         if (from == ServiceLifetime.Singleton && to != ServiceLifetime.Singleton)
             return true;
-
-        // Scoped can't safely become Transient if it has scoped dependencies
-        // (This is less strict - we allow it with a warning in practice)
-        // if (from == ServiceLifetime.Scoped && to == ServiceLifetime.Transient)
-        //     return true;
 
         return false;
     }
@@ -117,10 +114,12 @@ public sealed class OpenGenericValidator : IRegistrationValidator
             yield break; // Not an open generic, nothing to validate
         }
 
-        foreach (var descriptor in operation.NewDescriptors)
-        {
-            var implementationType = descriptor.ImplementationType;
+        var descriptorValidations = operation.NewDescriptors
+            .Select(descriptor => (descriptor, implementationType: descriptor.ImplementationType))
+            .ToList();
 
+        foreach (var (descriptor, implementationType) in descriptorValidations)
+        {
             if (implementationType == null)
             {
                 yield return ValidationFinding.Warning(
@@ -162,16 +161,16 @@ public sealed class OpenGenericValidator : IRegistrationValidator
 /// </summary>
 public sealed class IdempotencyValidator : IRegistrationValidator
 {
-    private const string ExperimentProxySuffix = "ExperimentProxy";
-
     /// <inheritdoc />
     public IEnumerable<ValidationFinding> Validate(ServiceGraphPatchOperation operation, ServiceGraphSnapshot snapshot)
     {
         // Check if we're trying to wrap an already-wrapped service
+        // Look for implementation types that end with ExperimentProxy suffix or contain "Proxy" in namespace
         var existingProxies = snapshot.Descriptors
             .Where(d => d.ServiceType == operation.ServiceType &&
                        d.ImplementationType != null &&
-                       d.ImplementationType.Name.Contains(ExperimentProxySuffix))
+                       (d.ImplementationType.Name.EndsWith("ExperimentProxy", StringComparison.Ordinal) ||
+                        d.ImplementationType.Namespace?.Contains("ExperimentFramework") == true))
             .ToList();
 
         if (existingProxies.Any())

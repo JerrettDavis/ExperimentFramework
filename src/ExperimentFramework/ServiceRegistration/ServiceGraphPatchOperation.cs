@@ -132,6 +132,8 @@ public sealed class ServiceGraphPatchOperation
                 {
                     var firstMatch = matchedDescriptors[0];
                     var index = services.IndexOf(firstMatch);
+                    // Insert in reverse order so that when all insertions are complete,
+                    // the new descriptors appear in their original order before the matched descriptor
                     foreach (var newDescriptor in NewDescriptors.Reverse())
                     {
                         services.Insert(index, newDescriptor);

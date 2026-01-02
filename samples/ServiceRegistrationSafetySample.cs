@@ -92,7 +92,8 @@ public class ServiceRegistrationSafetySample
 
         Console.WriteLine($"Original registrations: {services.Count(d => d.ServiceType == typeof(INotificationService))}");
 
-        var snapshot = ServiceGraphSnapshot.Capture(services);
+        // Capture snapshot for later operations
+        _ = ServiceGraphSnapshot.Capture(services);
 
         // Try different behaviors
         var behaviors = new[]

@@ -116,21 +116,10 @@ public static class ServiceCollectionExtensions
         {
             var report = RegistrationPlanReport.GenerateTextReport(plan);
             
-            // Try to get logger from services if available
-            var serviceProvider = services.BuildServiceProvider();
-            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-            var logger = loggerFactory?.CreateLogger("ExperimentFramework.Registration");
-            
-            if (logger != null)
-            {
-                logger.LogInformation("ExperimentFramework Registration Plan:\n{Report}", report);
-            }
-            else
-            {
-                // Fallback to console if no logger available
-                Console.WriteLine("ExperimentFramework Registration Plan:");
-                Console.WriteLine(report);
-            }
+            // Output to console to avoid building a temporary ServiceProvider
+            // which could cause side effects and resource leaks
+            Console.WriteLine("ExperimentFramework Registration Plan:");
+            Console.WriteLine(report);
         }
 
         // Step 4: Validate plan
