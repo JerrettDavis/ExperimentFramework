@@ -96,6 +96,7 @@
                         <div class="feature-header">
                             <span class="feature-status">@(feature.Enabled ? "ON" : "OFF")</span>
                             <span class="feature-name">@feature.Name</span>
+                            <span class="feature-category">@feature.Category</span>
                         </div>
                         <p class="feature-desc">@feature.Description</p>
                     </div>
@@ -410,6 +411,18 @@
         color: var(--theme-text, #1f2937);
     }
 
+    .feature-category {
+        margin-left: auto;
+        background: #e5e7eb;
+        color: #374151;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
     .feature-desc {
         margin: 0;
         font-size: 0.8rem;
@@ -510,6 +523,11 @@
 
     :global(.theme-dark) .feature-desc {
         color: #9ca3af;
+    }
+
+    :global(.theme-dark) .feature-category {
+        background: rgba(148, 163, 184, 0.3);
+        color: #e5e7eb;
     }
 
     @@keyframes shimmer {
