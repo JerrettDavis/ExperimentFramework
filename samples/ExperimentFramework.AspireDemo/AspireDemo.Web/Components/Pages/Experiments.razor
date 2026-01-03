@@ -71,7 +71,7 @@
             <button class="filter-btn @(DemoState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DemoState.ExperimentFilterCategory = null">
                 All
             </button>
-            @foreach (var category in new[] { "Revenue", "Engagement", "UX" })
+            @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog" })
             {
                 <button class="filter-btn @(DemoState.ExperimentFilterCategory == category ? "active" : "")"
                         @onclick="() => DemoState.ExperimentFilterCategory = category">
@@ -520,6 +520,7 @@
     .category-tag.revenue { background: rgba(16, 185, 129, 0.1); color: #10b981; }
     .category-tag.engagement { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     .category-tag.ux { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .category-tag.blog { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
 
     .exp-description {
         font-size: 0.8rem;

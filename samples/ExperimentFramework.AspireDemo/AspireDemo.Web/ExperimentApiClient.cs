@@ -4,6 +4,8 @@ namespace AspireDemo.Web;
 
 public class ExperimentApiClient(HttpClient httpClient)
 {
+    public HttpClient HttpClient => httpClient;
+
     // ============================================================================
     // Experiment Management
     // ============================================================================
@@ -215,6 +217,9 @@ public class ExperimentInfo
     public string Category { get; set; } = "";
     public string Status { get; set; } = "";
     public DateTime LastModified { get; set; }
+    public RolloutConfig? Rollout { get; set; }
+    public List<TargetingRule> TargetingRules { get; set; } = [];
+    public HypothesisInfo? Hypothesis { get; set; }
 }
 
 public class VariantInfo
@@ -429,4 +434,109 @@ public class AppliedExperiment
 {
     public string Name { get; set; } = "";
     public string Action { get; set; } = "";
+}
+
+// ============================================================================
+// Rollout DTOs
+// ============================================================================
+
+public class RolloutConfig
+{
+    public bool Enabled { get; set; }
+    public int Percentage { get; set; } = 0;
+    public List<RolloutStage> Stages { get; set; } = [];
+    public DateTime? StartDate { get; set; }
+    public RolloutStatus Status { get; set; } = RolloutStatus.NotStarted;
+}
+
+public class RolloutStage
+{
+    public string Name { get; set; } = "";
+    public int Percentage { get; set; }
+    public DateTime? ScheduledDate { get; set; }
+    public DateTime? ExecutedDate { get; set; }
+    public RolloutStageStatus Status { get; set; } = RolloutStageStatus.Pending;
+}
+
+public enum RolloutStatus
+{
+    NotStarted,
+    InProgress,
+    Completed,
+    Paused,
+    RolledBack
+}
+
+public enum RolloutStageStatus
+{
+    Pending,
+    Active,
+    Completed,
+    Skipped
+}
+
+// ============================================================================
+// Targeting DTOs
+// ============================================================================
+
+public class TargetingRule
+{
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string Variant { get; set; } = "";
+    public List<TargetingCondition> Conditions { get; set; } = [];
+    public bool Enabled { get; set; } = true;
+    public int Priority { get; set; } = 0;
+}
+
+public class TargetingCondition
+{
+    public string Attribute { get; set; } = "";
+    public string Operator { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
+// ============================================================================
+// Hypothesis Testing DTOs
+// ============================================================================
+
+public class HypothesisInfo
+{
+    public string Statement { get; set; } = "";
+    public string TestType { get; set; } = "";
+    public string PrimaryMetric { get; set; } = "";
+    public List<string> SecondaryMetrics { get; set; } = [];
+    public double ExpectedEffectSize { get; set; }
+    public double AlphaLevel { get; set; } = 0.05;
+    public double PowerLevel { get; set; } = 0.80;
+    public int MinimumSampleSize { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public HypothesisStatus Status { get; set; } = HypothesisStatus.Draft;
+    public HypothesisResults? Results { get; set; }
+}
+
+public class HypothesisResults
+{
+    public int ControlSamples { get; set; }
+    public int TreatmentSamples { get; set; }
+    public double ControlMean { get; set; }
+    public double TreatmentMean { get; set; }
+    public double EffectSize { get; set; }
+    public double PValue { get; set; }
+    public double ConfidenceIntervalLower { get; set; }
+    public double ConfidenceIntervalUpper { get; set; }
+    public bool IsSignificant { get; set; }
+    public string Conclusion { get; set; } = "";
+    public DateTime AnalyzedAt { get; set; }
+}
+
+public enum HypothesisStatus
+{
+    Draft,
+    Registered,
+    Running,
+    Analyzing,
+    Completed,
+    Inconclusive
 }
