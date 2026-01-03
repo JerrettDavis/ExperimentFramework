@@ -649,7 +649,8 @@
       "experimentframework.admin": {
         "type": "Project",
         "dependencies": {
-          "ExperimentFramework": "[1.0.0, )"
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Governance": "[1.0.0, )"
         }
       },
       "experimentframework.audit": {
@@ -693,6 +694,7 @@
         "type": "Project",
         "dependencies": {
           "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Governance": "[1.0.0, )",
           "Microsoft.Extensions.Configuration": "[10.0.1, )",
           "Microsoft.Extensions.Configuration.Binder": "[10.0.1, )",
           "Microsoft.Extensions.FileProviders.Physical": "[10.0.1, )",
@@ -731,6 +733,15 @@
           "ExperimentFramework": "[1.0.0, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.FeatureManagement": "[4.4.0, )"
+        }
+      },
+      "experimentframework.governance": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Audit": "[1.0.0, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       },
       "experimentframework.metrics.exporters": {

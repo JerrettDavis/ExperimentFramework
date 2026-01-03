@@ -39,6 +39,11 @@ public static class ConfigurationExtensionServiceCollectionExtensions
             registry.RegisterSelectionModeHandler(new ConfigurationKeySelectionModeHandler());
             registry.RegisterSelectionModeHandler(new CustomSelectionModeHandler());
 
+            // Register built-in backplane handlers
+            registry.RegisterBackplaneHandler(new InMemoryBackplaneConfigurationHandler());
+            registry.RegisterBackplaneHandler(new LoggingBackplaneConfigurationHandler());
+            registry.RegisterBackplaneHandler(new OpenTelemetryBackplaneConfigurationHandler());
+
             // Discover and register extension handlers from DI
             foreach (var handler in sp.GetServices<IConfigurationDecoratorHandler>())
             {
@@ -48,6 +53,11 @@ public static class ConfigurationExtensionServiceCollectionExtensions
             foreach (var handler in sp.GetServices<IConfigurationSelectionModeHandler>())
             {
                 registry.RegisterSelectionModeHandler(handler);
+            }
+
+            foreach (var handler in sp.GetServices<IConfigurationBackplaneHandler>())
+            {
+                registry.RegisterBackplaneHandler(handler);
             }
 
             return registry;
@@ -109,6 +119,35 @@ public static class ConfigurationExtensionServiceCollectionExtensions
     public static IServiceCollection AddConfigurationSelectionModeHandler(
         this IServiceCollection services,
         IConfigurationSelectionModeHandler handler)
+    {
+        services.AddSingleton(handler);
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a custom backplane handler for configuration files.
+    /// Call this before AddExperimentFrameworkFromConfiguration.
+    /// </summary>
+    /// <typeparam name="THandler">The backplane handler type.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddConfigurationBackplaneHandler<THandler>(this IServiceCollection services)
+        where THandler : class, IConfigurationBackplaneHandler
+    {
+        services.AddSingleton<IConfigurationBackplaneHandler, THandler>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a custom backplane handler instance for configuration files.
+    /// Call this before AddExperimentFrameworkFromConfiguration.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="handler">The handler instance.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddConfigurationBackplaneHandler(
+        this IServiceCollection services,
+        IConfigurationBackplaneHandler handler)
     {
         services.AddSingleton(handler);
         return services;

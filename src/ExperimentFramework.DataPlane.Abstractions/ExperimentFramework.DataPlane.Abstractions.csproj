@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ExperimentFramework.DataPlane.Abstractions</PackageId>
+    <Authors>Jerrett Davis</Authors>
+    <Description>Core abstractions for pluggable data backplane in ExperimentFramework. Defines contracts for exposure logging, assignment tracking, and experimentation telemetry.</Description>
+    <PackageTags>experiments;ab-testing;data-plane;telemetry;observability;beta</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/jerrettdavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jerrettdavis/ExperimentFramework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+</Project>

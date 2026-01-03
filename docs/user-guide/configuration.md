@@ -608,6 +608,136 @@ app.Run();
 
 ---
 
+## Governance Configuration
+
+ExperimentFramework.Governance can be configured via YAML/JSON, enabling lifecycle management, approval gates, and policy-as-code guardrails without code changes.
+
+### Installing Governance
+
+```bash
+dotnet add package ExperimentFramework.Governance
+```
+
+### Governance Schema
+
+```yaml
+experimentFramework:
+  governance:
+    enableAutoVersioning: true
+    
+    approvalGates:
+      - type: automatic | manual | roleBased
+        fromState: Draft | PendingApproval | Approved | etc.
+        toState: PendingApproval | Approved | Running | etc.
+        allowedRoles:  # For roleBased only
+          - operator
+          - sre
+    
+    policies:
+      - type: trafficLimit | errorRate | timeWindow | conflictPrevention
+        # Traffic limit properties
+        maxTrafficPercentage: 10.0
+        minStableTime: '00:30:00'
+        
+        # Error rate properties
+        maxErrorRate: 0.05
+        
+        # Time window properties
+        allowedStartTime: '09:00'
+        allowedEndTime: '17:00'
+        
+        # Conflict prevention properties
+        conflictingExperiments:
+          - experiment-name-1
+          - experiment-name-2
+```
+
+### Complete Example
+
+See [governance-example.yaml](governance-example.yaml) for a complete example:
+
+```yaml
+experimentFramework:
+  governance:
+    enableAutoVersioning: true
+    
+    approvalGates:
+      - type: automatic
+        fromState: Draft
+        toState: PendingApproval
+      
+      - type: roleBased
+        fromState: Approved
+        toState: Running
+        allowedRoles:
+          - operator
+          - sre
+    
+    policies:
+      - type: trafficLimit
+        maxTrafficPercentage: 10.0
+        minStableTime: '00:30:00'
+      
+      - type: errorRate
+        maxErrorRate: 0.05
+      
+      - type: timeWindow
+        allowedStartTime: '09:00'
+        allowedEndTime: '17:00'
+      
+      - type: conflictPrevention
+        conflictingExperiments:
+          - checkout-redesign
+          - payment-flow-v2
+```
+
+### Approval Gate Types
+
+| Type | Description | Required Fields |
+|------|-------------|----------------|
+| `automatic` | Always approves transition | `toState` |
+| `manual` | Requires external approval record | `toState` |
+| `roleBased` | Checks actor's role | `toState`, `allowedRoles` |
+
+### Policy Types
+
+| Type | Description | Properties |
+|------|-------------|------------|
+| `trafficLimit` | Limits traffic % until stable | `maxTrafficPercentage`, `minStableTime` (optional) |
+| `errorRate` | Enforces max error rate | `maxErrorRate` |
+| `timeWindow` | Restricts operations to time window | `allowedStartTime`, `allowedEndTime` |
+| `conflictPrevention` | Prevents conflicting experiments | `conflictingExperiments` |
+
+### Lifecycle States
+
+Valid lifecycle states for `fromState` and `toState`:
+- `Draft` - Initial state
+- `PendingApproval` - Awaiting approval
+- `Approved` - Approved for activation
+- `Running` - Actively running
+- `Ramping` - Increasing traffic
+- `Paused` - Temporarily suspended
+- `RolledBack` - Reverted due to issues
+- `Rejected` - Not approved
+- `Archived` - Completed (terminal state)
+
+### Integration Example
+
+```csharp
+// appsettings.json or experiments.yaml
+var services = new ServiceCollection();
+services.AddExperimentFrameworkFromConfiguration(configuration);
+
+// Governance is automatically configured from YAML
+var provider = services.BuildServiceProvider();
+var lifecycleManager = provider.GetService<ILifecycleManager>();
+var policyEvaluator = provider.GetService<IPolicyEvaluator>();
+```
+
+For more details on governance features, see [Experiment Governance](governance.md).
+
+---
+
 ## Best Practices
 
 ### 1. Organize by Feature

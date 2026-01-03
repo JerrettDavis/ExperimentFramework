@@ -1,0 +1,65 @@
+# Example: Azure Service Bus Data Backplane Configuration
+#
+# This example demonstrates how to configure a durable Azure Service Bus backplane
+# for experiment telemetry using the declarative DSL.
+
+experimentFramework:
+  # Global framework settings
+  settings:
+    proxyStrategy: sourceGenerators
+    namingConvention: default
+
+  # Data plane configuration
+  dataPlane:
+    # Enable/disable event types
+    enableExposureEvents: true
+    enableAssignmentEvents: true
+    enableOutcomeEvents: true
+    enableAnalysisSignals: true
+    enableErrorEvents: true
+    
+    # Sampling and batching
+    samplingRate: 1.0
+    batchSize: 100
+    flushIntervalMs: 5000
+    
+    # Backplane configuration
+    backplane:
+      type: azureServiceBus
+      options:
+        # Azure Service Bus connection string
+        connectionString: "Endpoint=sb://myns.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=..."
+        
+        # Queue mode (use this OR topicName)
+        queueName: experiment-events
+        
+        # OR Topic mode for multiple subscribers
+        # topicName: experiment-events
+        
+        # OR Type-specific destinations
+        # useTypeSpecificDestinations: true
+        
+        # Message configuration
+        messageTimeToLiveMinutes: 1440  # 24 hours
+        maxRetryAttempts: 3
+        batchSize: 100
+        
+        # Session support for ordering guarantees
+        enableSessions: false
+        sessionStrategy: experimentKey  # experimentKey, subjectId, or tenantId
+        
+        # Optional client identifier
+        clientId: experiment-framework-producer
+  
+  # Experiment definitions
+  trials:
+    - serviceType: IRecommendationService
+      selectionMode:
+        type: featureFlag
+        flagName: UseMLRecommendations
+      control:
+        key: control
+        implementationType: RuleBasedRecommendations
+      conditions:
+        - key: "true"
+          implementationType: MLRecommendations

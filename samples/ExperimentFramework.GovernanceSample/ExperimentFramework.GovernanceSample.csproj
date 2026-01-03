@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Governance.Persistence.Sql\ExperimentFramework.Governance.Persistence.Sql.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Admin\ExperimentFramework.Admin.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Audit\ExperimentFramework.Audit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.FeatureManagement" Version="4.4.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,93 @@
+# Governance with SQL Persistence Example
+#
+# This example demonstrates how to configure experiment governance
+# with durable SQL-based persistence for production deployments.
+#
+# Features:
+# - Lifecycle management with state transitions
+# - Approval gates for controlled deployments
+# - Policy guardrails for safety
+# - SQL persistence for durability and audit
+# - Optimistic concurrency control
+# - Immutable history
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  # Governance configuration
+  governance:
+    # Initial state for new experiments
+    initialState: Draft
+    
+    # Enable automatic versioning on configuration changes
+    enableAutoVersioning: true
+    
+    # Persistence configuration for durable storage
+    persistence:
+      type: sql
+      provider: sqlserver
+      connectionString: ${GOVERNANCE_DB_CONNECTION}
+      optimisticConcurrency: true
+      retainHistory: true
+    
+    # Approval gates for lifecycle transitions
+    approvalGates:
+      # Automatic approval for submitting for review
+      - type: automatic
+        fromState: Draft
+        toState: PendingApproval
+      
+      # Manual approval required to activate
+      - type: manual
+        fromState: Approved
+        toState: Running
+      
+      # Role-based approval for ramping
+      - type: roleBased
+        fromState: Running
+        toState: Ramping
+        allowedRoles:
+          - sre
+          - platform-team
+    
+    # Policy guardrails
+    policies:
+      # Limit initial traffic exposure
+      - type: trafficLimit
+        name: InitialRampLimit
+        maxTrafficPercentage: 10.0
+        minStableTime: "00:30:00"
+      
+      # Monitor error rates
+      - type: errorRate
+        name: ErrorRateCheck
+        maxErrorRate: 0.05
+      
+      # Restrict deployment windows
+      - type: timeWindow
+        name: BusinessHoursOnly
+        allowedStartTime: "09:00"
+        allowedEndTime: "17:00"
+      
+      # Prevent conflicts with other experiments
+      - type: conflictPrevention
+        name: CheckoutConflicts
+        conflictingExperiments:
+          - checkout-redesign
+          - payment-flow-update
+
+  # Example experiment definition
+  trials:
+    - serviceType: ICheckoutService
+      selectionMode:
+        type: featureFlag
+        flagName: ExpressCheckoutEnabled
+      control:
+        key: standard
+        implementationType: StandardCheckoutService
+      conditions:
+        - key: "true"
+          implementationType: ExpressCheckoutService
+      errorPolicy:
+        type: fallbackToControl

@@ -1,0 +1,58 @@
+# Governance with In-Memory Persistence Example
+#
+# This example demonstrates how to configure experiment governance
+# with in-memory persistence for testing and development.
+#
+# Use in-memory persistence when:
+# - Running local development
+# - Integration testing
+# - Demo/prototype environments
+# - Short-lived deployments
+
+experimentFramework:
+  settings:
+    proxyStrategy: dispatchProxy
+
+  # Governance configuration for development/testing
+  governance:
+    initialState: Draft
+    enableAutoVersioning: true
+    
+    # In-memory persistence (data lost on restart)
+    persistence:
+      type: inMemory
+      optimisticConcurrency: true
+      retainHistory: true
+    
+    # Permissive approval gates for fast iteration
+    approvalGates:
+      - type: automatic
+        toState: PendingApproval
+      
+      - type: automatic
+        toState: Approved
+      
+      - type: automatic
+        toState: Running
+    
+    # Relaxed policies for development
+    policies:
+      - type: trafficLimit
+        maxTrafficPercentage: 100.0
+      
+      - type: errorRate
+        maxErrorRate: 1.0
+
+  trials:
+    - serviceType: IUserService
+      selectionMode:
+        type: featureFlag
+        flagName: NewUserProfileEnabled
+      control:
+        key: legacy
+        implementationType: LegacyUserProfile
+      conditions:
+        - key: "true"
+          implementationType: ModernUserProfile
+      errorPolicy:
+        type: fallbackToControl
