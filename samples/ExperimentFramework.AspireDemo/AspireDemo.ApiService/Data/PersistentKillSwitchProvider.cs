@@ -127,12 +127,23 @@ public sealed class PersistentKillSwitchProvider : IKillSwitchProvider
             }
 
             await context.SaveChangesAsync();
-            _logger.LogDebug("Persisted kill switch: {Type}:{Trial} = {Disabled}", serviceTypeName, trialKey ?? "(experiment)", disabled);
+            var safeTrialKey = SanitizeForLog(trialKey) ?? "(experiment)";
+            _logger.LogDebug("Persisted kill switch: {Type}:{Trial} = {Disabled}", serviceTypeName, safeTrialKey, disabled);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to persist kill switch state");
         }
+    }
+
+    private static string? SanitizeForLog(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return value;
+
+        return value
+            .Replace("\r", string.Empty)
+            .Replace("\n", string.Empty);
     }
 
     private static string GetTrialKey(Type serviceType, string trialKey)
