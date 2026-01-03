@@ -1,0 +1,1056 @@
+@page "/plugins"
+@using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
+@inject ExperimentApiClient ExperimentApi
+@inject DemoStateService DemoState
+
+<SetPageTitle Title="Integrations - OptimizeLab" />
+
+<div class="plugins-page">
+    <div class="page-header">
+        <div class="header-content">
+            <h1>Plugin System</h1>
+            <p class="subtitle">Dynamically load and manage experiment strategy plugins</p>
+        </div>
+        <div class="header-actions">
+            <button class="action-btn primary" @onclick="DiscoverPlugins" disabled="@_discovering">
+                @if (_discovering) { <span class="btn-spinner"></span> }
+                Discover Plugins
+            </button>
+            <button class="action-btn secondary" @onclick="RefreshPlugins" disabled="@_loading">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="error-banner">
+            <span class="error-icon">!</span>
+            <span>@_error</span>
+            <button class="dismiss-btn" @onclick="() => _error = null">X</button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_success))
+    {
+        <div class="success-banner">
+            <span class="success-icon">OK</span>
+            <span>@_success</span>
+            <button class="dismiss-btn" @onclick="() => _success = null">X</button>
+        </div>
+    }
+
+    <!-- Plugin System Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <span class="stat-number @(_loading ? "skeleton-text" : "")">@(_loading ? "--" : _plugins.Count.ToString())</span>
+            <span class="stat-label">Loaded Plugins</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number @(_loading ? "skeleton-text" : "")">@(_loading ? "--" : _plugins.Count(p => p.Status == "Healthy").ToString())</span>
+            <span class="stat-label">Healthy</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number @(_loading ? "skeleton-text" : "")">@(_loading ? "--" : _plugins.Sum(p => p.Services.Count).ToString())</span>
+            <span class="stat-label">Services</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number @(_loading ? "skeleton-text" : "")">@(_loading ? "--" : _plugins.Count(p => p.SupportsHotReload).ToString())</span>
+            <span class="stat-label">Hot Reload</span>
+        </div>
+    </div>
+
+    <!-- Plugins Grid -->
+    <div class="plugins-grid">
+        @if (_loading)
+        {
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="plugin-card skeleton-card">
+                    <div class="plugin-header">
+                        <div class="plugin-icon skeleton"></div>
+                        <div class="plugin-title-area">
+                            <h3 class="skeleton-text">Loading plugin...</h3>
+                            <span class="skeleton-text">v0.0.0</span>
+                        </div>
+                    </div>
+                    <p class="skeleton-text">Loading plugin details...</p>
+                    <div class="skeleton-services"></div>
+                </div>
+            }
+        }
+        else if (_plugins.Count == 0)
+        {
+            <div class="empty-state">
+                <span class="empty-icon">PLUG</span>
+                <h3>No Plugins Loaded</h3>
+                <p>Click "Discover Plugins" to search for and load available plugins.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var plugin in _plugins)
+            {
+                var isExpanded = DemoState.IsExpanded("plugins", plugin.Id);
+                <div class="plugin-card @plugin.Status.ToLower()">
+                    <div class="plugin-header">
+                        <div class="plugin-icon @GetPluginIconClass(plugin)">
+                            @GetPluginIconText(plugin)
+                        </div>
+                        <div class="plugin-title-area">
+                            <h3>@plugin.Name</h3>
+                            <div class="plugin-meta">
+                                <span class="version">v@plugin.Version</span>
+                                <span class="status-badge @plugin.Status.ToLower()">@plugin.Status</span>
+                            </div>
+                        </div>
+                        <div class="plugin-actions">
+                            @if (plugin.SupportsHotReload)
+                            {
+                                <button class="icon-btn" title="Reload" @onclick="() => ReloadPlugin(plugin.Id)" disabled="@_reloading">
+                                    <span class="icon-reload">R</span>
+                                </button>
+                            }
+                            <button class="icon-btn danger" title="Unload" @onclick="() => UnloadPlugin(plugin.Id)" disabled="@_reloading">
+                                <span class="icon-unload">X</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="plugin-description">@plugin.Description</p>
+
+                    <!-- Plugin Info Row -->
+                    <div class="plugin-info-row">
+                        <div class="info-item">
+                            <span class="info-label">Isolation</span>
+                            <span class="info-value">@plugin.IsolationMode</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Load Time</span>
+                            <span class="info-value">@plugin.LoadTime.ToString("g")</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Hot Reload</span>
+                            <span class="info-value @(plugin.SupportsHotReload ? "enabled" : "disabled")">
+                                @(plugin.SupportsHotReload ? "Enabled" : "Disabled")
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Services Provided -->
+                    <div class="services-section">
+                        <div class="section-header" @onclick="() => ToggleExpanded(plugin.Id)">
+                            <h4>Services (@plugin.Services.Count)</h4>
+                            <span class="toggle-icon @(isExpanded ? "expanded" : "")">v</span>
+                        </div>
+
+                        @if (isExpanded)
+                        {
+                            <div class="services-list">
+                                @foreach (var service in plugin.Services)
+                                {
+                                    <div class="service-item">
+                                        <div class="service-header">
+                                            <span class="service-interface">@service.Interface</span>
+                                        </div>
+                                        <div class="implementations">
+                                            @foreach (var impl in service.Implementations)
+                                            {
+                                                var isActive = IsImplementationActive(service.Interface, plugin.Id, impl.Type);
+                                                <div class="implementation @(isActive ? "active-impl" : "")">
+                                                    <code class="impl-type">@impl.Type</code>
+                                                    @if (!string.IsNullOrEmpty(impl.Alias))
+                                                    {
+                                                        <span class="impl-alias">@impl.Alias</span>
+                                                    }
+                                                    @if (isActive)
+                                                    {
+                                                        <span class="active-badge">ACTIVE</span>
+                                                        <button class="clear-btn" @onclick="() => ClearImplementation(service.Interface)" title="Clear">
+                                                            X
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="use-btn" @onclick="() => UseImplementation(plugin.Id, service.Interface, impl.Alias ?? impl.Type)">
+                                                            Use
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Plugin Footer -->
+                    <div class="plugin-footer">
+                        <span class="plugin-id">ID: @plugin.Id</span>
+                        <span class="plugin-path" title="@plugin.Path">@TruncatePath(plugin.Path)</span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Recent Audit Events -->
+    <div class="audit-section">
+        <div class="section-title">
+            <h2>Plugin Activity Log</h2>
+            <button class="refresh-btn-sm" @onclick="LoadAuditEvents">Refresh</button>
+        </div>
+        <div class="audit-log">
+            @if (_auditEvents.Count == 0)
+            {
+                <p class="empty-audit">No plugin events recorded yet.</p>
+            }
+            else
+            {
+                @foreach (var evt in _auditEvents.Take(10))
+                {
+                    <div class="audit-entry @GetAuditClass(evt.EventType)">
+                        <span class="audit-time">@evt.Timestamp.ToString("HH:mm:ss")</span>
+                        <span class="audit-type">@evt.EventType</span>
+                        <span class="audit-details">@evt.Details</span>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .plugins-page {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .subtitle {
+        color: #6b7280;
+        margin: 0.5rem 0 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.15s;
+    }
+
+    .action-btn.primary { background: #8b5cf6; color: white; }
+    .action-btn.primary:hover:not(:disabled) { background: #7c3aed; }
+    .action-btn.secondary { background: #e5e7eb; color: #374151; }
+    .action-btn.secondary:hover:not(:disabled) { background: #d1d5db; }
+    .action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    :global(.theme-dark) .action-btn.secondary { background: #4b5563; color: #e5e7eb; }
+
+    .btn-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    .error-banner, .success-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .error-banner { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .success-banner { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+
+    .error-icon, .success-icon {
+        font-weight: bold;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .error-icon { background: #dc2626; color: white; }
+    .success-icon { background: #16a34a; color: white; }
+
+    .dismiss-btn {
+        margin-left: auto;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 1.25rem;
+        color: inherit;
+        opacity: 0.6;
+    }
+
+    .dismiss-btn:hover { opacity: 1; }
+
+    /* Stats Row */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        color: white;
+    }
+
+    .stat-number {
+        display: block;
+        font-size: 2.5rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+        display: block;
+    }
+
+    /* Plugins Grid */
+    .plugins-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .plugin-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        border-left: 4px solid #8b5cf6;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .plugin-card {
+        background: #1f2937 !important;
+        border-color: #374151 !important;
+    }
+
+    .plugin-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .plugin-card.healthy { border-left-color: #10b981; }
+    .plugin-card.degraded { border-left-color: #f59e0b; }
+    .plugin-card.unhealthy { border-left-color: #ef4444; }
+
+    .plugin-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .plugin-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.25rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .plugin-icon.pricing { background: linear-gradient(135deg, #10b981, #059669); }
+    .plugin-icon.analytics { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .plugin-icon.recommendation { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .plugin-icon.default { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+    .plugin-title-area {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .plugin-title-area h3 {
+        margin: 0;
+        font-size: 1.125rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .plugin-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+    }
+
+    .version {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-family: monospace;
+    }
+
+    .status-badge {
+        font-size: 0.65rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-badge.healthy { background: #d1fae5; color: #059669; }
+    .status-badge.degraded { background: #fef3c7; color: #d97706; }
+    .status-badge.unhealthy { background: #fee2e2; color: #dc2626; }
+
+    .plugin-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid #d1d5db;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+    }
+
+    .icon-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+    .icon-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+    .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    :global(.theme-dark) .icon-btn { border-color: #6b7280; }
+    :global(.theme-dark) .icon-btn:hover { background: #4b5563; }
+
+    .icon-reload, .icon-unload {
+        font-weight: bold;
+        font-size: 0.875rem;
+    }
+
+    .plugin-description {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    :global(.theme-dark) .plugin-description { color: #9ca3af; }
+
+    .plugin-info-row {
+        display: flex;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: rgba(128,128,128,0.1);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .info-label {
+        font-size: 0.65rem;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .info-value {
+        font-size: 0.875rem;
+        color: var(--theme-text, #374151);
+    }
+
+    .info-value.enabled { color: #10b981; }
+    .info-value.disabled { color: #6b7280; }
+
+    /* Services Section */
+    .services-section {
+        border-top: 1px solid rgba(128,128,128,0.2);
+        padding-top: 1rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        padding: 0.5rem 0;
+    }
+
+    .section-header h4 {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--theme-text, #374151);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .toggle-icon {
+        transition: transform 0.2s;
+        color: #6b7280;
+    }
+
+    .toggle-icon.expanded { transform: rotate(180deg); }
+
+    .services-list {
+        margin-top: 0.75rem;
+    }
+
+    .service-item {
+        background: rgba(128,128,128,0.05);
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .service-interface {
+        font-size: 0.75rem;
+        color: #8b5cf6;
+        font-weight: 600;
+        font-family: monospace;
+    }
+
+    .implementations {
+        margin-top: 0.5rem;
+    }
+
+    .implementation {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0;
+        border-bottom: 1px solid rgba(128,128,128,0.1);
+    }
+
+    .implementation:last-child { border-bottom: none; }
+
+    .impl-type {
+        font-size: 0.8rem;
+        color: var(--theme-text, #1f2937);
+        background: rgba(128,128,128,0.1);
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .impl-alias {
+        font-size: 0.7rem;
+        color: #6b7280;
+        background: #e5e7eb;
+        padding: 0.125rem 0.375rem;
+        border-radius: 4px;
+    }
+
+    :global(.theme-dark) .impl-alias { background: #4b5563; }
+
+    .use-btn {
+        padding: 0.25rem 0.5rem;
+        background: #8b5cf6;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .use-btn:hover { background: #7c3aed; }
+
+    .active-impl {
+        background: rgba(16, 185, 129, 0.15) !important;
+        border-color: #10b981 !important;
+    }
+
+    .active-badge {
+        padding: 0.125rem 0.375rem;
+        background: #10b981;
+        color: white;
+        border-radius: 4px;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .clear-btn {
+        padding: 0.25rem 0.5rem;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    .clear-btn:hover { background: #dc2626; }
+
+    .plugin-footer {
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(128,128,128,0.2);
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: #9ca3af;
+        font-family: monospace;
+    }
+
+    .plugin-path {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Empty State */
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 12px;
+        border: 2px dashed rgba(128,128,128,0.3);
+    }
+
+    :global(.theme-dark) .empty-state { background: #1f2937 !important; border-color: #374151 !important; }
+
+    .empty-icon {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #8b5cf6;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 0.5rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .empty-state p {
+        color: #6b7280;
+        margin: 0;
+    }
+
+    /* Audit Section */
+    .audit-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .audit-section { background: #1f2937 !important; border-color: #374151 !important; }
+
+    .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .section-title h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .refresh-btn-sm {
+        padding: 0.375rem 0.75rem;
+        background: #e5e7eb;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+    }
+
+    :global(.theme-dark) .refresh-btn-sm { background: #4b5563; color: #e5e7eb; }
+
+    .audit-log {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .empty-audit {
+        color: #6b7280;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .audit-entry {
+        display: flex;
+        gap: 1rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        margin-bottom: 0.25rem;
+        font-size: 0.8rem;
+        background: rgba(128,128,128,0.05);
+    }
+
+    .audit-entry.pluginloaded { border-left: 3px solid #10b981; }
+    .audit-entry.pluginunloaded { border-left: 3px solid #f59e0b; }
+    .audit-entry.pluginreloaded { border-left: 3px solid #3b82f6; }
+    .audit-entry.serviceused { border-left: 3px solid #8b5cf6; }
+
+    .audit-time {
+        color: #6b7280;
+        font-family: monospace;
+        min-width: 70px;
+    }
+
+    .audit-type {
+        font-weight: 600;
+        min-width: 120px;
+        color: var(--theme-text, #374151);
+    }
+
+    .audit-details {
+        color: #6b7280;
+        flex: 1;
+    }
+
+    /* Skeleton Styles */
+    .skeleton-card { opacity: 0.7; pointer-events: none; }
+    .skeleton-text, .skeleton {
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+        color: transparent !important;
+    }
+
+    :global(.theme-dark) .skeleton-text, :global(.theme-dark) .skeleton {
+        background: linear-gradient(90deg, #4b5563 25%, #6b7280 50%, #4b5563 75%);
+        background-size: 200% 100%;
+    }
+
+    .skeleton-services {
+        height: 60px;
+        background: #e5e7eb;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+
+    :global(.theme-dark) .skeleton-services { background: #4b5563; }
+
+    :global(.theme-dark) .plugin-title-area h3 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .section-header h4 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .section-title h2 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .empty-state h3 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .empty-state p {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .audit-type {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .service-item {
+        background: rgba(55, 65, 81, 0.5);
+    }
+
+    :global(.theme-dark) .impl-type {
+        color: #e5e7eb;
+        background: rgba(75, 85, 99, 0.5);
+    }
+
+    :global(.theme-dark) .plugin-info-row {
+        background: rgba(55, 65, 81, 0.5);
+    }
+
+    :global(.theme-dark) .info-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .error-banner {
+        background: rgba(220, 38, 38, 0.2);
+        border-color: #dc2626;
+    }
+
+    :global(.theme-dark) .success-banner {
+        background: rgba(22, 163, 74, 0.2);
+        border-color: #16a34a;
+    }
+
+    @@keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+@code {
+    private List<PluginInfo> _plugins = [];
+    private List<AuditLogEntry> _auditEvents = [];
+    private bool _loading = true;
+    private bool _discovering = false;
+    private bool _reloading = false;
+    private bool _dataLoaded = false;
+    private string? _error;
+    private string? _success;
+
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await RefreshPlugins();
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshPlugins()
+    {
+        _loading = true;
+        _error = null;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            _plugins = await ExperimentApi.GetPluginsAsync().WaitAsync(cts.Token);
+            var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            DemoState.SyncPluginImplementationsFromApi(activeImpls);
+            await LoadAuditEvents().WaitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Request timed out. Please try again.";
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load plugins: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool IsImplementationActive(string interfaceName, string pluginId, string implType)
+    {
+        var active = DemoState.GetActivePluginImplementation(interfaceName);
+        if (active == null) return false;
+        return active.PluginId == pluginId && active.ImplementationType == implType;
+    }
+
+    private async Task ClearImplementation(string interfaceName)
+    {
+        try
+        {
+            await ExperimentApi.ClearActivePluginImplementationAsync(interfaceName);
+            DemoState.SetActivePluginImplementation(interfaceName, null);
+            _success = $"Cleared active implementation for {interfaceName}";
+            await LoadAuditEvents();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to clear: {ex.Message}";
+        }
+    }
+
+    private async Task DiscoverPlugins()
+    {
+        _discovering = true;
+        _error = null;
+        try
+        {
+            var discovered = await ExperimentApi.DiscoverPluginsAsync();
+            _success = $"Discovered and loaded {discovered} plugin(s)";
+            await RefreshPlugins();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Discovery failed: {ex.Message}";
+        }
+        finally
+        {
+            _discovering = false;
+        }
+    }
+
+    private async Task ReloadPlugin(string pluginId)
+    {
+        _reloading = true;
+        try
+        {
+            await ExperimentApi.ReloadPluginAsync(pluginId);
+            _success = $"Plugin '{pluginId}' reloaded successfully";
+            await RefreshPlugins();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Reload failed: {ex.Message}";
+        }
+        finally
+        {
+            _reloading = false;
+        }
+    }
+
+    private async Task UnloadPlugin(string pluginId)
+    {
+        _reloading = true;
+        try
+        {
+            await ExperimentApi.UnloadPluginAsync(pluginId);
+            _success = $"Plugin '{pluginId}' unloaded";
+            await RefreshPlugins();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unload failed: {ex.Message}";
+        }
+        finally
+        {
+            _reloading = false;
+        }
+    }
+
+    private async Task UseImplementation(string pluginId, string interfaceName, string implName)
+    {
+        try
+        {
+            var result = await ExperimentApi.UsePluginImplementationAsync(pluginId, interfaceName, implName);
+            if (result != null)
+            {
+                DemoState.SetActivePluginImplementation(interfaceName, new ActivePluginImplementation
+                {
+                    PluginId = result.PluginId,
+                    Interface = result.Interface,
+                    ImplementationType = result.Implementation,
+                    Alias = result.Alias,
+                    ActivatedAt = DateTime.UtcNow
+                });
+            }
+            _success = $"Now using {implName} for {interfaceName}. Go to Live Demo to see it in action!";
+            await LoadAuditEvents();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to use implementation: {ex.Message}";
+        }
+    }
+
+    private async Task LoadAuditEvents()
+    {
+        try
+        {
+            _auditEvents = await ExperimentApi.GetAuditLogAsync(20);
+            _auditEvents = _auditEvents.Where(e =>
+                e.EventType.Contains("Plugin", StringComparison.OrdinalIgnoreCase) ||
+                e.EventType.Contains("Service", StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        catch { }
+    }
+
+    private void ToggleExpanded(string pluginId)
+    {
+        DemoState.ToggleExpanded("plugins", pluginId);
+    }
+
+    private static string GetPluginIconClass(PluginInfo plugin)
+    {
+        if (plugin.Name.Contains("Pricing", StringComparison.OrdinalIgnoreCase)) return "pricing";
+        if (plugin.Name.Contains("Analytics", StringComparison.OrdinalIgnoreCase)) return "analytics";
+        if (plugin.Name.Contains("Recommendation", StringComparison.OrdinalIgnoreCase)) return "recommendation";
+        return "default";
+    }
+
+    private static string GetPluginIconText(PluginInfo plugin)
+    {
+        if (plugin.Name.Contains("Pricing", StringComparison.OrdinalIgnoreCase)) return "$";
+        if (plugin.Name.Contains("Analytics", StringComparison.OrdinalIgnoreCase)) return "A";
+        if (plugin.Name.Contains("Recommendation", StringComparison.OrdinalIgnoreCase)) return "R";
+        return "P";
+    }
+
+    private static string TruncatePath(string path)
+    {
+        if (path.Length <= 40) return path;
+        return "..." + path[^37..];
+    }
+
+    private static string GetAuditClass(string eventType)
+    {
+        return eventType.ToLower().Replace(" ", "").Replace("_", "");
+    }
+}

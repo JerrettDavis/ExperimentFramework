@@ -1,0 +1,141 @@
+@* Enterprise Navigation Menu *@
+
+<div class="sidebar-header">
+    <div class="brand">
+        <div class="brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+        </div>
+        <div class="brand-text">
+            <span class="brand-name">OptimizeLab</span>
+            <span class="brand-subtitle">Experimentation Suite</span>
+        </div>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable">
+    <nav class="nav flex-column">
+        <div class="nav-section">
+            <span class="nav-section-title">Overview</span>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <span class="nav-icon bi bi-house-door-fill" aria-hidden="true"></span>
+                    <span class="nav-text">Dashboard</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Experimentation</span>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="experiments">
+                    <span class="nav-icon bi bi-toggles" aria-hidden="true"></span>
+                    <span class="nav-text">Experiments</span>
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="create">
+                    <span class="nav-icon bi bi-plus-circle" aria-hidden="true"></span>
+                    <span class="nav-text">Create Experiment</span>
+                    <span class="nav-badge">New</span>
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="demo">
+                    <span class="nav-icon bi bi-play-circle" aria-hidden="true"></span>
+                    <span class="nav-text">Test Lab</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Intelligence</span>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="analytics">
+                    <span class="nav-icon bi bi-bar-chart" aria-hidden="true"></span>
+                    <span class="nav-text">Analytics</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Advanced Features</span>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="rollout">
+                    <span class="nav-icon bi bi-speedometer2" aria-hidden="true"></span>
+                    <span class="nav-text">Rollout</span>
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="targeting">
+                    <span class="nav-icon bi bi-bullseye" aria-hidden="true"></span>
+                    <span class="nav-text">Targeting</span>
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="hypothesis-testing">
+                    <span class="nav-icon bi bi-graph-up-arrow" aria-hidden="true"></span>
+                    <span class="nav-text">Hypothesis Testing</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Platform</span>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="dsl-editor">
+                    <span class="nav-icon bi bi-code-square" aria-hidden="true"></span>
+                    <span class="nav-text">DSL Editor</span>
+                    <span class="nav-badge">New</span>
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="config">
+                    <span class="nav-icon bi bi-gear" aria-hidden="true"></span>
+                    <span class="nav-text">Settings</span>
+                </NavLink>
+            </div>
+            <div class="nav-item">
+                <NavLink class="nav-link" href="plugins">
+                    <span class="nav-icon bi bi-plug" aria-hidden="true"></span>
+                    <span class="nav-text">Integrations</span>
+                </NavLink>
+            </div>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Demo Apps</span>
+            <div class="nav-item demo-app-item">
+                <div class="nav-link demo-app-link">
+                    <span class="nav-icon bi bi-journal-richtext" aria-hidden="true"></span>
+                    <span class="nav-text">TechBlog</span>
+                    <span class="nav-badge external">Aspire</span>
+                </div>
+                <span class="demo-app-hint">Open via Aspire Dashboard</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="nav-footer">
+        <div class="user-info">
+            <div class="user-avatar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+            </div>
+            <div class="user-details">
+                <span class="user-name">Admin User</span>
+                <span class="user-role">Organization Owner</span>
+            </div>
+        </div>
+        <div class="version-info">
+            <span class="version-label">Build</span>
+            <span class="version-number">v1.0.0-preview</span>
+        </div>
+    </div>
+</div>

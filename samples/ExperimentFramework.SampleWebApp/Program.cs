@@ -64,7 +64,7 @@ if (app.Environment.IsDevelopment())
 // Enable session middleware (must be before endpoints)
 app.UseSession();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.MapControllers();
 
 // Add a simple home page with API documentation

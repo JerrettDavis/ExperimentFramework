@@ -1,0 +1,213 @@
+@inherits LayoutComponentBase
+@inject ThemeService ThemeService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="page @_themeClass">
+    <aside class="sidebar">
+        <NavMenu />
+    </aside>
+
+    <main>
+        <header class="top-row px-4">
+            @if (ThemeService.CurrentTheme != null)
+            {
+                <span class="theme-indicator">
+                    @if (_effectiveTheme == "dark")
+                    {
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                        </svg>
+                    }
+                    <span>@GetThemeDisplayName()</span>
+                </span>
+            }
+            <a href="https://github.com/anthropics/claude-code" target="_blank" rel="noopener">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px; vertical-align: -2px;">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                View Source
+            </a>
+        </header>
+
+        <article class="content">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <span class="dismiss">X</span>
+</div>
+
+@code {
+    private string _themeClass = "";
+    private string _effectiveTheme = "light";
+    private string _selectedTheme = "system";
+    private bool _disposed;
+    private DotNetObjectReference<MainLayout>? _dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ThemeService.OnThemeChanged += HandleThemeChanged;
+        await UpdateTheme();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Start watching for system theme changes
+            _dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("themeUtils.watchSystemTheme", _dotNetRef);
+
+                // Get stored theme preference or detect system theme
+                _selectedTheme = await JS.InvokeAsync<string>("themeUtils.getStoredTheme") ?? "system";
+
+                if (_selectedTheme == "system")
+                {
+                    await DetectSystemTheme();
+                }
+                else
+                {
+                    _effectiveTheme = _selectedTheme;
+                }
+
+                UpdateThemeClass();
+                await ApplyThemeToBody();
+                StateHasChanged();
+            }
+            catch
+            {
+                // JS interop may not be available
+            }
+        }
+    }
+
+    private async void HandleThemeChanged()
+    {
+        if (_disposed) return;
+
+        try
+        {
+            await UpdateTheme();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Ignore errors during theme change - component might be disposed
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnSystemThemeChanged(string newTheme)
+    {
+        if (_disposed || _selectedTheme != "system") return;
+
+        _effectiveTheme = newTheme;
+        UpdateThemeClass();
+        await ApplyThemeToBody();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task UpdateTheme()
+    {
+        var theme = ThemeService.CurrentTheme;
+        if (theme == null) return;
+
+        _selectedTheme = theme.Name.ToLower();
+
+        if (_selectedTheme == "system")
+        {
+            await DetectSystemTheme();
+        }
+        else
+        {
+            _effectiveTheme = _selectedTheme;
+        }
+
+        UpdateThemeClass();
+
+        // Store preference and apply to body
+        try
+        {
+            await JS.InvokeVoidAsync("themeUtils.storeTheme", _selectedTheme);
+            await ApplyThemeToBody();
+        }
+        catch
+        {
+            // JS interop may not be available yet
+        }
+    }
+
+    private async Task DetectSystemTheme()
+    {
+        try
+        {
+            _effectiveTheme = await JS.InvokeAsync<string>("themeUtils.getSystemTheme");
+        }
+        catch
+        {
+            // JS interop not available yet, default to light
+            _effectiveTheme = "light";
+        }
+    }
+
+    private void UpdateThemeClass()
+    {
+        _themeClass = _effectiveTheme switch
+        {
+            "dark" => "theme-dark",
+            _ => "theme-light"
+        };
+    }
+
+    private async Task ApplyThemeToBody()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("themeUtils.applyTheme", _effectiveTheme);
+        }
+        catch
+        {
+            // JS interop may not be available
+        }
+    }
+
+    private string GetThemeDisplayName()
+    {
+        if (_selectedTheme == "system")
+        {
+            return $"System ({(_effectiveTheme == "dark" ? "Dark" : "Light")})";
+        }
+        return _effectiveTheme == "dark" ? "Dark" : "Light";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        ThemeService.OnThemeChanged -= HandleThemeChanged;
+
+        try
+        {
+            await JS.InvokeVoidAsync("themeUtils.stopWatchingSystemTheme");
+        }
+        catch
+        {
+            // Ignore disposal errors
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

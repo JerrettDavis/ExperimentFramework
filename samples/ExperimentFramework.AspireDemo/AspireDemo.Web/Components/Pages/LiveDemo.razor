@@ -1,0 +1,1112 @@
+@page "/demo"
+@using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
+@inject ExperimentApiClient ExperimentApi
+@inject ThemeService ThemeService
+@inject DemoStateService DemoState
+
+<SetPageTitle Title="Test Lab - OptimizeLab" />
+
+<div class="live-demo">
+    <div class="demo-header">
+        <h1>Live Experiment Demo</h1>
+        <p class="subtitle">Toggle experiments and see results change instantly. No page refresh needed!</p>
+    </div>
+
+    <div class="demo-grid">
+        <!-- Pricing Calculator -->
+        <div class="demo-card pricing-card">
+            <div class="card-icon pricing-icon">$</div>
+            <h2>Pricing Calculator</h2>
+
+            <!-- Inline Experiment Toggle -->
+            <div class="experiment-toggle @(_initialLoading ? "skeleton-toggle" : "")">
+                <span class="toggle-label">Strategy:</span>
+                <div class="toggle-buttons">
+                    @{ var pricingExp = "pricing-strategy"; }
+                    @foreach (var variant in new[] { ("tiered", "Tiered"), ("flat", "Flat"), ("volume", "Volume") })
+                    {
+                        var v = variant;
+                        var isActive = DemoState.GetActiveVariant(pricingExp) == v.Item1 && !IsPluginActiveFor("IPricingStrategy");
+                        <button class="toggle-btn @(isActive ? "active" : "")"
+                                @onclick="@(() => SwitchVariant(pricingExp, v.Item1))"
+                                disabled="@(_switching || _initialLoading)">
+                            @v.Item2
+                        </button>
+                    }
+                    @foreach (var pluginImpl in GetPluginImplementationsFor("IPricingStrategy"))
+                    {
+                        var impl = pluginImpl;
+                        var isActive = IsPluginImplActive("IPricingStrategy", impl.PluginId, impl.Type);
+                        <button class="toggle-btn plugin-toggle @(isActive ? "active" : "")"
+                                @onclick="@(() => ActivatePluginImpl(impl.PluginId, "IPricingStrategy", impl.Alias ?? impl.Type))"
+                                disabled="@(_switching || _initialLoading)"
+                                title="Plugin: @impl.PluginName">
+                            @(impl.Alias ?? impl.Type.Replace("Pricing", ""))
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="units">Units:</label>
+                <input type="number" id="units" @bind="_units" min="1" max="10000" />
+                <button class="action-btn" @onclick="CalculatePricing" disabled="@_calculatingPricing">
+                    @if (_calculatingPricing) { <span class="btn-spinner"></span> }
+                    Calculate
+                </button>
+            </div>
+
+            @if (_pricingResult != null)
+            {
+                <div class="result-panel @(_pricingResult.IsPlugin ? "plugin-result" : "")">
+                    <div class="result-header">
+                        @if (_pricingResult.IsPlugin)
+                        {
+                            <span class="plugin-badge">PLUGIN</span>
+                        }
+                        <span class="variant-tag">@_pricingResult.Variant</span>
+                        <span class="strategy-name">@_pricingResult.Strategy</span>
+                    </div>
+                    <div class="result-values">
+                        <div class="result-item">
+                            <span class="result-label">Unit Price</span>
+                            <span class="result-value">@_pricingResult.UnitPrice.ToString("C")</span>
+                        </div>
+                        <div class="result-item highlight">
+                            <span class="result-label">Total</span>
+                            <span class="result-value large">@_pricingResult.Total.ToString("C")</span>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_calculatingPricing)
+            {
+                <div class="skeleton-result"></div>
+            }
+        </div>
+
+        <!-- Notifications Preview -->
+        <div class="demo-card notification-card">
+            <div class="card-icon notification-icon">N</div>
+            <h2>Notification Preview</h2>
+
+            <!-- Inline Experiment Toggle -->
+            <div class="experiment-toggle @(_initialLoading ? "skeleton-toggle" : "")">
+                <span class="toggle-label">Style:</span>
+                <div class="toggle-buttons">
+                    @{ var notifExp = "notification-style"; }
+                    @foreach (var variant in new[] { ("standard", "Standard"), ("personalized", "Personalized") })
+                    {
+                        var v = variant;
+                        <button class="toggle-btn @(DemoState.GetActiveVariant(notifExp) == v.Item1 ? "active" : "")"
+                                @onclick="@(() => SwitchVariant(notifExp, v.Item1))"
+                                disabled="@(_switching || _initialLoading)">
+                            @v.Item2
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="userId">Name:</label>
+                <input type="text" id="userId" @bind="_userId" placeholder="Enter a name" />
+                <button class="action-btn" @onclick="GetNotificationPreview" disabled="@_loadingNotification">
+                    @if (_loadingNotification) { <span class="btn-spinner"></span> }
+                    Preview
+                </button>
+            </div>
+
+            @if (_notificationResult != null)
+            {
+                <div class="notification-preview @_notificationResult.Style">
+                    <div class="notification-content">
+                        <span class="variant-tag">@_notificationResult.Variant</span>
+                        <h3>@_notificationResult.Title</h3>
+                        <p>@_notificationResult.Message</p>
+                    </div>
+                </div>
+            }
+            else if (_loadingNotification)
+            {
+                <div class="skeleton-result"></div>
+            }
+        </div>
+
+        <!-- Recommendations -->
+        <div class="demo-card recommendations-card">
+            <div class="card-icon recommendations-icon">R</div>
+            <h2>Recommendations</h2>
+
+            <!-- Inline Experiment Toggle -->
+            <div class="experiment-toggle @(_initialLoading ? "skeleton-toggle" : "")">
+                <span class="toggle-label">Algorithm:</span>
+                <div class="toggle-buttons">
+                    @{ var recsExp = "recommendation-algorithm"; }
+                    @foreach (var variant in new[] { ("basic", "Basic"), ("ai-powered", "AI"), ("collaborative", "Collab") })
+                    {
+                        var v = variant;
+                        var isActive = DemoState.GetActiveVariant(recsExp) == v.Item1 && !IsPluginActiveFor("IRecommendationEngine");
+                        <button class="toggle-btn @(isActive ? "active" : "")"
+                                @onclick="@(() => SwitchVariant(recsExp, v.Item1))"
+                                disabled="@(_switching || _initialLoading)">
+                            @v.Item2
+                        </button>
+                    }
+                    @foreach (var pluginImpl in GetPluginImplementationsFor("IRecommendationEngine"))
+                    {
+                        var impl = pluginImpl;
+                        var isActive = IsPluginImplActive("IRecommendationEngine", impl.PluginId, impl.Type);
+                        <button class="toggle-btn plugin-toggle @(isActive ? "active" : "")"
+                                @onclick="@(() => ActivatePluginImpl(impl.PluginId, "IRecommendationEngine", impl.Alias ?? impl.Type))"
+                                disabled="@(_switching || _initialLoading)"
+                                title="Plugin: @impl.PluginName">
+                            @(impl.Alias ?? impl.Type.Replace("Recommender", "").Replace("Recommendations", ""))
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="recUserId">User:</label>
+                <input type="text" id="recUserId" @bind="_recUserId" placeholder="User ID" />
+                <button class="action-btn" @onclick="GetRecommendations" disabled="@_loadingRecommendations">
+                    @if (_loadingRecommendations) { <span class="btn-spinner"></span> }
+                    Get
+                </button>
+            </div>
+
+            @if (_recommendationResult != null)
+            {
+                <div class="recommendations-panel @(_recommendationResult.IsPlugin ? "plugin-result" : "")">
+                    <div class="recommendations-header">
+                        @if (_recommendationResult.IsPlugin)
+                        {
+                            <span class="plugin-badge">PLUGIN</span>
+                        }
+                        <span class="variant-tag">@_recommendationResult.Variant</span>
+                        <span class="algorithm-name">@_recommendationResult.Algorithm</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: @((_recommendationResult.Confidence * 100).ToString("F0"))%"></div>
+                        <span class="confidence-text">@((_recommendationResult.Confidence * 100).ToString("F0"))%</span>
+                    </div>
+                    <ul class="recommendations-list">
+                        @foreach (var item in _recommendationResult.Items)
+                        {
+                            <li>@item</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else if (_loadingRecommendations)
+            {
+                <div class="skeleton-result" style="height: 120px;"></div>
+            }
+        </div>
+
+        <!-- Theme Preview -->
+        <div class="demo-card theme-card">
+            <div class="card-icon theme-icon">T</div>
+            <h2>Theme Preview</h2>
+
+            <!-- Inline Experiment Toggle -->
+            <div class="experiment-toggle @(_initialLoading ? "skeleton-toggle" : "")">
+                <span class="toggle-label">Theme:</span>
+                <div class="toggle-buttons">
+                    @{ var themeExp = "ui-theme"; }
+                    @foreach (var variant in new[] { ("light", "Light"), ("dark", "Dark"), ("system", "System") })
+                    {
+                        var v = variant;
+                        <button class="toggle-btn @(DemoState.GetActiveVariant(themeExp) == v.Item1 ? "active" : "")"
+                                @onclick="@(() => SwitchVariant(themeExp, v.Item1))"
+                                disabled="@(_switching || _initialLoading)">
+                            @v.Item2
+                        </button>
+                    }
+                </div>
+            </div>
+
+            @if (_themeResult != null)
+            {
+                <div class="theme-preview" style="background-color: @_themeResult.BackgroundColor; color: @_themeResult.TextColor;">
+                    <div class="theme-header" style="background-color: @_themeResult.PrimaryColor;">
+                        <span class="variant-tag-light">@_themeResult.Variant</span>
+                        <span class="theme-name">@_themeResult.Name Theme</span>
+                    </div>
+                    <div class="theme-content">
+                        <div class="color-swatch" style="background-color: @_themeResult.PrimaryColor;">
+                            <span>Primary</span>
+                            <code>@_themeResult.PrimaryColor</code>
+                        </div>
+                        <div class="color-swatch" style="background-color: @_themeResult.AccentColor;">
+                            <span>Accent</span>
+                            <code>@_themeResult.AccentColor</code>
+                        </div>
+                        <div class="color-swatch" style="background-color: @_themeResult.BackgroundColor; border: 1px solid #ccc;">
+                            <span style="color: @_themeResult.TextColor;">Bg</span>
+                            <code style="color: @_themeResult.TextColor;">@_themeResult.BackgroundColor</code>
+                        </div>
+                        <div class="color-swatch" style="background-color: @_themeResult.TextColor;">
+                            <span style="color: @_themeResult.BackgroundColor;">Text</span>
+                            <code style="color: @_themeResult.BackgroundColor;">@_themeResult.TextColor</code>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_loadingTheme)
+            {
+                <div class="skeleton-result" style="height: 140px;"></div>
+            }
+            else
+            {
+                <button class="action-btn" @onclick="GetTheme" disabled="@_loadingTheme">
+                    @if (_loadingTheme) { <span class="btn-spinner"></span> }
+                    Load Theme
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .live-demo {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .demo-header {
+        margin-bottom: 2rem;
+    }
+
+    .demo-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .demo-header .subtitle {
+        color: #6b7280;
+        margin: 0.5rem 0 0;
+    }
+
+    .demo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .demo-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .demo-card {
+        background: #1f2937 !important;
+        border-color: #374151 !important;
+    }
+
+    .card-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: bold;
+        color: white;
+    }
+
+    .pricing-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .notification-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .recommendations-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .theme-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+    .demo-card h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.125rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    /* Experiment Toggle Styles */
+    .experiment-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        background: rgba(128,128,128,0.1);
+        border-radius: 8px;
+    }
+
+    .toggle-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .toggle-buttons {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+    }
+
+    .toggle-btn {
+        padding: 0.375rem 0.75rem;
+        border: 1px solid rgba(128,128,128,0.3);
+        border-radius: 6px;
+        background: white;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    :global(.theme-dark) .toggle-btn {
+        background: #374151 !important;
+        border-color: #4b5563 !important;
+        color: #e5e7eb !important;
+    }
+
+    .toggle-btn:hover:not(:disabled) {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+
+    .toggle-btn.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+
+    .toggle-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Plugin toggle buttons */
+    .toggle-btn.plugin-toggle {
+        border-color: #a78bfa;
+        color: #7c3aed;
+        background: rgba(139, 92, 246, 0.1);
+    }
+
+    .toggle-btn.plugin-toggle:hover:not(:disabled) {
+        border-color: #8b5cf6;
+        background: rgba(139, 92, 246, 0.2);
+        color: #6d28d9;
+    }
+
+    .toggle-btn.plugin-toggle.active {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        border-color: #7c3aed;
+        color: white;
+    }
+
+    :global(.theme-dark) .toggle-btn.plugin-toggle {
+        background: rgba(139, 92, 246, 0.2);
+        border-color: #8b5cf6;
+    }
+
+    :global(.theme-dark) .toggle-btn.plugin-toggle:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.3);
+    }
+
+    .input-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .input-group label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #374151;
+        white-space: nowrap;
+    }
+
+    :global(.theme-dark) .input-group label {
+        color: #e5e7eb !important;
+    }
+
+    .input-group input {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid rgba(128,128,128,0.3);
+        border-radius: 6px;
+        font-size: 0.875rem;
+        min-width: 0;
+        background: white;
+        color: #1f2937;
+    }
+
+    :global(.theme-dark) .input-group input {
+        background: #374151 !important;
+        border-color: #4b5563 !important;
+        color: #e5e7eb !important;
+    }
+
+    .input-group input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+
+    .action-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .variant-tag {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: #e5e7eb;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #374151;
+        text-transform: uppercase;
+    }
+
+    .plugin-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: white;
+        letter-spacing: 0.05em;
+    }
+
+    .plugin-result {
+        border: 2px solid #8b5cf6;
+        background: rgba(139, 92, 246, 0.05);
+    }
+
+    :global(.theme-dark) .variant-tag {
+        background: #4b5563;
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .result-label {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .strategy-name {
+        color: #34d399;
+    }
+
+    :global(.theme-dark) .plugin-result {
+        background: rgba(139, 92, 246, 0.15);
+    }
+
+    .variant-tag-light {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: rgba(255,255,255,0.2);
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: white;
+        text-transform: uppercase;
+    }
+
+    /* Result Panels */
+    .result-panel {
+        padding: 0.75rem;
+        background: rgba(128,128,128,0.1);
+        border-radius: 8px;
+    }
+
+    .result-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .strategy-name {
+        font-weight: 600;
+        color: #059669;
+        font-size: 0.875rem;
+    }
+
+    .result-values {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .result-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .result-label {
+        font-size: 0.65rem;
+        color: #6b7280;
+        text-transform: uppercase;
+    }
+
+    .result-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .result-value.large {
+        font-size: 1.25rem;
+        color: #059669;
+    }
+
+    .result-item.highlight {
+        padding: 0.375rem 0.75rem;
+        background: #d1fae5;
+        border-radius: 6px;
+    }
+
+    :global(.theme-dark) .result-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .result-item.highlight {
+        background: rgba(16, 185, 129, 0.2);
+    }
+
+    /* Notification Preview */
+    .notification-preview {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+    }
+
+    .notification-preview.standard { background: #f9fafb; }
+    .notification-preview.personalized { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+
+    .notification-content {
+        padding: 0.75rem;
+    }
+
+    .notification-content h3 {
+        margin: 0.375rem 0 0.25rem;
+        font-size: 0.9rem;
+        color: #1f2937;
+    }
+
+    .notification-content p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #4b5563;
+    }
+
+    :global(.theme-dark) .notification-preview {
+        border-color: #4b5563;
+    }
+
+    :global(.theme-dark) .notification-preview.standard {
+        background: #374151;
+    }
+
+    :global(.theme-dark) .notification-content h3 {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .notification-content p {
+        color: #9ca3af;
+    }
+
+    /* Recommendations */
+    .recommendations-panel {
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    :global(.theme-dark) .recommendations-panel {
+        background: #1f2937;
+    }
+
+    .recommendations-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .algorithm-name {
+        font-weight: 600;
+        color: #2563eb;
+        font-size: 0.8rem;
+    }
+
+    .confidence-bar {
+        position: relative;
+        height: 20px;
+        background: #e5e7eb;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+
+    .confidence-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .recommendations-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: grid;
+        gap: 0.375rem;
+    }
+
+    .recommendations-list li {
+        padding: 0.5rem;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        font-size: 0.75rem;
+        color: #1f2937;
+    }
+
+    :global(.theme-dark) .recommendations-list li {
+        background: #374151 !important;
+        border-color: #4b5563 !important;
+        color: #e5e7eb !important;
+    }
+
+    .recommendations-list li::before {
+        content: ">";
+        margin-right: 0.375rem;
+        color: #3b82f6;
+    }
+
+    :global(.theme-dark) .confidence-bar {
+        background: #374151;
+    }
+
+    :global(.theme-dark) .confidence-text {
+        color: #e5e7eb;
+    }
+
+    /* Theme Preview */
+    .theme-preview {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+    }
+
+    .theme-header {
+        padding: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: white;
+    }
+
+    .theme-name {
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .theme-content {
+        padding: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .color-swatch {
+        padding: 0.5rem;
+        border-radius: 4px;
+        text-align: center;
+        color: white;
+    }
+
+    .color-swatch span {
+        display: block;
+        font-size: 0.6rem;
+        opacity: 0.9;
+    }
+
+    .color-swatch code {
+        display: block;
+        font-size: 0.6rem;
+        margin-top: 0.125rem;
+        font-family: monospace;
+    }
+
+    /* Skeleton loading styles */
+    .skeleton-card {
+        opacity: 0.8;
+    }
+
+    .skeleton-toggle {
+        background: #e5e7eb !important;
+    }
+
+    .skeleton-toggle .toggle-btn {
+        background: #d1d5db !important;
+        border-color: #d1d5db !important;
+        color: transparent !important;
+    }
+
+    .skeleton-text {
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+        color: transparent !important;
+    }
+
+    .skeleton-result {
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 8px;
+        height: 80px;
+    }
+
+    :global(.theme-dark) .skeleton-toggle {
+        background: #4b5563 !important;
+    }
+
+    :global(.theme-dark) .skeleton-toggle .toggle-btn {
+        background: #374151 !important;
+        border-color: #4b5563 !important;
+    }
+
+    :global(.theme-dark) .skeleton-result {
+        background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+        background-size: 200% 100%;
+    }
+
+    @@keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+</style>
+
+@code {
+    private int _units = 100;
+    private string _userId = "";
+    private string _recUserId = "";
+
+    private bool _initialLoading = true;
+    private bool _calculatingPricing;
+    private bool _loadingNotification;
+    private bool _loadingRecommendations;
+    private bool _loadingTheme;
+    private bool _switching;
+
+    private List<PluginInfo> _plugins = [];
+    private bool _dataLoaded = false;
+
+    private PricingResponse? _pricingResult;
+    private NotificationResponse? _notificationResult;
+    private RecommendationResponse? _recommendationResult;
+    private ThemeResponse? _themeResult;
+
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await LoadInitialData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadInitialData()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        // Load experiments to get current variants
+        try
+        {
+            var experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
+            DemoState.SyncVariantsFromApi(experiments);
+        }
+        catch { }
+
+        // Load plugins and active implementations
+        try
+        {
+            _plugins = await ExperimentApi.GetPluginsAsync().WaitAsync(cts.Token);
+            var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            DemoState.SyncPluginImplementationsFromApi(activeImpls);
+        }
+        catch { }
+
+        _initialLoading = false;
+
+        // Load initial demo data with timeout protection
+        try
+        {
+            await CalculatePricing().WaitAsync(cts.Token);
+            await GetNotificationPreview().WaitAsync(cts.Token);
+            await GetRecommendations().WaitAsync(cts.Token);
+            await GetTheme().WaitAsync(cts.Token);
+        }
+        catch { }
+    }
+
+    private record PluginImplInfo(string PluginId, string PluginName, string Type, string? Alias);
+
+    private IEnumerable<PluginImplInfo> GetPluginImplementationsFor(string interfaceName)
+    {
+        foreach (var plugin in _plugins)
+        {
+            foreach (var service in plugin.Services.Where(s => s.Interface == interfaceName))
+            {
+                foreach (var impl in service.Implementations)
+                {
+                    yield return new PluginImplInfo(plugin.Id, plugin.Name, impl.Type, impl.Alias);
+                }
+            }
+        }
+    }
+
+    private bool IsPluginActiveFor(string interfaceName)
+    {
+        return DemoState.GetActivePluginImplementation(interfaceName) != null;
+    }
+
+    private bool IsPluginImplActive(string interfaceName, string pluginId, string implType)
+    {
+        var active = DemoState.GetActivePluginImplementation(interfaceName);
+        if (active == null) return false;
+        return active.PluginId == pluginId && active.ImplementationType == implType;
+    }
+
+    private async Task ActivatePluginImpl(string pluginId, string interfaceName, string implName)
+    {
+        _switching = true;
+        try
+        {
+            var result = await ExperimentApi.UsePluginImplementationAsync(pluginId, interfaceName, implName);
+            if (result != null)
+            {
+                DemoState.SetActivePluginImplementation(interfaceName, new ActivePluginImplementation
+                {
+                    PluginId = result.PluginId,
+                    Interface = result.Interface,
+                    ImplementationType = result.Implementation,
+                    Alias = result.Alias,
+                    ActivatedAt = DateTime.UtcNow
+                });
+
+                // Refresh the relevant demo
+                if (interfaceName == "IPricingStrategy")
+                    await CalculatePricing();
+                else if (interfaceName == "IRecommendationEngine")
+                    await GetRecommendations();
+            }
+        }
+        catch { }
+        finally
+        {
+            _switching = false;
+        }
+    }
+
+    private async Task SwitchVariant(string experimentName, string variant)
+    {
+        _switching = true;
+        try
+        {
+            var result = await ExperimentApi.ActivateVariantAsync(experimentName, variant);
+            if (result != null)
+            {
+                DemoState.SetActiveVariant(experimentName, variant);
+
+                // Clear any active plugin implementation for this experiment's interface
+                string? interfaceToC = experimentName switch
+                {
+                    "pricing-strategy" => "IPricingStrategy",
+                    "recommendation-algorithm" => "IRecommendationEngine",
+                    _ => null
+                };
+
+                if (interfaceToC != null && DemoState.GetActivePluginImplementation(interfaceToC) != null)
+                {
+                    await ExperimentApi.ClearActivePluginImplementationAsync(interfaceToC);
+                    DemoState.SetActivePluginImplementation(interfaceToC, null);
+                }
+
+                // Refresh the relevant demo based on which experiment changed
+                switch (experimentName)
+                {
+                    case "pricing-strategy":
+                        await CalculatePricing();
+                        break;
+                    case "notification-style":
+                        await GetNotificationPreview();
+                        break;
+                    case "recommendation-algorithm":
+                        await GetRecommendations();
+                        break;
+                    case "ui-theme":
+                        await GetTheme();
+                        break;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore errors during switching
+        }
+        finally
+        {
+            _switching = false;
+        }
+    }
+
+    private async Task CalculatePricing()
+    {
+        _calculatingPricing = true;
+        try
+        {
+            _pricingResult = await ExperimentApi.CalculatePricingAsync(_units);
+        }
+        catch
+        {
+            _pricingResult = null;
+        }
+        finally
+        {
+            _calculatingPricing = false;
+        }
+    }
+
+    private async Task GetNotificationPreview()
+    {
+        _loadingNotification = true;
+        try
+        {
+            _notificationResult = await ExperimentApi.GetNotificationPreviewAsync(string.IsNullOrWhiteSpace(_userId) ? null : _userId);
+        }
+        catch
+        {
+            _notificationResult = null;
+        }
+        finally
+        {
+            _loadingNotification = false;
+        }
+    }
+
+    private async Task GetRecommendations()
+    {
+        _loadingRecommendations = true;
+        try
+        {
+            _recommendationResult = await ExperimentApi.GetRecommendationsAsync(string.IsNullOrWhiteSpace(_recUserId) ? null : _recUserId);
+        }
+        catch
+        {
+            _recommendationResult = null;
+        }
+        finally
+        {
+            _loadingRecommendations = false;
+        }
+    }
+
+    private async Task GetTheme()
+    {
+        _loadingTheme = true;
+        try
+        {
+            _themeResult = await ExperimentApi.GetThemeAsync();
+            ThemeService.SetTheme(_themeResult);
+        }
+        catch
+        {
+            _themeResult = null;
+        }
+        finally
+        {
+            _loadingTheme = false;
+        }
+    }
+}

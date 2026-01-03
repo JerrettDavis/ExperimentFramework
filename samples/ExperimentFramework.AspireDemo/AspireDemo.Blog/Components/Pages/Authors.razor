@@ -1,0 +1,179 @@
+@page "/authors"
+@inject BlogApiClient Api
+
+<PageTitle>Authors - TechBlog</PageTitle>
+
+<div class="container">
+    <div class="page-section">
+        <div class="page-header">
+            <h1>Authors</h1>
+            <p class="page-description">Meet our contributors</p>
+        </div>
+
+        @if (loading)
+        {
+            <div class="loading">
+                <div class="loading-spinner"></div>
+            </div>
+        }
+        else
+        {
+            <div class="authors-grid">
+                @foreach (var author in authors)
+                {
+                    <div class="author-profile-card">
+                        <img src="@author.AvatarUrl" alt="@author.Name" class="author-profile-avatar" />
+                        <h3>@author.Name</h3>
+                        <p class="author-email">@author.Email</p>
+                        <p class="author-profile-bio">@author.Bio</p>
+                        <div class="author-stats">
+                            <span class="author-stat">@author.PostCount posts</span>
+                        </div>
+                        <div class="author-social-links">
+                            @if (!string.IsNullOrEmpty(author.TwitterHandle))
+                            {
+                                <a href="https://twitter.com/@author.TwitterHandle" target="_blank" class="social-link-btn">
+                                    <span class="social-icon">T</span>
+                                    <span>@@author.TwitterHandle</span>
+                                </a>
+                            }
+                            @if (!string.IsNullOrEmpty(author.GitHubHandle))
+                            {
+                                <a href="https://github.com/@author.GitHubHandle" target="_blank" class="social-link-btn">
+                                    <span class="social-icon">G</span>
+                                    <span>@author.GitHubHandle</span>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        margin-bottom: 0.5rem;
+    }
+
+    .page-description {
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .authors-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .author-profile-card {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .author-profile-avatar {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        margin-bottom: 1rem;
+        background: var(--bg-tertiary);
+    }
+
+    .author-profile-card h3 {
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .author-email {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .author-profile-bio {
+        color: var(--text-secondary);
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+
+    .author-stats {
+        margin-bottom: 1rem;
+    }
+
+    .author-stat {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--bg-tertiary);
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .author-social-links {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .social-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--bg-tertiary);
+        border-radius: 6px;
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+
+    .social-link-btn:hover {
+        background: var(--border-color);
+        text-decoration: none;
+    }
+
+    .social-icon {
+        width: 20px;
+        height: 20px;
+        background: var(--primary);
+        color: white;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+
+@code {
+    private List<BlogAuthorDto> authors = [];
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+        try
+        {
+            authors = await Api.GetAuthorsAsync();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

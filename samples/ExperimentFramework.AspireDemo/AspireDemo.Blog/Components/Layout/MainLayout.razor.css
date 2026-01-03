@@ -1,0 +1,165 @@
+.blog-layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.blog-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+    color: white;
+    padding: 1rem 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: white;
+}
+
+.logo-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.logo-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.main-nav {
+    display: flex;
+    gap: 2rem;
+}
+
+.main-nav a,
+.main-nav ::deep a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    transition: color 0.2s;
+    position: relative;
+}
+
+.main-nav a:hover,
+.main-nav ::deep a:hover {
+    color: white;
+}
+
+.main-nav a.active,
+.main-nav ::deep a.active {
+    color: white;
+}
+
+.main-nav a.active::after,
+.main-nav ::deep a.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: white;
+    border-radius: 1px;
+}
+
+.header-actions .btn {
+    padding: 0.5rem 1.25rem;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.header-actions .btn-primary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.header-actions .btn-primary:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.blog-main {
+    flex: 1;
+    background: #f8fafc;
+}
+
+.blog-footer {
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 1.5rem 0;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.footer-brand {
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.footer-separator {
+    color: #475569;
+}
+
+.powered-by strong {
+    color: #60a5fa;
+}
+
+.footer-links {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.footer-links a {
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-links a:hover {
+    color: #e2e8f0;
+}
+
+.link-separator {
+    color: #475569;
+}

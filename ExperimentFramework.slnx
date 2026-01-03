@@ -6,6 +6,21 @@
     <Project Path="samples/ExperimentFramework.SamplePlugin/ExperimentFramework.SamplePlugin.csproj" />
     <Project Path="samples/ExperimentFramework.SampleWebApp/ExperimentFramework.SampleWebApp.csproj" />
     <Project Path="samples/ExperimentFramework.ScientificSample/ExperimentFramework.ScientificSample.csproj" />
+    <Project Path="samples/ExperimentFramework.BanditOptimizer/ExperimentFramework.BanditOptimizer.csproj" />
+    <Project Path="samples/ExperimentFramework.ResilienceDemo/ExperimentFramework.ResilienceDemo.csproj" />
+    <Project Path="samples/ExperimentFramework.FeatureFlagDemo/ExperimentFramework.FeatureFlagDemo.csproj" />
+    <Project Path="samples/ExperimentFramework.ScientificDemo/ExperimentFramework.ScientificDemo.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.AppHost/AspireDemo.AppHost.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.ServiceDefaults/AspireDemo.ServiceDefaults.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.ApiService/AspireDemo.ApiService.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Web/AspireDemo.Web.csproj" />
+  </Folder>
+  <Folder Name="/samples/ExperimentFramework.AspireDemo/">
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Contracts/AspireDemo.Blog.Contracts.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Auth/AspireDemo.Blog.Plugins.Auth.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Data/AspireDemo.Blog.Plugins.Data.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Editor/AspireDemo.Blog.Plugins.Editor.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Syndication/AspireDemo.Blog.Plugins.Syndication.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="benchmarks/ExperimentFramework.Benchmarks/ExperimentFramework.Benchmarks.csproj" />

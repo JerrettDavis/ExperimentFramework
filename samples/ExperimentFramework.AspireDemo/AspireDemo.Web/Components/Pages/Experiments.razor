@@ -1,0 +1,1083 @@
+@page "/experiments"
+@using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
+@inject ExperimentApiClient ExperimentApi
+@inject ThemeService ThemeService
+@inject DemoStateService DemoState
+
+<SetPageTitle Title="Experiments - OptimizeLab" />
+
+<div class="experiments-console">
+    <!-- Header -->
+    <header class="console-header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>Experiments</h1>
+                <p class="header-subtitle">Configure and manage your A/B experiments</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" @onclick="LoadExperiments" disabled="@_loading">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    @(_loading ? "Refreshing..." : "Refresh")
+                </button>
+                <button class="btn-primary" disabled title="Coming soon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Create Experiment
+                </button>
+            </div>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="error-banner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            <span>@_error</span>
+            <button class="error-dismiss" @onclick="() => _error = null">Dismiss</button>
+        </div>
+    }
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-value">@(_loading ? "-" : _experiments.Count.ToString())</div>
+            <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-card active">
+            <div class="stat-value">@(_loading ? "-" : _experiments.Count(e => e.Status == "Active" && !DemoState.GetKillSwitch(e.Name)).ToString())</div>
+            <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card killed">
+            <div class="stat-value">@(_loading ? "-" : DemoState.GetAllKillSwitches().Count(k => k.Value).ToString())</div>
+            <div class="stat-label">Killed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@(_loading ? "-" : _experiments.Sum(e => e.Variants.Count).ToString())</div>
+            <div class="stat-label">Variants</div>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="toolbar">
+        <div class="filter-group">
+            <button class="filter-btn @(DemoState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DemoState.ExperimentFilterCategory = null">
+                All
+            </button>
+            @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog" })
+            {
+                <button class="filter-btn @(DemoState.ExperimentFilterCategory == category ? "active" : "")"
+                        @onclick="() => DemoState.ExperimentFilterCategory = category">
+                    @category
+                </button>
+            }
+        </div>
+        <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input type="text" placeholder="Search experiments..." @bind="DemoState.ExperimentSearchQuery" @bind:event="oninput" />
+        </div>
+    </div>
+
+    <!-- Experiments List -->
+    <div class="experiments-list">
+        @if (_loading)
+        {
+            @for (int i = 0; i < 3; i++)
+            {
+                <div class="experiment-row skeleton">
+                    <div class="exp-main">
+                        <div class="skeleton-text" style="width: 200px; height: 20px;"></div>
+                        <div class="skeleton-text" style="width: 300px; height: 14px; margin-top: 4px;"></div>
+                    </div>
+                    <div class="skeleton-text" style="width: 80px; height: 24px;"></div>
+                    <div class="skeleton-text" style="width: 60px; height: 24px;"></div>
+                </div>
+            }
+        }
+        else if (!FilteredExperiments.Any())
+        {
+            <div class="empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 8v4M12 16h.01"/>
+                </svg>
+                <p>No experiments match your criteria</p>
+                <button class="btn-secondary" @onclick="() => { DemoState.ExperimentFilterCategory = null; DemoState.ExperimentSearchQuery = string.Empty; }">
+                    Clear Filters
+                </button>
+            </div>
+        }
+        else
+        {
+            @foreach (var experiment in FilteredExperiments)
+            {
+                var isKilled = DemoState.GetKillSwitch(experiment.Name);
+                var isExpanded = DemoState.IsExpanded("experiments", experiment.Name);
+
+                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "")">
+                    <div class="exp-main" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
+                        <div class="exp-info">
+                            <div class="exp-header">
+                                <span class="exp-name">@experiment.DisplayName</span>
+                                <span class="category-tag @experiment.Category.ToLower()">@experiment.Category</span>
+                            </div>
+                            <p class="exp-description">@experiment.Description</p>
+                        </div>
+                        <div class="exp-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Variants</span>
+                                <span class="meta-value">@experiment.Variants.Count</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Active</span>
+                                <span class="meta-value variant">@GetVariantDisplayName(experiment)</span>
+                            </div>
+                        </div>
+                        <div class="exp-status">
+                            @if (isKilled)
+                            {
+                                <span class="status-pill killed">Killed</span>
+                            }
+                            else
+                            {
+                                <span class="status-pill @experiment.Status.ToLower()">@experiment.Status</span>
+                            }
+                        </div>
+                        <div class="exp-expand">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                 class="@(isExpanded ? "rotated" : "")">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    @if (isExpanded)
+                    {
+                        <div class="exp-details">
+                            <div class="details-grid">
+                                <!-- Controls Panel -->
+                                <div class="control-panel">
+                                    <h4>Experiment Controls</h4>
+                                    <div class="control-row">
+                                        <div class="control-info">
+                                            <span class="control-label">Killswitch</span>
+                                            <span class="control-hint">@(isKilled ? "Disabled - using default variant" : "Enabled - experiment is active")</span>
+                                        </div>
+                                        <label class="toggle">
+                                            <input type="checkbox" checked="@isKilled" @onchange="() => ToggleKillSwitchWithApi(experiment.Name)" />
+                                            <span class="toggle-track"></span>
+                                        </label>
+                                    </div>
+                                    <div class="detail-items">
+                                        <div class="detail-item">
+                                            <span class="detail-label">ID</span>
+                                            <code class="detail-code">@experiment.Name</code>
+                                        </div>
+                                        <div class="detail-item">
+                                            <span class="detail-label">Modified</span>
+                                            <span class="detail-value">@experiment.LastModified.ToString("MMM d, yyyy h:mm tt")</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Variants Panel -->
+                                <div class="variants-panel @(isKilled ? "disabled" : "")">
+                                    <h4>Variant Selection</h4>
+                                    <div class="variants-grid">
+                                        @foreach (var variant in experiment.Variants)
+                                        {
+                                            var isActive = variant.Name == experiment.ActiveVariant;
+                                            <button class="variant-card @(isActive ? "active" : "")"
+                                                    @onclick="() => ActivateVariant(experiment.Name, variant.Name)"
+                                                    disabled="@(_activating || isKilled)">
+                                                <div class="variant-radio">
+                                                    @if (isActive)
+                                                    {
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                            <circle cx="12" cy="12" r="8"/>
+                                                        </svg>
+                                                    }
+                                                </div>
+                                                <div class="variant-content">
+                                                    <span class="variant-name">@variant.DisplayName</span>
+                                                    <span class="variant-desc">@variant.Description</span>
+                                                </div>
+                                                @if (isActive)
+                                                {
+                                                    <span class="active-badge">Active</span>
+                                                }
+                                            </button>
+                                        }
+                                    </div>
+                                    <div class="variants-actions">
+                                        <button class="btn-text" @onclick="() => ResetToDefault(experiment.Name)" disabled="@isKilled">
+                                            Reset to Default
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<style>
+    .experiments-console {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* Header */
+    .console-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .header-title h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .header-subtitle {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 0;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .btn-primary, .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+
+    .btn-primary {
+        background: var(--color-primary, #6366f1);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: var(--color-primary-hover, #4f46e5);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: var(--color-bg-secondary, white);
+        color: var(--color-text-primary, #0f172a);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: var(--color-bg-tertiary, #f1f5f9);
+    }
+
+    .btn-text {
+        background: none;
+        border: none;
+        color: var(--color-primary, #6366f1);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 0.5rem;
+    }
+
+    .btn-text:hover:not(:disabled) {
+        text-decoration: underline;
+    }
+
+    .btn-text:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Error Banner */
+    .error-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 8px;
+        color: #dc2626;
+        margin-bottom: 1.5rem;
+    }
+
+    .error-dismiss {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: #dc2626;
+        font-weight: 500;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+
+    /* Stats Row */
+    .stats-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        flex: 1;
+        padding: 1rem 1.25rem;
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .stat-card.active .stat-value { color: #10b981; }
+    .stat-card.killed .stat-value { color: #ef4444; }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+    }
+
+    /* Toolbar */
+    .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 6px;
+        background: var(--color-bg-secondary, white);
+        color: var(--color-text-secondary, #64748b);
+        font-size: 0.8rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+
+    .filter-btn:hover {
+        border-color: var(--color-primary, #6366f1);
+        color: var(--color-primary, #6366f1);
+    }
+
+    .filter-btn.active {
+        background: var(--color-primary, #6366f1);
+        border-color: var(--color-primary, #6366f1);
+        color: white;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.875rem;
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 8px;
+        min-width: 280px;
+    }
+
+    .search-box svg {
+        color: var(--color-text-muted, #94a3b8);
+        flex-shrink: 0;
+    }
+
+    .search-box input {
+        border: none;
+        background: none;
+        outline: none;
+        font-size: 0.875rem;
+        color: var(--color-text-primary, #0f172a);
+        width: 100%;
+    }
+
+    .search-box input::placeholder {
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    /* Experiments List */
+    .experiments-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .experiment-row {
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 10px;
+        overflow: hidden;
+        transition: all 150ms ease;
+    }
+
+    .experiment-row:hover {
+        border-color: var(--color-border-strong, rgba(148, 163, 184, 0.4));
+    }
+
+    .experiment-row.killed {
+        opacity: 0.8;
+    }
+
+    .experiment-row.killed .exp-main {
+        border-left: 3px solid #ef4444;
+    }
+
+    .experiment-row.expanded {
+        border-color: var(--color-primary, #6366f1);
+    }
+
+    .exp-main {
+        display: grid;
+        grid-template-columns: 1fr auto auto auto;
+        gap: 1.5rem;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+    }
+
+    .exp-info {
+        min-width: 0;
+    }
+
+    .exp-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .exp-name {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .category-tag {
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .category-tag.revenue { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .category-tag.engagement { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .category-tag.ux { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .category-tag.blog { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
+
+    .exp-description {
+        font-size: 0.8rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .exp-meta {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .meta-item {
+        text-align: center;
+    }
+
+    .meta-label {
+        display: block;
+        font-size: 0.65rem;
+        color: var(--color-text-muted, #94a3b8);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .meta-value {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .meta-value.variant {
+        color: var(--color-primary, #6366f1);
+    }
+
+    .exp-status {
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .status-pill {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-pill.active { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .status-pill.killed { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+    .status-pill.paused { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+    .exp-expand svg {
+        color: var(--color-text-muted, #94a3b8);
+        transition: transform 150ms ease;
+    }
+
+    .exp-expand svg.rotated {
+        transform: rotate(180deg);
+    }
+
+    /* Experiment Details */
+    .exp-details {
+        padding: 0 1.25rem 1.25rem;
+        border-top: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 1.5rem;
+        padding-top: 1.25rem;
+    }
+
+    .control-panel, .variants-panel {
+        background: var(--color-bg-tertiary, rgba(148, 163, 184, 0.08));
+        border-radius: 10px;
+        padding: 1.25rem;
+    }
+
+    .control-panel h4, .variants-panel h4 {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-muted, #94a3b8);
+        margin: 0 0 1rem;
+    }
+
+    .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .control-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .control-hint {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+        margin-top: 0.125rem;
+    }
+
+    .toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        cursor: pointer;
+    }
+
+    .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-track {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #10b981;
+        border-radius: 24px;
+        transition: background 150ms ease;
+    }
+
+    .toggle-track::before {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        left: 3px;
+        bottom: 3px;
+        background: white;
+        border-radius: 50%;
+        transition: transform 150ms ease;
+    }
+
+    .toggle input:checked + .toggle-track {
+        background: #ef4444;
+    }
+
+    .toggle input:checked + .toggle-track::before {
+        transform: translateX(20px);
+    }
+
+    .detail-items {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .detail-label {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .detail-code {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.75rem;
+        background: rgba(0, 0, 0, 0.05);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .detail-value {
+        font-size: 0.8rem;
+        color: var(--color-text-secondary, #64748b);
+    }
+
+    /* Variants Panel */
+    .variants-panel.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .variants-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .variant-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.875rem;
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 150ms ease;
+    }
+
+    .variant-card:hover:not(:disabled) {
+        border-color: var(--color-primary, #6366f1);
+    }
+
+    .variant-card.active {
+        border-color: var(--color-primary, #6366f1);
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .variant-card:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .variant-radio {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--color-border, rgba(148, 163, 184, 0.4));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .variant-card.active .variant-radio {
+        border-color: var(--color-primary, #6366f1);
+        color: var(--color-primary, #6366f1);
+    }
+
+    .variant-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .variant-name {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .variant-desc {
+        display: block;
+        font-size: 0.7rem;
+        color: var(--color-text-muted, #94a3b8);
+        margin-top: 0.125rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .active-badge {
+        font-size: 0.6rem;
+        font-weight: 600;
+        padding: 0.2rem 0.4rem;
+        background: var(--color-primary, #6366f1);
+        color: white;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .variants-actions {
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .empty-state svg {
+        margin-bottom: 1rem;
+    }
+
+    .empty-state p {
+        margin: 0 0 1.5rem;
+        font-size: 0.95rem;
+    }
+
+    /* Skeleton */
+    .skeleton .skeleton-text {
+        background: linear-gradient(90deg,
+            var(--color-bg-tertiary, #e5e7eb) 25%,
+            var(--color-bg-secondary, #f3f4f6) 50%,
+            var(--color-bg-tertiary, #e5e7eb) 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+    }
+
+    @@keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+
+    /* Dark Theme */
+    :global(.theme-dark) .experiment-row,
+    :global(.theme-dark) .stat-card {
+        background: var(--color-bg-secondary, #1e293b);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    :global(.theme-dark) .control-panel,
+    :global(.theme-dark) .variants-panel {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    :global(.theme-dark) .variant-card {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    :global(.theme-dark) .detail-code {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Responsive */
+    @@media (max-width: 900px) {
+        .details-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .exp-main {
+            grid-template-columns: 1fr auto;
+        }
+
+        .exp-meta {
+            display: none;
+        }
+
+        .stats-row {
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1 1 calc(50% - 0.5rem);
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .header-content {
+            flex-direction: column;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .header-actions button {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .toolbar {
+            flex-direction: column;
+        }
+
+        .search-box {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .filter-group {
+            width: 100%;
+            overflow-x: auto;
+        }
+    }
+</style>
+
+@code {
+    private List<ExperimentInfo> _experiments = [];
+    private bool _loading = true;
+    private bool _activating = false;
+    private bool _dataLoaded = false;
+    private string? _error;
+
+    private IEnumerable<ExperimentInfo> FilteredExperiments
+    {
+        get
+        {
+            var filtered = _experiments.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(DemoState.ExperimentFilterCategory))
+            {
+                filtered = filtered.Where(e => e.Category.Equals(DemoState.ExperimentFilterCategory, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(DemoState.ExperimentSearchQuery))
+            {
+                filtered = filtered.Where(e =>
+                    e.DisplayName.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    e.Name.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    e.Description.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return filtered;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await LoadExperiments();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadExperiments()
+    {
+        _loading = true;
+        _error = null;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            var experimentsTask = ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
+            var killSwitchTask = ExperimentApi.GetKillSwitchStatusesAsync().WaitAsync(cts.Token);
+
+            await Task.WhenAll(experimentsTask, killSwitchTask);
+
+            _experiments = await experimentsTask;
+            var killSwitches = await killSwitchTask;
+
+            // Sync state with API
+            DemoState.SyncVariantsFromApi(_experiments);
+            DemoState.SyncKillSwitchesFromApi(killSwitches);
+        }
+        catch (OperationCanceledException)
+        {
+            _error = "Request timed out. Please try again.";
+            _experiments = [];
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load experiments: {ex.Message}";
+            _experiments = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string GetVariantDisplayName(ExperimentInfo exp)
+    {
+        var variant = exp.Variants.FirstOrDefault(v => v.Name == exp.ActiveVariant);
+        return variant?.DisplayName ?? exp.ActiveVariant;
+    }
+
+    private void ToggleExperimentExpanded(string experimentName)
+    {
+        DemoState.ToggleExpanded("experiments", experimentName);
+    }
+
+    private async Task ToggleKillSwitchWithApi(string experimentName)
+    {
+        var newState = !DemoState.GetKillSwitch(experimentName);
+        DemoState.SetKillSwitch(experimentName, newState);
+
+        try
+        {
+            // Persist to API
+            await ExperimentApi.UpdateKillSwitchAsync(new KillSwitchUpdate
+            {
+                Experiment = experimentName,
+                Disabled = newState
+            });
+        }
+        catch (Exception ex)
+        {
+            // Revert on error
+            DemoState.SetKillSwitch(experimentName, !newState);
+            _error = $"Failed to update kill switch: {ex.Message}";
+        }
+    }
+
+    private async Task ActivateVariant(string experimentName, string variantName)
+    {
+        if (DemoState.GetKillSwitch(experimentName)) return;
+
+        _activating = true;
+        try
+        {
+            var result = await ExperimentApi.ActivateVariantAsync(experimentName, variantName);
+            if (result != null)
+            {
+                var index = _experiments.FindIndex(e => e.Name == experimentName);
+                if (index >= 0)
+                {
+                    _experiments[index] = result;
+                }
+
+                // Update centralized state
+                DemoState.SetActiveVariant(experimentName, variantName);
+
+                if (experimentName == "ui-theme")
+                {
+                    try
+                    {
+                        var theme = await ExperimentApi.GetThemeAsync();
+                        ThemeService.SetTheme(theme);
+                    }
+                    catch { }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to activate variant: {ex.Message}";
+        }
+        finally
+        {
+            _activating = false;
+        }
+    }
+
+    private async Task ResetToDefault(string experimentName)
+    {
+        var experiment = _experiments.FirstOrDefault(e => e.Name == experimentName);
+        if (experiment?.Variants.Count > 0)
+        {
+            await ActivateVariant(experimentName, experiment.Variants[0].Name);
+        }
+    }
+}

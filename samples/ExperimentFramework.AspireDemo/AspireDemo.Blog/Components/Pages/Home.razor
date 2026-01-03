@@ -1,0 +1,389 @@
+@page "/"
+@inject BlogApiClient Api
+
+<PageTitle>TechBlog - Home</PageTitle>
+
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">TechBlog</h1>
+        <p class="hero-subtitle">
+            A demonstration of ExperimentFramework's plugin system.
+            Switch data providers, editors, and authentication methods from the admin panel.
+        </p>
+        <div class="hero-plugins">
+            @if (plugins != null)
+            {
+                <div class="active-plugins">
+                    <span class="plugin-indicator" title="Data Provider">
+                        <span class="indicator-icon">D</span>
+                        <span class="indicator-label">@plugins.Data.Active</span>
+                    </span>
+                    <span class="plugin-indicator" title="Editor">
+                        <span class="indicator-icon">E</span>
+                        <span class="indicator-label">@plugins.Editor.Active</span>
+                    </span>
+                    <span class="plugin-indicator" title="Auth">
+                        <span class="indicator-icon">A</span>
+                        <span class="indicator-label">@plugins.Auth.Active</span>
+                    </span>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <!-- Main Content Area -->
+    <div class="page-section">
+        <div class="content-grid">
+            <!-- Posts Column -->
+            <div class="posts-column">
+                <!-- Search & Filter -->
+                <div class="filter-bar">
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="Search posts..."
+                               @bind="searchQuery" @bind:event="oninput" @onkeyup="HandleSearch" />
+                    </div>
+                    <div class="category-filters">
+                        <button class="category-pill @(selectedCategory == null ? "active" : "")"
+                                @onclick="() => FilterByCategory(null)">
+                            All
+                        </button>
+                        @foreach (var cat in categories)
+                        {
+                            <button class="category-pill @(selectedCategory == cat.Slug ? "active" : "")"
+                                    @onclick="() => FilterByCategory(cat.Slug)">
+                                <span class="category-dot" style="background-color: @(cat.Color ?? "#6b7280")"></span>
+                                @cat.Name
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Posts Grid -->
+                @if (loading)
+                {
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                    </div>
+                }
+                else if (!posts.Any())
+                {
+                    <div class="empty-state">
+                        <div class="empty-state-icon">B</div>
+                        <p>No posts found</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="posts-grid">
+                        @foreach (var post in posts)
+                        {
+                            <article class="post-card">
+                                @if (!string.IsNullOrEmpty(post.FeaturedImage))
+                                {
+                                    <img src="@post.FeaturedImage" alt="@post.Title" class="post-card-image" />
+                                }
+                                else
+                                {
+                                    <div class="post-card-image placeholder-image">
+                                        <span>@post.Title.FirstOrDefault()</span>
+                                    </div>
+                                }
+                                <div class="post-card-content">
+                                    <div class="post-categories">
+                                        @foreach (var cat in post.Categories.Take(2))
+                                        {
+                                            <span class="tag" style="color: @(cat.Color ?? "#6b7280")">@cat.Name</span>
+                                        }
+                                    </div>
+                                    <h3 class="post-card-title">
+                                        <a href="/post/@post.Slug">@post.Title</a>
+                                    </h3>
+                                    <p class="post-card-excerpt">@post.Excerpt</p>
+                                    <div class="post-card-meta">
+                                        <div class="post-card-author">
+                                            @if (post.Author != null)
+                                            {
+                                                <img src="@post.Author.AvatarUrl" alt="@post.Author.Name" class="author-avatar" />
+                                                <span>@post.Author.Name</span>
+                                            }
+                                        </div>
+                                        <span class="meta-separator">-</span>
+                                        <span>@FormatDate(post.PublishedAt ?? post.CreatedAt)</span>
+                                        <span class="meta-separator">-</span>
+                                        <span>@post.ReadTimeMinutes min read</span>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <!-- Stats -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Blog Stats</h3>
+                    @if (stats != null)
+                    {
+                        <div class="stats-mini">
+                            <div class="stat-mini">
+                                <span class="stat-mini-value">@stats.PublishedPosts</span>
+                                <span class="stat-mini-label">Posts</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-mini-value">@stats.TotalViews</span>
+                                <span class="stat-mini-label">Views</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-mini-value">@stats.TotalAuthors</span>
+                                <span class="stat-mini-label">Authors</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Authors -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Authors</h3>
+                    @foreach (var author in authors)
+                    {
+                        <div class="author-card">
+                            <img src="@author.AvatarUrl" alt="@author.Name" class="author-avatar-lg" />
+                            <div class="author-info">
+                                <h4>@author.Name</h4>
+                                <p>@author.PostCount posts</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Categories -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Categories</h3>
+                    <div class="category-list">
+                        @foreach (var cat in categories)
+                        {
+                            <a href="/?category=@cat.Slug" class="category-link">
+                                <span class="category-dot" style="background-color: @(cat.Color ?? "#6b7280")"></span>
+                                <span class="category-name">@cat.Name</span>
+                                <span class="category-count">@cat.PostCount</span>
+                            </a>
+                        }
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-plugins {
+        margin-top: 1.5rem;
+    }
+
+    .active-plugins {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .plugin-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .indicator-icon {
+        width: 24px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+
+    .indicator-label {
+        text-transform: capitalize;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 2rem;
+    }
+
+    .filter-bar {
+        margin-bottom: 1.5rem;
+    }
+
+    .search-box {
+        margin-bottom: 1rem;
+    }
+
+    .category-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .placeholder-image {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+        font-size: 3rem;
+        font-weight: 700;
+        color: #94a3b8;
+    }
+
+    .post-categories {
+        margin-bottom: 0.5rem;
+    }
+
+    .meta-separator {
+        color: var(--text-muted);
+    }
+
+    .stats-mini {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        text-align: center;
+    }
+
+    .stat-mini-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+    }
+
+    .stat-mini-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .category-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .category-link {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 6px;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: background 0.2s;
+    }
+
+    .category-link:hover {
+        background: var(--bg-tertiary);
+        text-decoration: none;
+    }
+
+    .category-name {
+        flex: 1;
+    }
+
+    .category-count {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+    }
+
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+            position: static;
+        }
+    }
+</style>
+
+@code {
+    private List<BlogPostDto> posts = [];
+    private List<BlogCategoryDto> categories = [];
+    private List<BlogAuthorDto> authors = [];
+    private BlogStatsDto? stats;
+    private BlogPluginsResponse? plugins;
+    private string? searchQuery;
+    private string? selectedCategory;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        loading = true;
+        try
+        {
+            var postsTask = Api.GetPostsAsync("Published", selectedCategory);
+            var categoriesTask = Api.GetCategoriesAsync();
+            var authorsTask = Api.GetAuthorsAsync();
+            var statsTask = Api.GetStatsAsync();
+            var pluginsTask = Api.GetPluginsAsync();
+
+            await Task.WhenAll(postsTask, categoriesTask, authorsTask, statsTask, pluginsTask);
+
+            posts = await postsTask;
+            categories = await categoriesTask;
+            authors = await authorsTask;
+            stats = await statsTask;
+            plugins = await pluginsTask;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task HandleSearch(KeyboardEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            await LoadDataAsync();
+            return;
+        }
+
+        if (searchQuery.Length >= 2)
+        {
+            posts = await Api.SearchPostsAsync(searchQuery);
+        }
+    }
+
+    private async Task FilterByCategory(string? category)
+    {
+        selectedCategory = category;
+        posts = await Api.GetPostsAsync("Published", category);
+    }
+
+    private string FormatDate(DateTime date)
+    {
+        var diff = DateTime.UtcNow - date;
+        if (diff.TotalDays < 1) return "Today";
+        if (diff.TotalDays < 2) return "Yesterday";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} days ago";
+        return date.ToString("MMM d, yyyy");
+    }
+}

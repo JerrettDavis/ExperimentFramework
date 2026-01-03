@@ -1,0 +1,632 @@
+@page "/config"
+@using AspireDemo.Web
+@using AspireDemo.Web.Components.Shared
+@inject ExperimentApiClient ExperimentApi
+@inject IJSRuntime JS
+
+<SetPageTitle Title="Settings - OptimizeLab" />
+
+<div class="config-page">
+    <div class="page-header">
+        <h1>Framework Configuration</h1>
+        <p class="subtitle">View framework status, export configuration as YAML, and explore features</p>
+        <button class="refresh-btn" @onclick="RefreshData" disabled="@_loading">
+            @if (_loading) { <span class="btn-spinner"></span> }
+            Refresh
+        </button>
+    </div>
+
+    @if (_loading && _info == null)
+    {
+        <!-- Skeleton loading for info cards -->
+        <div class="info-grid">
+            <div class="info-card skeleton-info-card"></div>
+            <div class="info-card skeleton-info-card"></div>
+            <div class="info-card skeleton-info-card"></div>
+        </div>
+    }
+    else if (_info != null)
+    {
+        <!-- Framework Info Cards -->
+        <div class="info-grid">
+            <div class="info-card framework-card">
+                <h3>Framework</h3>
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value">@_info.Framework.Name</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Version</span>
+                    <span class="info-value version-badge">@_info.Framework.Version</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Runtime</span>
+                    <span class="info-value mono">@_info.Framework.Runtime</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Proxy Type</span>
+                    <span class="info-value">@_info.Framework.ProxyType</span>
+                </div>
+            </div>
+
+            <div class="info-card server-card">
+                <h3>Server</h3>
+                <div class="info-row">
+                    <span class="info-label">Machine</span>
+                    <span class="info-value">@_info.Server.MachineName</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Process ID</span>
+                    <span class="info-value mono">@_info.Server.ProcessId</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Uptime</span>
+                    <span class="info-value">@_info.Server.UpTime</span>
+                </div>
+            </div>
+
+            <div class="info-card stats-card">
+                <h3>Experiments</h3>
+                <div class="stats-row">
+                    <div class="stat">
+                        <span class="stat-value">@_info.Experiments.Total</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value active">@_info.Experiments.Active</span>
+                        <span class="stat-label">Active</span>
+                    </div>
+                </div>
+                <div class="categories">
+                    @foreach (var cat in _info.Experiments.Categories)
+                    {
+                        <span class="category-tag @cat.Key.ToLower()">@cat.Key: @cat.Value</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div class="section">
+            <h2>Enabled Features</h2>
+            <div class="features-grid">
+                @foreach (var feature in _info.Features)
+                {
+                    <div class="feature-card @(feature.Enabled ? "enabled" : "disabled")">
+                        <div class="feature-header">
+                            <span class="feature-status">@(feature.Enabled ? "ON" : "OFF")</span>
+                            <span class="feature-name">@feature.Name</span>
+                            <span class="feature-category">@feature.Category</span>
+                        </div>
+                        <p class="feature-desc">@feature.Description</p>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- YAML DSL Export -->
+    <div class="section yaml-section">
+        <div class="section-header">
+            <h2>YAML Configuration DSL</h2>
+            <button class="copy-btn" @onclick="CopyYaml" disabled="@string.IsNullOrEmpty(_yamlConfig)">
+                @(_copied ? "Copied!" : "Copy to Clipboard")
+            </button>
+        </div>
+        <p class="section-desc">
+            Export your current experiment configuration as YAML. This can be used with the ExperimentFramework.Configuration package
+            to recreate experiments from configuration files.
+        </p>
+
+        @if (string.IsNullOrEmpty(_yamlConfig))
+        {
+            <div class="yaml-loading">Loading configuration...</div>
+        }
+        else
+        {
+            <pre class="yaml-code"><code>@_yamlConfig</code></pre>
+        }
+    </div>
+
+    <!-- Fluent API Equivalent -->
+    <div class="section code-section">
+        <h2>Fluent API Equivalent</h2>
+        <p class="section-desc">
+            The equivalent C# code using the fluent API to configure these experiments:
+        </p>
+        <pre class="csharp-code"><code>@GetFluentApiCode()</code></pre>
+    </div>
+</div>
+
+<style>
+    .config-page {
+        padding: 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .page-header .subtitle {
+        flex: 1;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .refresh-btn, .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .refresh-btn:hover:not(:disabled), .copy-btn:hover:not(:disabled) {
+        background: #2563eb;
+    }
+
+    .refresh-btn:disabled, .copy-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-left: 4px solid #e5e7eb;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .info-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .framework-card { border-left-color: #3b82f6; }
+    .server-card { border-left-color: #10b981; }
+    .stats-card { border-left-color: #8b5cf6; }
+
+    .info-card h3 {
+        margin: 0 0 1rem;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #6b7280;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(128,128,128,0.15);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .info-value {
+        color: var(--theme-text, #1f2937);
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .info-value.mono {
+        font-family: monospace;
+        font-size: 0.8rem;
+    }
+
+    .version-badge {
+        background: #dbeafe;
+        color: #1d4ed8;
+        padding: 0.125rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    :global(.theme-dark) .version-badge {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+    }
+
+    .stats-row {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .stat-value.active {
+        color: #10b981;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        text-transform: uppercase;
+    }
+
+    .categories {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .category-tag {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .category-tag.revenue { background: #d1fae5; color: #059669; }
+    .category-tag.engagement { background: #fef3c7; color: #d97706; }
+    .category-tag.ux { background: #ede9fe; color: #7c3aed; }
+
+    .section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+
+    :global(.theme-dark) .section {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .section h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.25rem;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .section-desc {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin: 0 0 1rem;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .feature-card {
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .feature-card.enabled {
+        background: #f0fdf4;
+        border-color: #86efac;
+    }
+
+    .feature-card.disabled {
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    :global(.theme-dark) .feature-card.enabled {
+        background: rgba(16, 185, 129, 0.15);
+        border-color: #10b981;
+    }
+
+    :global(.theme-dark) .feature-card.disabled {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: #ef4444;
+    }
+
+    .feature-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-status {
+        padding: 0.125rem 0.375rem;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+
+    .enabled .feature-status {
+        background: #22c55e;
+        color: white;
+    }
+
+    .disabled .feature-status {
+        background: #ef4444;
+        color: white;
+    }
+
+    .feature-name {
+        font-weight: 600;
+        color: var(--theme-text, #1f2937);
+    }
+
+    .feature-category {
+        margin-left: auto;
+        background: #e5e7eb;
+        color: #374151;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .feature-desc {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .yaml-loading {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+    }
+
+    .yaml-code, .csharp-code {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 0.8rem;
+        line-height: 1.6;
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #333;
+        margin: 0;
+    }
+
+    .yaml-code code, .csharp-code code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        color: inherit;
+        background: transparent;
+        white-space: pre;
+        display: block;
+    }
+
+    /* Ensure no browser default styling interferes */
+    .yaml-code code::selection,
+    .csharp-code code::selection {
+        background: #264f78;
+        color: #ffffff;
+    }
+
+    /* Skeleton loading styles */
+    .skeleton-info-card {
+        height: 180px;
+        background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+    }
+
+    :global(.theme-dark) .skeleton-info-card {
+        background: linear-gradient(90deg, #4b5563 25%, #6b7280 50%, #4b5563 75%);
+        background-size: 200% 100%;
+    }
+
+    /* Dark mode overrides */
+    :global(.theme-dark) .info-card h3 {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .info-label {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .info-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .stat-value {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .stat-label {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .section-card {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    :global(.theme-dark) .section-header {
+        border-color: #374151;
+    }
+
+    :global(.theme-dark) .copy-btn {
+        background: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .copy-btn:hover {
+        background: #4b5563;
+    }
+
+    :global(.theme-dark) .feature-name {
+        color: #e5e7eb;
+    }
+
+    :global(.theme-dark) .feature-desc {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .feature-category {
+        background: rgba(148, 163, 184, 0.3);
+        color: #e5e7eb;
+    }
+
+    @@keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+</style>
+
+@code {
+    private FrameworkInfo? _info;
+    private string _yamlConfig = "";
+    private bool _loading = true;
+    private bool _copied = false;
+    private bool _dataLoaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_dataLoaded)
+        {
+            _dataLoaded = true;
+            await RefreshData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        _loading = true;
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        try
+        {
+            _info = await ExperimentApi.GetConfigInfoAsync().WaitAsync(cts.Token);
+        }
+        catch
+        {
+            _info = null;
+        }
+
+        try
+        {
+            _yamlConfig = await ExperimentApi.GetConfigYamlAsync().WaitAsync(cts.Token);
+        }
+        catch
+        {
+            _yamlConfig = "# Failed to load configuration";
+        }
+
+        _loading = false;
+    }
+
+    private async Task CopyYaml()
+    {
+        if (string.IsNullOrEmpty(_yamlConfig)) return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _yamlConfig);
+            _copied = true;
+            StateHasChanged();
+
+            await Task.Delay(2000);
+            _copied = false;
+            StateHasChanged();
+        }
+        catch
+        {
+            // Clipboard access may be denied
+        }
+    }
+
+    private string GetFluentApiCode()
+    {
+        return @"var experiments = ExperimentFrameworkBuilder.Create()
+    .UseDispatchProxy()
+    .Define<IPricingStrategy>(c => c
+        .UsingConfigurationKey(""Experiments:Pricing"")
+        .AddDefaultTrial<TieredPricing>(""tiered"")
+        .AddTrial<FlatPricing>(""flat"")
+        .AddTrial<VolumePricing>(""volume"")
+        .OnErrorRedirectAndReplayDefault())
+    .Define<INotificationService>(c => c
+        .UsingConfigurationKey(""Experiments:Notifications"")
+        .AddDefaultTrial<StandardNotifications>(""standard"")
+        .AddTrial<PersonalizedNotifications>(""personalized"")
+        .OnErrorRedirectAndReplayDefault())
+    .Define<IRecommendationEngine>(c => c
+        .UsingConfigurationKey(""Experiments:Recommendations"")
+        .AddDefaultTrial<BasicRecommendations>(""basic"")
+        .AddTrial<AiRecommendations>(""ai-powered"")
+        .AddTrial<CollaborativeRecommendations>(""collaborative"")
+        .OnErrorRedirectAndReplayDefault())
+    .Define<IThemeProvider>(c => c
+        .UsingConfigurationKey(""Experiments:Theme"")
+        .AddDefaultTrial<LightTheme>(""light"")
+        .AddTrial<DarkTheme>(""dark"")
+        .AddTrial<SystemTheme>(""system"")
+        .OnErrorRedirectAndReplayDefault());
+
+builder.Services.AddExperimentFramework(experiments);";
+    }
+}
