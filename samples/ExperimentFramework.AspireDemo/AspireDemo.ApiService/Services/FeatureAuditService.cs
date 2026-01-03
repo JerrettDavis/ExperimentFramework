@@ -24,81 +24,81 @@ public sealed class FeatureAuditService
 
     public IReadOnlyList<FeatureInfo> GetFeatures()
     {
-        var hasDsl = _dslManager.GetLastApplied().lastYaml is not null;
+        var hasDsl = _dslManager.GetLastApplied().yaml is not null;
         var plugins = _pluginState.GetAllPlugins();
 
         return
         [
             new FeatureInfo(
                 "Experiment Targeting",
-                enabled: true,
-                description: "Context-aware routing via ExperimentFramework.Targeting",
-                category: "Routing"),
+                Enabled: true,
+                Description: "Context-aware routing via ExperimentFramework.Targeting",
+                Category: "Routing"),
             new FeatureInfo(
                 "Audit Logging",
-                enabled: true,
-                description: "Structured audit trail for experiment changes and selections",
-                category: "Observability"),
+                Enabled: true,
+                Description: "Structured audit trail for experiment changes and selections",
+                Category: "Observability"),
             new FeatureInfo(
                 "DSL Authoring",
-                enabled: true,
-                description: "Validate and apply YAML DSL at runtime",
-                category: "Configuration"),
+                Enabled: true,
+                Description: "Validate and apply YAML DSL at runtime",
+                Category: "Configuration"),
             new FeatureInfo(
                 "DSL Export",
-                enabled: true,
-                description: "Export the current graph as YAML configuration",
-                category: "Configuration"),
+                Enabled: true,
+                Description: "Export the current graph as YAML configuration",
+                Category: "Configuration"),
             new FeatureInfo(
                 "Decorators & Proxies",
-                enabled: true,
-                description: "Runtime proxies with decorator pipeline",
-                category: "Runtime"),
+                Enabled: true,
+                Description: "Runtime proxies with decorator pipeline",
+                Category: "Runtime"),
             new FeatureInfo(
                 "Timeout Enforcement",
-                enabled: true,
-                description: "Automatic timeout handling with fallback",
-                category: "Resilience"),
+                Enabled: true,
+                Description: "Automatic timeout handling with fallback",
+                Category: "Resilience"),
             new FeatureInfo(
                 "Kill Switch",
-                enabled: IsKillSwitchActive(),
-                description: "Disable experiments or trials without redeploying",
-                category: "Resilience"),
+                Enabled: IsKillSwitchActive(),
+                Description: "Disable experiments or trials without redeploying",
+                Category: "Resilience"),
             new FeatureInfo(
                 "Selection: Configuration",
-                enabled: true,
-                description: "Variants selected via configuration keys",
-                category: "Selection"),
+                Enabled: true,
+                Description: "Variants selected via configuration keys",
+                Category: "Selection"),
             new FeatureInfo(
                 "Selection: Feature Flags",
-                enabled: _experimentState.SupportsFeatureFlags,
-                description: "Boolean feature flags for routing",
-                category: "Selection"),
+                Enabled: _experimentState.SupportsFeatureFlags,
+                Description: "Boolean feature flags for routing",
+                Category: "Selection"),
             new FeatureInfo(
                 "Selection: Custom Providers",
-                enabled: _experimentState.SupportsCustomProviders,
-                description: "Pluggable provider model for bespoke routing",
-                category: "Selection"),
+                Enabled: _experimentState.SupportsCustomProviders,
+                Description: "Pluggable provider model for bespoke routing",
+                Category: "Selection"),
             new FeatureInfo(
                 "Plugin System",
-                enabled: plugins.Any(),
-                description: "Hot-reloadable plugin loading and activation",
-                category: "Extensibility"),
+                Enabled: plugins.Any(),
+                Description: "Hot-reloadable plugin loading and activation",
+                Category: "Extensibility"),
             new FeatureInfo(
                 "Analytics & Usage",
-                enabled: _experimentState.HasUsage,
-                description: "Aggregated usage tracking for experiments",
-                category: "Observability"),
+                Enabled: _experimentState.HasUsage,
+                Description: "Aggregated usage tracking for experiments",
+                Category: "Observability"),
             new FeatureInfo(
                 "DSL Applied",
-                enabled: hasDsl,
-                description: hasDsl ? "Latest YAML has been applied" : "Waiting for first DSL apply",
-                category: "Configuration"),
+                Enabled: hasDsl,
+                Description: hasDsl ? "Latest YAML has been applied" : "Waiting for first DSL apply",
+                Category: "Configuration"),
             new FeatureInfo(
                 "Runtime Configuration",
-                enabled: true,
-                description: "Live configuration changes without restart",
-                category: "Operations")
+                Enabled: true,
+                Description: "Live configuration changes without restart",
+                Category: "Operations")
         ];
     }
 

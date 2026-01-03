@@ -4,6 +4,7 @@ using AspireDemo.ApiService.Services;
 using ExperimentFramework;
 using ExperimentFramework.Audit;
 using ExperimentFramework.KillSwitch;
+using ExperimentFramework.Models;
 using ExperimentFramework.Targeting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -732,27 +733,7 @@ static string GetConfigKey(string experimentName) => experimentName switch
     _ => experimentName
 };
 
-internal static class ExperimentTypeResolver
-{
-    private static readonly Dictionary<string, Type> ExperimentTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["pricing-strategy"] = typeof(PricingExperimentMarker),
-        ["notification-style"] = typeof(NotificationExperimentMarker),
-        ["recommendation-algorithm"] = typeof(RecommendationExperimentMarker),
-        ["ui-theme"] = typeof(ThemeExperimentMarker)
-    };
 
-    public static Type GetServiceType(string experimentName) =>
-        ExperimentTypes.TryGetValue(experimentName, out var type)
-            ? type
-            : typeof(DslExperimentMarker);
-
-    private sealed class PricingExperimentMarker;
-    private sealed class NotificationExperimentMarker;
-    private sealed class RecommendationExperimentMarker;
-    private sealed class ThemeExperimentMarker;
-    private sealed class DslExperimentMarker;
-}
 
 static PricingResult SimulatePluginPricing(string implementationType, int units)
 {
@@ -793,6 +774,29 @@ static RecommendationResult SimulatePluginRecommendations(string implementationT
             0.85
         )
     };
+}
+
+
+internal static class ExperimentTypeResolver
+{
+    private static readonly Dictionary<string, Type> ExperimentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["pricing-strategy"] = typeof(PricingExperimentMarker),
+        ["notification-style"] = typeof(NotificationExperimentMarker),
+        ["recommendation-algorithm"] = typeof(RecommendationExperimentMarker),
+        ["ui-theme"] = typeof(ThemeExperimentMarker)
+    };
+
+    public static Type GetServiceType(string experimentName) =>
+        ExperimentTypes.TryGetValue(experimentName, out var type)
+            ? type
+            : typeof(DslExperimentMarker);
+
+    private sealed class PricingExperimentMarker;
+    private sealed class NotificationExperimentMarker;
+    private sealed class RecommendationExperimentMarker;
+    private sealed class ThemeExperimentMarker;
+    private sealed class DslExperimentMarker;
 }
 
 // ============================================================================
