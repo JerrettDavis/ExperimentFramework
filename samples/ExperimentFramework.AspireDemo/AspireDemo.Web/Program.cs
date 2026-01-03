@@ -1,5 +1,4 @@
 using AspireDemo.Web;
-using AspireDemo.Web.Components;
 using AspireDemo.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -38,7 +37,7 @@ app.UseAntiforgery();
 app.UseOutputCache();
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
+app.MapRazorComponents<AspireDemo.Web.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.MapDefaultEndpoints();

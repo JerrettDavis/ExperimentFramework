@@ -1,5 +1,4 @@
 using AspireDemo.Blog;
-using AspireDemo.Blog.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +30,7 @@ app.UseAntiforgery();
 app.UseOutputCache();
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
+app.MapRazorComponents<AspireDemo.Blog.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.MapDefaultEndpoints();
