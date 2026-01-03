@@ -1,6 +1,5 @@
-using AspireDemo.Web;
-using AspireDemo.Web.Components;
-using AspireDemo.Web.Services;
+using AspireDemo.Blog;
+using AspireDemo.Blog.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,17 +13,11 @@ builder.Services.AddRazorComponents()
 builder.Services.AddOutputCache();
 
 // Configure the API client with service discovery
-builder.Services.AddHttpClient<ExperimentApiClient>(client =>
+builder.Services.AddHttpClient<BlogApiClient>(client =>
 {
     // Use Aspire service discovery
     client.BaseAddress = new("https+http://apiservice");
 });
-
-// Theme service for cross-component theme synchronization
-builder.Services.AddScoped<ThemeService>();
-
-// Centralized demo state service for cross-page state management
-builder.Services.AddScoped<DemoStateService>();
 
 var app = builder.Build();
 

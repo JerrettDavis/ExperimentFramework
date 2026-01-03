@@ -1,10 +1,13 @@
 using System.Collections.Concurrent;
+using AspireDemo.ApiService.Data;
 using AspireDemo.ApiService.Models;
 using AspireDemo.ApiService.Services;
 using ExperimentFramework;
 using ExperimentFramework.Audit;
 using ExperimentFramework.KillSwitch;
+using ExperimentFramework.Models;
 using ExperimentFramework.Targeting;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,14 +17,26 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// Experiment state management (in-memory for demo)
-var killSwitch = new InMemoryKillSwitchProvider();
-builder.Services.AddSingleton(killSwitch);
-builder.Services.AddSingleton<IKillSwitchProvider>(killSwitch);
+// Configure SQLite database for persistence
+var dbPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "AspireDemo", "experiments.db");
+Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+
+builder.Services.AddDbContextFactory<ExperimentDbContext>(options =>
+    options.UseSqlite($"Data Source={dbPath}"));
+
+// Experiment state management with persistence
+builder.Services.AddSingleton<PersistentKillSwitchProvider>();
+builder.Services.AddSingleton<IKillSwitchProvider>(sp => sp.GetRequiredService<PersistentKillSwitchProvider>());
 builder.Services.AddSingleton<ExperimentStateManager>();
 builder.Services.AddSingleton<PluginStateManager>();
 builder.Services.AddSingleton<RuntimeExperimentManager>();
 builder.Services.AddSingleton<FeatureAuditService>();
+
+// Blog plugin services
+builder.Services.AddSingleton<BlogPluginStateManager>();
+builder.Services.AddSingleton<BlogDataStore>();
 
 // Register all experiment implementations
 builder.Services.AddSingleton<TieredPricing>();
@@ -46,14 +61,13 @@ builder.Services.AddSingleton<IThemeProvider, LightTheme>();
 builder.Services.AddExperimentTargeting();
 builder.Services.AddExperimentAuditLogging();
 
-// In-memory audit sink for demo
-builder.Services.AddSingleton<InMemoryAuditSink>();
-builder.Services.AddSingleton<IAuditSink>(sp => sp.GetRequiredService<InMemoryAuditSink>());
+// Persistent audit sink
+builder.Services.AddSingleton<PersistentAuditSink>();
+builder.Services.AddSingleton<IAuditSink>(sp => sp.GetRequiredService<PersistentAuditSink>());
 
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseDispatchProxy()
     .WithTimeout(TimeSpan.FromSeconds(2), TimeoutAction.FallbackToDefault)
-    .WithKillSwitch(killSwitch)
     .Define<IPricingStrategy>(c => c
         .UsingConfigurationKey("Experiments:Pricing")
         .AddDefaultTrial<TieredPricing>("tiered")
@@ -81,6 +95,22 @@ var experiments = ExperimentFrameworkBuilder.Create()
 builder.Services.AddExperimentFramework(experiments);
 
 var app = builder.Build();
+
+// Initialize database and load persisted state
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ExperimentDbContext>>();
+    await using var context = await contextFactory.CreateDbContextAsync();
+    await context.Database.EnsureCreatedAsync();
+
+    // Initialize kill switch provider from persisted state
+    var killSwitch = scope.ServiceProvider.GetRequiredService<PersistentKillSwitchProvider>();
+    await killSwitch.InitializeAsync();
+
+    // Initialize audit sink from persisted state
+    var auditSink = scope.ServiceProvider.GetRequiredService<PersistentAuditSink>();
+    await auditSink.InitializeAsync();
+}
 
 app.UseCors();
 app.UseExceptionHandler();
@@ -111,7 +141,7 @@ app.MapGet("/api/experiments/{name}", (string name, ExperimentStateManager state
 .WithName("GetExperiment")
 .WithTags("Experiments");
 
-app.MapPost("/api/experiments/{name}/activate/{variant}", async (string name, string variant, ExperimentStateManager state, IConfiguration config, InMemoryAuditSink auditSink) =>
+app.MapPost("/api/experiments/{name}/activate/{variant}", async (string name, string variant, ExperimentStateManager state, IConfiguration config, PersistentAuditSink auditSink) =>
 {
     var previousVariant = state.GetActiveVariant(name);
     var success = state.SetActiveVariant(name, variant);
@@ -144,7 +174,7 @@ app.MapPost("/api/experiments/{name}/activate/{variant}", async (string name, st
 // Experiment Demo Endpoints
 // ============================================================================
 
-app.MapGet("/api/pricing/calculate", async (int units, ExperimentStateManager state, PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapGet("/api/pricing/calculate", async (int units, ExperimentStateManager state, PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     // Check if a plugin implementation is active for IPricingStrategy
     var pluginImpl = plugins.GetActiveImplementation("IPricingStrategy");
@@ -213,7 +243,7 @@ app.MapGet("/api/pricing/calculate", async (int units, ExperimentStateManager st
 .WithName("CalculatePricing")
 .WithTags("Demo");
 
-app.MapGet("/api/notifications/preview", async (string? userId, ExperimentStateManager state, InMemoryAuditSink auditSink) =>
+app.MapGet("/api/notifications/preview", async (string? userId, ExperimentStateManager state, PersistentAuditSink auditSink) =>
 {
     var activeVariant = state.GetActiveVariant("notification-style");
     INotificationService notifications = activeVariant switch
@@ -248,7 +278,7 @@ app.MapGet("/api/notifications/preview", async (string? userId, ExperimentStateM
 .WithName("PreviewNotification")
 .WithTags("Demo");
 
-app.MapGet("/api/recommendations", async (string? userId, ExperimentStateManager state, PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapGet("/api/recommendations", async (string? userId, ExperimentStateManager state, PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     // Check if a plugin implementation is active for IRecommendationEngine
     var pluginImpl = plugins.GetActiveImplementation("IRecommendationEngine");
@@ -315,7 +345,7 @@ app.MapGet("/api/recommendations", async (string? userId, ExperimentStateManager
 .WithName("GetRecommendations")
 .WithTags("Demo");
 
-app.MapGet("/api/theme", async (ExperimentStateManager state, InMemoryAuditSink auditSink) =>
+app.MapGet("/api/theme", async (ExperimentStateManager state, PersistentAuditSink auditSink) =>
 {
     var activeVariant = state.GetActiveVariant("ui-theme");
     IThemeProvider theme = activeVariant switch
@@ -357,7 +387,7 @@ app.MapGet("/api/theme", async (ExperimentStateManager state, InMemoryAuditSink 
 // Audit & Analytics Endpoints
 // ============================================================================
 
-app.MapGet("/api/audit", (InMemoryAuditSink auditSink, int? limit) =>
+app.MapGet("/api/audit", (PersistentAuditSink auditSink, int? limit) =>
 {
     var events = auditSink.GetEvents(limit ?? 100);
     return Results.Ok(events);
@@ -383,7 +413,7 @@ app.MapGet("/api/plugins", (PluginStateManager plugins) =>
 .WithName("GetPlugins")
 .WithTags("Plugins");
 
-app.MapPost("/api/plugins/discover", async (PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapPost("/api/plugins/discover", async (PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     var count = plugins.DiscoverPlugins();
     await auditSink.RecordAsync(new AuditEvent
@@ -399,7 +429,7 @@ app.MapPost("/api/plugins/discover", async (PluginStateManager plugins, InMemory
 .WithName("DiscoverPlugins")
 .WithTags("Plugins");
 
-app.MapPost("/api/plugins/{pluginId}/reload", async (string pluginId, PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapPost("/api/plugins/{pluginId}/reload", async (string pluginId, PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     var success = plugins.ReloadPlugin(pluginId);
     if (!success) return Results.NotFound();
@@ -417,7 +447,7 @@ app.MapPost("/api/plugins/{pluginId}/reload", async (string pluginId, PluginStat
 .WithName("ReloadPlugin")
 .WithTags("Plugins");
 
-app.MapDelete("/api/plugins/{pluginId}", async (string pluginId, PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapDelete("/api/plugins/{pluginId}", async (string pluginId, PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     var success = plugins.UnloadPlugin(pluginId);
     if (!success) return Results.NotFound();
@@ -435,7 +465,7 @@ app.MapDelete("/api/plugins/{pluginId}", async (string pluginId, PluginStateMana
 .WithName("UnloadPlugin")
 .WithTags("Plugins");
 
-app.MapPost("/api/plugins/{pluginId}/use", async (string pluginId, string @interface, string impl, PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapPost("/api/plugins/{pluginId}/use", async (string pluginId, string @interface, string impl, PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     // Find the plugin and implementation
     var plugin = plugins.GetAllPlugins().FirstOrDefault(p => p.Id == pluginId);
@@ -478,7 +508,7 @@ app.MapGet("/api/plugins/active", (PluginStateManager plugins) =>
 .WithName("GetActivePluginImplementations")
 .WithTags("Plugins");
 
-app.MapDelete("/api/plugins/active/{interface}", async (string @interface, PluginStateManager plugins, InMemoryAuditSink auditSink) =>
+app.MapDelete("/api/plugins/active/{interface}", async (string @interface, PluginStateManager plugins, PersistentAuditSink auditSink) =>
 {
     var cleared = plugins.ClearActiveImplementation(@interface);
     if (!cleared) return Results.NotFound();
@@ -497,6 +527,173 @@ app.MapDelete("/api/plugins/active/{interface}", async (string @interface, Plugi
 })
 .WithName("ClearActivePluginImplementation")
 .WithTags("Plugins");
+
+// ============================================================================
+// Blog API Endpoints
+// ============================================================================
+
+app.MapGet("/api/blog/posts", (BlogDataStore store, string? status, string? category) =>
+{
+    var posts = store.GetPosts(status);
+    if (!string.IsNullOrEmpty(category))
+    {
+        posts = posts.Where(p => p.Categories.Any(c =>
+            c.Slug.Equals(category, StringComparison.OrdinalIgnoreCase) ||
+            c.Name.Equals(category, StringComparison.OrdinalIgnoreCase)
+        )).ToList();
+    }
+    return Results.Ok(posts);
+})
+.WithName("GetBlogPosts")
+.WithTags("Blog");
+
+app.MapGet("/api/blog/posts/{slug}", (string slug, BlogDataStore store) =>
+{
+    var post = store.GetPostBySlug(slug);
+    return post is null ? Results.NotFound() : Results.Ok(post);
+})
+.WithName("GetBlogPost")
+.WithTags("Blog");
+
+app.MapGet("/api/blog/categories", (BlogDataStore store) =>
+{
+    return Results.Ok(store.GetCategories());
+})
+.WithName("GetBlogCategories")
+.WithTags("Blog");
+
+app.MapGet("/api/blog/authors", (BlogDataStore store) =>
+{
+    return Results.Ok(store.GetAuthors());
+})
+.WithName("GetBlogAuthors")
+.WithTags("Blog");
+
+app.MapGet("/api/blog/stats", (BlogDataStore store) =>
+{
+    return Results.Ok(store.GetStats());
+})
+.WithName("GetBlogStats")
+.WithTags("Blog");
+
+app.MapGet("/api/blog/search", (string q, BlogDataStore store) =>
+{
+    if (string.IsNullOrWhiteSpace(q))
+        return Results.Ok(Array.Empty<BlogPostDto>());
+
+    var query = q.ToLowerInvariant();
+    var results = store.GetPosts()
+        .Where(p =>
+            p.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            p.Content.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            p.Tags.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase)))
+        .Take(10)
+        .ToList();
+
+    return Results.Ok(results);
+})
+.WithName("SearchBlogPosts")
+.WithTags("Blog");
+
+// Blog Plugin Management Endpoints
+
+app.MapGet("/api/blog/plugins", (BlogPluginStateManager blogPlugins) =>
+{
+    return Results.Ok(new
+    {
+        Data = new
+        {
+            Options = BlogPluginStateManager.DataProviders,
+            Active = blogPlugins.ActiveDataProviderAlias
+        },
+        Editor = new
+        {
+            Options = BlogPluginStateManager.Editors,
+            Active = blogPlugins.ActiveEditorAlias
+        },
+        Syndication = new
+        {
+            Options = BlogPluginStateManager.Syndicators,
+            Active = blogPlugins.ActiveSyndicatorAliases
+        },
+        Auth = new
+        {
+            Options = BlogPluginStateManager.AuthProviders,
+            Active = blogPlugins.ActiveAuthAlias
+        }
+    });
+})
+.WithName("GetBlogPlugins")
+.WithTags("BlogPlugins");
+
+app.MapPost("/api/blog/plugins/activate", async (BlogPluginActivateRequest request, BlogPluginStateManager blogPlugins, PersistentAuditSink auditSink) =>
+{
+    var success = blogPlugins.Activate(request.PluginType, request.Alias);
+    if (!success)
+        return Results.BadRequest(new { Error = $"Invalid plugin type or alias: {request.PluginType}/{request.Alias}" });
+
+    await auditSink.RecordAsync(new AuditEvent
+    {
+        EventId = Guid.NewGuid().ToString(),
+        Timestamp = DateTimeOffset.UtcNow,
+        EventType = AuditEventType.ExperimentModified,
+        ExperimentName = $"Blog.{request.PluginType}",
+        SelectedTrialKey = request.Alias,
+        Details = new Dictionary<string, object>
+        {
+            ["pluginType"] = request.PluginType,
+            ["alias"] = request.Alias
+        }
+    });
+
+    return Results.Ok(new { PluginType = request.PluginType, Alias = request.Alias, Activated = true });
+})
+.WithName("ActivateBlogPlugin")
+.WithTags("BlogPlugins");
+
+app.MapPost("/api/blog/plugins/deactivate", async (BlogPluginActivateRequest request, BlogPluginStateManager blogPlugins, PersistentAuditSink auditSink) =>
+{
+    var success = blogPlugins.Deactivate(request.PluginType, request.Alias);
+    if (!success)
+        return Results.BadRequest(new { Error = "Only syndication plugins can be deactivated" });
+
+    await auditSink.RecordAsync(new AuditEvent
+    {
+        EventId = Guid.NewGuid().ToString(),
+        Timestamp = DateTimeOffset.UtcNow,
+        EventType = AuditEventType.ExperimentStopped,
+        ExperimentName = $"Blog.{request.PluginType}",
+        SelectedTrialKey = request.Alias
+    });
+
+    return Results.Ok(new { PluginType = request.PluginType, Alias = request.Alias, Deactivated = true });
+})
+.WithName("DeactivateBlogPlugin")
+.WithTags("BlogPlugins");
+
+app.MapGet("/api/blog/editor/config", (BlogPluginStateManager blogPlugins) =>
+{
+    var activeEditor = BlogPluginStateManager.Editors.FirstOrDefault(e => e.Alias == blogPlugins.ActiveEditorAlias);
+    if (activeEditor == null)
+        return Results.NotFound();
+
+    // Return editor-specific configuration
+    var config = activeEditor.Alias switch
+    {
+        "markdown" => new { Type = "markdown", ScriptUrl = (string?)null, StyleUrl = (string?)null },
+        "tinymce" => new { Type = "tinymce", ScriptUrl = "https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js", StyleUrl = (string?)null },
+        "quill" => new { Type = "quill", ScriptUrl = "https://cdn.quilljs.com/1.3.6/quill.min.js", StyleUrl = "https://cdn.quilljs.com/1.3.6/quill.snow.css" },
+        _ => new { Type = "markdown", ScriptUrl = (string?)null, StyleUrl = (string?)null }
+    };
+
+    return Results.Ok(new
+    {
+        Editor = activeEditor,
+        Config = config
+    });
+})
+.WithName("GetBlogEditorConfig")
+.WithTags("BlogPlugins");
 
 // ============================================================================
 // Configuration & DSL Endpoints
@@ -584,7 +781,7 @@ app.MapPost("/api/dsl/validate", (DslRequest request, RuntimeExperimentManager d
 .WithName("ValidateDsl")
 .WithTags("DSL");
 
-app.MapPost("/api/dsl/apply", async (DslRequest request, RuntimeExperimentManager dslManager, InMemoryAuditSink auditSink) =>
+app.MapPost("/api/dsl/apply", async (DslRequest request, RuntimeExperimentManager dslManager, PersistentAuditSink auditSink) =>
 {
     var result = dslManager.Apply(request.Yaml);
 
@@ -732,27 +929,7 @@ static string GetConfigKey(string experimentName) => experimentName switch
     _ => experimentName
 };
 
-internal static class ExperimentTypeResolver
-{
-    private static readonly Dictionary<string, Type> ExperimentTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["pricing-strategy"] = typeof(PricingExperimentMarker),
-        ["notification-style"] = typeof(NotificationExperimentMarker),
-        ["recommendation-algorithm"] = typeof(RecommendationExperimentMarker),
-        ["ui-theme"] = typeof(ThemeExperimentMarker)
-    };
 
-    public static Type GetServiceType(string experimentName) =>
-        ExperimentTypes.TryGetValue(experimentName, out var type)
-            ? type
-            : typeof(DslExperimentMarker);
-
-    private sealed class PricingExperimentMarker;
-    private sealed class NotificationExperimentMarker;
-    private sealed class RecommendationExperimentMarker;
-    private sealed class ThemeExperimentMarker;
-    private sealed class DslExperimentMarker;
-}
 
 static PricingResult SimulatePluginPricing(string implementationType, int units)
 {
@@ -793,6 +970,29 @@ static RecommendationResult SimulatePluginRecommendations(string implementationT
             0.85
         )
     };
+}
+
+
+internal static class ExperimentTypeResolver
+{
+    private static readonly Dictionary<string, Type> ExperimentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["pricing-strategy"] = typeof(PricingExperimentMarker),
+        ["notification-style"] = typeof(NotificationExperimentMarker),
+        ["recommendation-algorithm"] = typeof(RecommendationExperimentMarker),
+        ["ui-theme"] = typeof(ThemeExperimentMarker)
+    };
+
+    public static Type GetServiceType(string experimentName) =>
+        ExperimentTypes.TryGetValue(experimentName, out var type)
+            ? type
+            : typeof(DslExperimentMarker);
+
+    private sealed class PricingExperimentMarker;
+    private sealed class NotificationExperimentMarker;
+    private sealed class RecommendationExperimentMarker;
+    private sealed class ThemeExperimentMarker;
+    private sealed class DslExperimentMarker;
 }
 
 // ============================================================================
@@ -1026,46 +1226,6 @@ public class VariantInfo
     public required string Description { get; set; }
 }
 
-// ============================================================================
-// In-Memory Audit Sink
-// ============================================================================
-
-public class InMemoryAuditSink : IAuditSink
-{
-    private readonly ConcurrentQueue<AuditLogEntry> _events = new();
-    private const int MaxEvents = 1000;
-
-    public ValueTask RecordAsync(AuditEvent auditEvent, CancellationToken cancellationToken = default)
-    {
-        var entry = new AuditLogEntry
-        {
-            Timestamp = DateTime.UtcNow,
-            EventType = auditEvent.EventType.ToString(),
-            ExperimentName = auditEvent.ExperimentName,
-            TrialName = auditEvent.SelectedTrialKey,
-            Details = auditEvent.ToString() ?? ""
-        };
-
-        _events.Enqueue(entry);
-
-        // Keep only last MaxEvents
-        while (_events.Count > MaxEvents && _events.TryDequeue(out _)) { }
-
-        return ValueTask.CompletedTask;
-    }
-
-    public IEnumerable<AuditLogEntry> GetEvents(int limit) =>
-        _events.Reverse().Take(limit).ToList();
-}
-
-public class AuditLogEntry
-{
-    public DateTime Timestamp { get; set; }
-    public string EventType { get; set; } = "";
-    public string? ExperimentName { get; set; }
-    public string? TrialName { get; set; }
-    public string Details { get; set; } = "";
-}
 
 // ============================================================================
 // Pricing Strategy Implementations
@@ -1380,3 +1540,274 @@ public class ActivePluginImplementation
     public string? Alias { get; set; }
     public DateTime ActivatedAt { get; set; }
 }
+
+// ============================================================================
+// Blog Plugin State Manager
+// ============================================================================
+
+public class BlogPluginStateManager
+{
+    public string ActiveDataProviderAlias { get; private set; } = "inmemory";
+    public string ActiveEditorAlias { get; private set; } = "markdown";
+    public List<string> ActiveSyndicatorAliases { get; private set; } = [];
+    public string ActiveAuthAlias { get; private set; } = "jwt";
+
+    public bool Activate(string pluginType, string alias)
+    {
+        switch (pluginType.ToLowerInvariant())
+        {
+            case "data":
+                if (!DataProviders.Any(p => p.Alias == alias)) return false;
+                ActiveDataProviderAlias = alias;
+                return true;
+            case "editor":
+                if (!Editors.Any(e => e.Alias == alias)) return false;
+                ActiveEditorAlias = alias;
+                return true;
+            case "auth":
+                if (!AuthProviders.Any(a => a.Alias == alias)) return false;
+                ActiveAuthAlias = alias;
+                return true;
+            case "syndication":
+                if (!Syndicators.Any(s => s.Alias == alias)) return false;
+                if (!ActiveSyndicatorAliases.Contains(alias))
+                    ActiveSyndicatorAliases.Add(alias);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public bool Deactivate(string pluginType, string alias)
+    {
+        if (pluginType.ToLowerInvariant() == "syndication")
+        {
+            return ActiveSyndicatorAliases.Remove(alias);
+        }
+        return false;
+    }
+
+    public static readonly List<BlogPluginOptionInfo> DataProviders =
+    [
+        new("inmemory", "InMemoryDataProvider", "In-Memory", "Fast volatile storage - resets on restart", ["Fast reads", "No setup", "Volatile"]),
+        new("sqlite", "SqliteDataProvider", "SQLite", "Persistent file-based storage - survives restarts", ["Persistent", "File-based", "ACID"]),
+        new("postgres", "PostgresDataProvider", "PostgreSQL", "Production-ready relational database (simulated)", ["Scalable", "Production-ready", "Concurrent"])
+    ];
+
+    public static readonly List<BlogPluginOptionInfo> Editors =
+    [
+        new("markdown", "MarkdownEditor", "Markdown", "Developer-friendly markdown with live preview", ["Code blocks", "Live preview", "Fast"]),
+        new("tinymce", "TinyMceEditor", "TinyMCE", "Full WYSIWYG with rich formatting and media", ["WYSIWYG", "Tables", "Media"]),
+        new("quill", "QuillEditor", "Quill", "Modern lightweight rich text editor", ["Clean output", "Customizable", "Mobile-friendly"])
+    ];
+
+    public static readonly List<BlogPluginOptionInfo> Syndicators =
+    [
+        new("devto", "DevToSyndicator", "DEV Community", "Publish to dev.to", ["Drafts", "Canonical URLs"]) { Color = "#0a0a0a" },
+        new("hashnode", "HashnodeSyndicator", "Hashnode", "Publish to Hashnode", ["Drafts", "Scheduling", "Canonical"]) { Color = "#2962ff" },
+        new("medium", "MediumSyndicator", "Medium", "Publish to Medium", ["Canonical URLs", "Large audience"]) { Color = "#000000" }
+    ];
+
+    public static readonly List<BlogPluginOptionInfo> AuthProviders =
+    [
+        new("jwt", "JwtAuthProvider", "JWT", "JSON Web Token with refresh tokens", ["Stateless", "Scalable"]),
+        new("oauth", "OAuthProvider", "OAuth 2.0", "Sign in with GitHub/Google", ["Social login", "Delegated auth"]),
+        new("apikey", "ApiKeyAuthProvider", "API Key", "Simple API key for integrations", ["Simple", "Server-to-server"])
+    ];
+}
+
+public record BlogPluginOptionInfo(
+    string Alias,
+    string TypeName,
+    string Name,
+    string Description,
+    List<string> Features)
+{
+    public string? Color { get; init; }
+}
+
+// ============================================================================
+// Blog Data Models (for API)
+// ============================================================================
+
+public class BlogPostDto
+{
+    public Guid Id { get; set; }
+    public required string Title { get; set; }
+    public required string Slug { get; set; }
+    public required string Content { get; set; }
+    public string? Excerpt { get; set; }
+    public string? FeaturedImage { get; set; }
+    public string Status { get; set; } = "Draft";
+    public DateTime CreatedAt { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public required BlogAuthorDto Author { get; set; }
+    public List<BlogCategoryDto> Categories { get; set; } = [];
+    public List<string> Tags { get; set; } = [];
+    public int ViewCount { get; set; }
+    public int ReadTimeMinutes { get; set; }
+    public Dictionary<string, string> SyndicationLinks { get; set; } = [];
+}
+
+public class BlogAuthorDto
+{
+    public Guid Id { get; set; }
+    public required string Name { get; set; }
+    public required string Email { get; set; }
+    public string? Bio { get; set; }
+    public string? AvatarUrl { get; set; }
+    public string? TwitterHandle { get; set; }
+    public string? GitHubHandle { get; set; }
+    public int PostCount { get; set; }
+}
+
+public class BlogCategoryDto
+{
+    public Guid Id { get; set; }
+    public required string Name { get; set; }
+    public required string Slug { get; set; }
+    public string? Description { get; set; }
+    public string? Color { get; set; }
+    public int PostCount { get; set; }
+}
+
+public class BlogStatsDto
+{
+    public int TotalPosts { get; set; }
+    public int PublishedPosts { get; set; }
+    public int DraftPosts { get; set; }
+    public int TotalViews { get; set; }
+    public int TotalAuthors { get; set; }
+    public int TotalCategories { get; set; }
+}
+
+// Blog Data Store (in-memory for demo)
+public class BlogDataStore
+{
+    private static readonly List<BlogAuthorDto> Authors =
+    [
+        new()
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Name = "Alice Chen",
+            Email = "alice@techblog.dev",
+            Bio = "Senior software engineer specializing in distributed systems and cloud architecture.",
+            AvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=alice",
+            TwitterHandle = "alicechen_dev",
+            GitHubHandle = "alicechendev",
+            PostCount = 5
+        },
+        new()
+        {
+            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            Name = "Bob Martinez",
+            Email = "bob@techblog.dev",
+            Bio = "Full-stack developer with a passion for developer experience and tooling.",
+            AvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=bob",
+            TwitterHandle = "bobmartinez",
+            GitHubHandle = "bobmdev",
+            PostCount = 3
+        }
+    ];
+
+    private static readonly List<BlogCategoryDto> Categories =
+    [
+        new() { Id = Guid.Parse("aaaa1111-1111-1111-1111-111111111111"), Name = "Tutorials", Slug = "tutorials", Description = "Step-by-step guides", Color = "#3b82f6", PostCount = 4 },
+        new() { Id = Guid.Parse("aaaa2222-2222-2222-2222-222222222222"), Name = "Architecture", Slug = "architecture", Description = "Software design patterns", Color = "#10b981", PostCount = 2 },
+        new() { Id = Guid.Parse("aaaa3333-3333-3333-3333-333333333333"), Name = ".NET", Slug = "dotnet", Description = ".NET ecosystem articles", Color = "#8b5cf6", PostCount = 5 },
+        new() { Id = Guid.Parse("aaaa4444-4444-4444-4444-444444444444"), Name = "DevOps", Slug = "devops", Description = "CI/CD and infrastructure", Color = "#f59e0b", PostCount = 2 },
+        new() { Id = Guid.Parse("aaaa5555-5555-5555-5555-555555555555"), Name = "Cloud", Slug = "cloud", Description = "Cloud computing topics", Color = "#06b6d4", PostCount = 3 }
+    ];
+
+    private static readonly List<BlogPostDto> Posts =
+    [
+        new()
+        {
+            Id = Guid.Parse("bbbb1111-1111-1111-1111-111111111111"),
+            Title = "Getting Started with ExperimentFramework",
+            Slug = "getting-started-experimentframework",
+            Content = "# Getting Started with ExperimentFramework\n\nExperimentFramework is a powerful library for running A/B tests and feature experiments in .NET applications.\n\n## Installation\n\n```bash\ndotnet add package ExperimentFramework\n```\n\n## Basic Usage\n\nDefine your experiments using the fluent API:\n\n```csharp\nvar experiments = ExperimentFrameworkBuilder.Create()\n    .Define<IPricingStrategy>(c => c\n        .AddDefaultTrial<StandardPricing>(\"standard\")\n        .AddTrial<PremiumPricing>(\"premium\"))\n    .Build();\n```\n\n## Next Steps\n\n- Configure targeting rules\n- Set up analytics tracking\n- Create your first experiment",
+            Excerpt = "Learn how to integrate ExperimentFramework into your .NET applications for A/B testing and feature experiments.",
+            FeaturedImage = "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1200",
+            Status = "Published",
+            CreatedAt = DateTime.UtcNow.AddDays(-7),
+            PublishedAt = DateTime.UtcNow.AddDays(-7),
+            Author = Authors[0],
+            Categories = [Categories[0], Categories[2]],
+            Tags = ["experimentation", "a-b-testing", "dotnet"],
+            ViewCount = 342,
+            ReadTimeMinutes = 5
+        },
+        new()
+        {
+            Id = Guid.Parse("bbbb2222-2222-2222-2222-222222222222"),
+            Title = "Plugin Architecture Best Practices",
+            Slug = "plugin-architecture-best-practices",
+            Content = "# Plugin Architecture Best Practices\n\nBuilding extensible applications with plugins requires careful design.\n\n## Core Principles\n\n1. **Isolation**: Plugins should be isolated from the host\n2. **Discoverability**: Easy to find and load plugins\n3. **Hot Reload**: Support updating without restart\n\n## Implementation Strategies\n\n### Assembly Loading\n\nUse `AssemblyLoadContext` for proper isolation:\n\n```csharp\npublic class PluginLoadContext : AssemblyLoadContext\n{\n    // Custom loading logic\n}\n```\n\n### Interface Contracts\n\nDefine clear contracts between host and plugins.",
+            Excerpt = "Best practices for designing extensible applications with a robust plugin architecture.",
+            FeaturedImage = "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=1200",
+            Status = "Published",
+            CreatedAt = DateTime.UtcNow.AddDays(-5),
+            PublishedAt = DateTime.UtcNow.AddDays(-5),
+            Author = Authors[1],
+            Categories = [Categories[1], Categories[2]],
+            Tags = ["architecture", "plugins", "extensibility"],
+            ViewCount = 256,
+            ReadTimeMinutes = 8
+        },
+        new()
+        {
+            Id = Guid.Parse("bbbb3333-3333-3333-3333-333333333333"),
+            Title = "Building Modern APIs with .NET 10",
+            Slug = "building-modern-apis-dotnet-10",
+            Content = "# Building Modern APIs with .NET 10\n\n.NET 10 brings exciting features for API development.\n\n## Minimal APIs\n\n```csharp\nvar app = WebApplication.Create();\napp.MapGet(\"/api/items\", () => Results.Ok(items));\napp.Run();\n```\n\n## Performance Improvements\n\n- Native AOT support\n- Improved JSON serialization\n- Better memory management",
+            Excerpt = "Explore the new features in .NET 10 for building high-performance APIs.",
+            FeaturedImage = "https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200",
+            Status = "Published",
+            CreatedAt = DateTime.UtcNow.AddDays(-3),
+            PublishedAt = DateTime.UtcNow.AddDays(-3),
+            Author = Authors[0],
+            Categories = [Categories[2], Categories[0]],
+            Tags = ["dotnet", "api", "web-development"],
+            ViewCount = 189,
+            ReadTimeMinutes = 6
+        },
+        new()
+        {
+            Id = Guid.Parse("bbbb4444-4444-4444-4444-444444444444"),
+            Title = "CI/CD with GitHub Actions for .NET",
+            Slug = "cicd-github-actions-dotnet",
+            Content = "# CI/CD with GitHub Actions for .NET\n\nAutomate your .NET build and deployment pipeline.\n\n## Workflow Configuration\n\n```yaml\nname: .NET CI\non: [push, pull_request]\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-dotnet@v4\n      - run: dotnet build\n      - run: dotnet test\n```",
+            Excerpt = "Set up continuous integration and deployment for your .NET projects using GitHub Actions.",
+            Status = "Draft",
+            CreatedAt = DateTime.UtcNow.AddDays(-1),
+            Author = Authors[1],
+            Categories = [Categories[3], Categories[2]],
+            Tags = ["devops", "github-actions", "ci-cd"],
+            ViewCount = 0,
+            ReadTimeMinutes = 7
+        }
+    ];
+
+    public List<BlogAuthorDto> GetAuthors() => Authors;
+    public List<BlogCategoryDto> GetCategories() => Categories;
+    public List<BlogPostDto> GetPosts(string? status = null)
+    {
+        var posts = Posts.AsEnumerable();
+        if (!string.IsNullOrEmpty(status))
+            posts = posts.Where(p => p.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
+        return posts.OrderByDescending(p => p.PublishedAt ?? p.CreatedAt).ToList();
+    }
+    public BlogPostDto? GetPostBySlug(string slug) => Posts.FirstOrDefault(p => p.Slug == slug);
+    public BlogStatsDto GetStats() => new()
+    {
+        TotalPosts = Posts.Count,
+        PublishedPosts = Posts.Count(p => p.Status == "Published"),
+        DraftPosts = Posts.Count(p => p.Status == "Draft"),
+        TotalViews = Posts.Sum(p => p.ViewCount),
+        TotalAuthors = Authors.Count,
+        TotalCategories = Categories.Count
+    };
+}
+
+public record BlogPluginActivateRequest(string PluginType, string Alias);

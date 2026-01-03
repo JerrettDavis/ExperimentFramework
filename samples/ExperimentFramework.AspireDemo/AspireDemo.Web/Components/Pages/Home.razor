@@ -1,7 +1,10 @@
 @page "/"
 @using AspireDemo.Web
 @using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
 @inject ExperimentApiClient ExperimentApi
+@inject DemoStateService DemoState
 
 <SetPageTitle Title="Dashboard - OptimizeLab" />
 
@@ -56,7 +59,7 @@
                 </svg>
             </div>
             <div class="kpi-content">
-                <span class="kpi-value">@_experiments.Count(e => e.Status == "Active")</span>
+                <span class="kpi-value">@_experiments.Count(e => e.Status == "Active" && !DemoState.GetKillSwitch(e.Name))</span>
                 <span class="kpi-label">Running Tests</span>
             </div>
             <div class="kpi-trend positive">
@@ -122,6 +125,8 @@
                         </div>
                         @foreach (var exp in _experiments.Take(5))
                         {
+                            var isKilled = DemoState.GetKillSwitch(exp.Name);
+                            var displayStatus = isKilled ? "Killed" : exp.Status;
                             <div class="table-row">
                                 <div class="exp-name">
                                     <strong>@exp.DisplayName</strong>
@@ -129,7 +134,7 @@
                                 </div>
                                 <span class="category-badge @exp.Category.ToLower()">@exp.Category</span>
                                 <span class="variant-name">@GetVariantDisplayName(exp)</span>
-                                <span class="status-badge @exp.Status.ToLower()">@exp.Status</span>
+                                <span class="status-badge @displayStatus.ToLower()">@displayStatus</span>
                             </div>
                         }
                     </div>
@@ -281,6 +286,21 @@
     private bool _loading = true;
     private bool _dataLoaded = false;
 
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_dataLoaded)
@@ -302,14 +322,19 @@
             var auditTask = SafeApiCall(() => ExperimentApi.GetAuditLogAsync(10), new List<AuditLogEntry>(), cts.Token);
             var pluginsTask = SafeApiCall(() => ExperimentApi.GetPluginsAsync(), new List<PluginInfo>(), cts.Token);
             var usageTask = SafeApiCall(() => ExperimentApi.GetUsageStatsAsync(), new Dictionary<string, Dictionary<string, int>>(), cts.Token);
+            var killSwitchTask = SafeApiCall(() => ExperimentApi.GetKillSwitchStatusesAsync(), new List<KillSwitchStatus>(), cts.Token);
 
-            await Task.WhenAll(experimentsTask, auditTask, pluginsTask, usageTask);
+            await Task.WhenAll(experimentsTask, auditTask, pluginsTask, usageTask, killSwitchTask);
 
             _experiments = await experimentsTask;
             _auditEvents = await auditTask;
             _pluginCount = (await pluginsTask).Count;
             var usage = await usageTask;
             _totalImpressions = usage.Values.SelectMany(v => v.Values).Sum();
+
+            // Sync kill switch states
+            var killSwitches = await killSwitchTask;
+            DemoState.SyncKillSwitchesFromApi(killSwitches);
         }
         catch (OperationCanceledException)
         {
@@ -661,6 +686,7 @@
     .status-badge.active { background: rgba(16, 185, 129, 0.1); color: #10b981; }
     .status-badge.paused { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     .status-badge.completed { background: rgba(148, 163, 184, 0.2); color: #64748b; }
+    .status-badge.killed { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
     /* Quick Actions */
     .action-grid {

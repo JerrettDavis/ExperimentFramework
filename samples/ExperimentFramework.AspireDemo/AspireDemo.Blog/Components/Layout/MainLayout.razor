@@ -1,0 +1,40 @@
+@inherits LayoutComponentBase
+
+<div class="blog-layout">
+    <header class="blog-header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <span class="logo-icon">T</span>
+                <span class="logo-text">TechBlog</span>
+            </a>
+            <nav class="main-nav">
+                <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
+                <NavLink href="/categories">Categories</NavLink>
+                <NavLink href="/authors">Authors</NavLink>
+                <NavLink href="/admin">Admin</NavLink>
+            </nav>
+            <div class="header-actions">
+                <a href="/write" class="btn btn-primary">Write Post</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="blog-main">
+        @Body
+    </main>
+
+    <footer class="blog-footer">
+        <div class="footer-content">
+            <div class="footer-info">
+                <span class="footer-brand">TechBlog</span>
+                <span class="footer-separator">|</span>
+                <span class="powered-by">Powered by <strong>ExperimentFramework</strong></span>
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/anthropics/claude-code" target="_blank">GitHub</a>
+                <span class="link-separator">-</span>
+                <a href="/admin">Dashboard</a>
+            </div>
+        </div>
+    </footer>
+</div>

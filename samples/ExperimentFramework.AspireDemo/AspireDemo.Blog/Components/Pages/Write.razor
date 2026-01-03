@@ -1,0 +1,331 @@
+@page "/write"
+@inject BlogApiClient Api
+
+<PageTitle>Write Post - TechBlog</PageTitle>
+
+<div class="container">
+    <div class="page-section">
+        <div class="write-header">
+            <h1>Write New Post</h1>
+            <p class="write-subtitle">Create and publish your content</p>
+        </div>
+
+        <div class="editor-info">
+            @if (editorConfig != null)
+            {
+                <div class="current-editor">
+                    <span class="editor-label">Current Editor:</span>
+                    <span class="editor-name">@editorConfig.Editor?.Name</span>
+                    <span class="editor-type">(@editorConfig.Config?.Type)</span>
+                </div>
+                <p class="editor-tip">
+                    Change the editor in the <a href="/admin">Admin Panel</a>
+                </p>
+            }
+        </div>
+
+        <div class="write-layout">
+            <div class="editor-area">
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" class="form-input title-input"
+                           placeholder="Enter post title..." @bind="title" />
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Content</label>
+                    @if (editorConfig?.Config?.Type == "markdown")
+                    {
+                        <textarea id="content" class="form-textarea markdown-editor"
+                                  placeholder="Write your content in Markdown..." @bind="content"></textarea>
+                        <div class="editor-hint">Supports Markdown formatting</div>
+                    }
+                    else if (editorConfig?.Config?.Type == "tinymce" || editorConfig?.Config?.Type == "quill")
+                    {
+                        <div class="wysiwyg-placeholder">
+                            <p>Rich text editor would load here (@editorConfig.Config.Type)</p>
+                            <p class="placeholder-note">In production, this would initialize the @(editorConfig.Editor?.Name) editor</p>
+                        </div>
+                        <textarea id="content" class="form-textarea"
+                                  placeholder="Write your content..." @bind="content"></textarea>
+                    }
+                    else
+                    {
+                        <textarea id="content" class="form-textarea"
+                                  placeholder="Write your content..." @bind="content"></textarea>
+                    }
+                </div>
+            </div>
+
+            <aside class="write-sidebar">
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Post Settings</h3>
+
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select class="form-select" @bind="status">
+                            <option value="Draft">Draft</option>
+                            <option value="Published">Published</option>
+                            <option value="Scheduled">Scheduled</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Featured Image URL</label>
+                        <input type="text" class="form-input" placeholder="https://..."
+                               @bind="featuredImage" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tags (comma-separated)</label>
+                        <input type="text" class="form-input" placeholder="dotnet, tutorial, api"
+                               @bind="tags" />
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Cross-Post</h3>
+                    @if (plugins?.Syndication.Active.Any() == true)
+                    {
+                        <div class="syndication-options">
+                            @foreach (var platform in plugins.Syndication.Active)
+                            {
+                                <label class="checkbox-label">
+                                    <input type="checkbox" checked="@selectedPlatforms.Contains(platform)"
+                                           @onchange="() => TogglePlatform(platform)" />
+                                    <span>@platform</span>
+                                </label>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="no-syndication">No syndication platforms enabled. <a href="/admin">Configure</a></p>
+                    }
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary btn-block" @onclick="SaveDraft">
+                        Save Draft
+                    </button>
+                    <button class="btn btn-primary btn-block" @onclick="Publish">
+                        Publish
+                    </button>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+
+<style>
+    .write-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .write-header h1 {
+        margin-bottom: 0.25rem;
+    }
+
+    .write-subtitle {
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .editor-info {
+        background: rgba(37, 99, 235, 0.05);
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        border-radius: var(--radius);
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .current-editor {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .editor-label {
+        color: var(--text-secondary);
+    }
+
+    .editor-name {
+        font-weight: 600;
+        color: var(--primary);
+    }
+
+    .editor-type {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    .editor-tip {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .write-layout {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        font-size: 1rem;
+        background: var(--bg-primary);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .title-input {
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .form-textarea {
+        min-height: 400px;
+        resize: vertical;
+        font-family: inherit;
+        line-height: 1.6;
+    }
+
+    .markdown-editor {
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-size: 0.9375rem;
+    }
+
+    .editor-hint {
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .wysiwyg-placeholder {
+        background: var(--bg-tertiary);
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius);
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .wysiwyg-placeholder p {
+        margin: 0;
+        color: var(--text-secondary);
+    }
+
+    .placeholder-note {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        margin-top: 0.5rem !important;
+    }
+
+    .syndication-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+
+    .checkbox-label input {
+        width: 18px;
+        height: 18px;
+    }
+
+    .no-syndication {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .btn-block {
+        width: 100%;
+    }
+
+    @@media (max-width: 1024px) {
+        .write-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    private BlogEditorConfigResponse? editorConfig;
+    private BlogPluginsResponse? plugins;
+
+    private string title = "";
+    private string content = "";
+    private string status = "Draft";
+    private string featuredImage = "";
+    private string tags = "";
+    private HashSet<string> selectedPlatforms = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var editorTask = Api.GetEditorConfigAsync();
+        var pluginsTask = Api.GetPluginsAsync();
+        await Task.WhenAll(editorTask, pluginsTask);
+
+        editorConfig = await editorTask;
+        plugins = await pluginsTask;
+    }
+
+    private void TogglePlatform(string platform)
+    {
+        if (selectedPlatforms.Contains(platform))
+            selectedPlatforms.Remove(platform);
+        else
+            selectedPlatforms.Add(platform);
+    }
+
+    private void SaveDraft()
+    {
+        // Demo - would save to API
+    }
+
+    private void Publish()
+    {
+        // Demo - would save and publish via API
+    }
+}

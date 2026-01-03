@@ -15,6 +15,13 @@
     <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.ApiService/AspireDemo.ApiService.csproj" />
     <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Web/AspireDemo.Web.csproj" />
   </Folder>
+  <Folder Name="/samples/ExperimentFramework.AspireDemo/">
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Contracts/AspireDemo.Blog.Contracts.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Auth/AspireDemo.Blog.Plugins.Auth.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Data/AspireDemo.Blog.Plugins.Data.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Editor/AspireDemo.Blog.Plugins.Editor.csproj" />
+    <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Plugins.Syndication/AspireDemo.Blog.Plugins.Syndication.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="benchmarks/ExperimentFramework.Benchmarks/ExperimentFramework.Benchmarks.csproj" />
     <Project Path="src/ExperimentFramework.Admin/ExperimentFramework.Admin.csproj" />

@@ -1,0 +1,125 @@
+@page "/categories"
+@inject BlogApiClient Api
+
+<PageTitle>Categories - TechBlog</PageTitle>
+
+<div class="container">
+    <div class="page-section">
+        <div class="page-header">
+            <h1>Categories</h1>
+            <p class="page-description">Browse posts by category</p>
+        </div>
+
+        @if (loading)
+        {
+            <div class="loading">
+                <div class="loading-spinner"></div>
+            </div>
+        }
+        else
+        {
+            <div class="categories-grid">
+                @foreach (var category in categories)
+                {
+                    <a href="/?category=@category.Slug" class="category-card">
+                        <div class="category-icon" style="background-color: @(category.Color ?? "#6b7280")">
+                            @category.Name.FirstOrDefault()
+                        </div>
+                        <div class="category-content">
+                            <h3>@category.Name</h3>
+                            <p>@category.Description</p>
+                            <span class="category-post-count">@category.PostCount posts</span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        margin-bottom: 0.5rem;
+    }
+
+    .page-description {
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .categories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .category-card {
+        display: flex;
+        gap: 1.5rem;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.3s;
+    }
+
+    .category-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+        text-decoration: none;
+    }
+
+    .category-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .category-content h3 {
+        font-size: 1.125rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .category-content p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .category-post-count {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+</style>
+
+@code {
+    private List<BlogCategoryDto> categories = [];
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+        try
+        {
+            categories = await Api.GetCategoriesAsync();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

@@ -1,0 +1,443 @@
+@page "/admin"
+@inject BlogApiClient Api
+
+<PageTitle>Admin - TechBlog</PageTitle>
+
+<div class="container">
+    <div class="page-section">
+        <div class="admin-header">
+            <div>
+                <h1>Blog Administration</h1>
+                <p class="admin-subtitle">Configure blog plugins and view statistics</p>
+            </div>
+        </div>
+
+        @if (loading)
+        {
+            <div class="loading">
+                <div class="loading-spinner"></div>
+            </div>
+        }
+        else
+        {
+            <!-- Stats Overview -->
+            @if (stats != null)
+            {
+                <div class="stats-grid admin-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">@stats.TotalPosts</div>
+                        <div class="stat-label">Total Posts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@stats.PublishedPosts</div>
+                        <div class="stat-label">Published</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@stats.DraftPosts</div>
+                        <div class="stat-label">Drafts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@stats.TotalViews</div>
+                        <div class="stat-label">Total Views</div>
+                    </div>
+                </div>
+            }
+
+            <!-- Plugin Sections -->
+            @if (plugins != null)
+            {
+                <div class="plugin-sections">
+                    <!-- Data Provider -->
+                    <section class="plugin-section">
+                        <div class="section-header">
+                            <div>
+                                <h2>Data Provider</h2>
+                                <p class="section-description">Choose how blog data is stored and retrieved</p>
+                            </div>
+                            <span class="active-badge">Active: @plugins.Data.Active</span>
+                        </div>
+                        <div class="plugin-options">
+                            @foreach (var option in plugins.Data.Options)
+                            {
+                                var alias = option.Alias;
+                                <div class="plugin-card @(option.Alias == plugins.Data.Active ? "active" : "")"
+                                     @onclick="@(() => ActivateDataPlugin(alias))">
+                                    <div class="plugin-header">
+                                        <span class="plugin-name">@option.Name</span>
+                                        @if (option.Alias == plugins.Data.Active)
+                                        {
+                                            <span class="plugin-badge active">Active</span>
+                                        }
+                                    </div>
+                                    <p class="plugin-description">@option.Description</p>
+                                    <div class="plugin-features">
+                                        @foreach (var feature in option.Features)
+                                        {
+                                            <span class="plugin-feature">@feature</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </section>
+
+                    <!-- Editor -->
+                    <section class="plugin-section">
+                        <div class="section-header">
+                            <div>
+                                <h2>Content Editor</h2>
+                                <p class="section-description">Select the editor for writing blog posts</p>
+                            </div>
+                            <span class="active-badge">Active: @plugins.Editor.Active</span>
+                        </div>
+                        <div class="plugin-options">
+                            @foreach (var option in plugins.Editor.Options)
+                            {
+                                var alias = option.Alias;
+                                <div class="plugin-card @(option.Alias == plugins.Editor.Active ? "active" : "")"
+                                     @onclick="@(() => ActivateEditorPlugin(alias))">
+                                    <div class="plugin-header">
+                                        <span class="plugin-name">@option.Name</span>
+                                        @if (option.Alias == plugins.Editor.Active)
+                                        {
+                                            <span class="plugin-badge active">Active</span>
+                                        }
+                                    </div>
+                                    <p class="plugin-description">@option.Description</p>
+                                    <div class="plugin-features">
+                                        @foreach (var feature in option.Features)
+                                        {
+                                            <span class="plugin-feature">@feature</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </section>
+
+                    <!-- Authentication -->
+                    <section class="plugin-section">
+                        <div class="section-header">
+                            <div>
+                                <h2>Authentication</h2>
+                                <p class="section-description">Configure how users authenticate</p>
+                            </div>
+                            <span class="active-badge">Active: @plugins.Auth.Active</span>
+                        </div>
+                        <div class="plugin-options">
+                            @foreach (var option in plugins.Auth.Options)
+                            {
+                                var alias = option.Alias;
+                                <div class="plugin-card @(option.Alias == plugins.Auth.Active ? "active" : "")"
+                                     @onclick="@(() => ActivateAuthPlugin(alias))">
+                                    <div class="plugin-header">
+                                        <span class="plugin-name">@option.Name</span>
+                                        @if (option.Alias == plugins.Auth.Active)
+                                        {
+                                            <span class="plugin-badge active">Active</span>
+                                        }
+                                    </div>
+                                    <p class="plugin-description">@option.Description</p>
+                                    <div class="plugin-features">
+                                        @foreach (var feature in option.Features)
+                                        {
+                                            <span class="plugin-feature">@feature</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </section>
+
+                    <!-- Syndication -->
+                    <section class="plugin-section">
+                        <div class="section-header">
+                            <div>
+                                <h2>Syndication</h2>
+                                <p class="section-description">Enable cross-posting to other platforms (multiple can be active)</p>
+                            </div>
+                            <span class="active-badge">@plugins.Syndication.Active.Count active</span>
+                        </div>
+                        <div class="plugin-options syndication-options">
+                            @foreach (var option in plugins.Syndication.Options)
+                            {
+                                var isActive = plugins.Syndication.Active.Contains(option.Alias);
+                                <div class="plugin-card syndication-card @(isActive ? "active" : "")"
+                                     style="@(option.Color != null ? $"border-left: 4px solid {option.Color}" : "")">
+                                    <div class="plugin-header">
+                                        <span class="plugin-name">@option.Name</span>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked="@isActive"
+                                                   @onchange="() => ToggleSyndication(option.Alias, !isActive)" />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <p class="plugin-description">@option.Description</p>
+                                    <div class="plugin-features">
+                                        @foreach (var feature in option.Features)
+                                        {
+                                            <span class="plugin-feature">@feature</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                </div>
+            }
+
+            <!-- Action Log -->
+            @if (actionLog.Any())
+            {
+                <div class="action-log">
+                    <h3>Recent Changes</h3>
+                    <div class="log-entries">
+                        @foreach (var entry in actionLog.TakeLast(5).Reverse())
+                        {
+                            <div class="log-entry">
+                                <span class="log-time">@entry.Time.ToString("HH:mm:ss")</span>
+                                <span class="log-message">@entry.Message</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<style>
+    .admin-header {
+        margin-bottom: 2rem;
+    }
+
+    .admin-header h1 {
+        margin-bottom: 0.5rem;
+    }
+
+    .admin-subtitle {
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .admin-stats {
+        margin-bottom: 3rem;
+    }
+
+    .plugin-sections {
+        display: flex;
+        flex-direction: column;
+        gap: 3rem;
+    }
+
+    .plugin-section {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .section-description {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    .active-badge {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .plugin-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .syndication-options {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+
+    .plugin-card {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .syndication-card {
+        cursor: default;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--border-color);
+        transition: 0.3s;
+        border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+        background-color: var(--success);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    .action-log {
+        margin-top: 3rem;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+    }
+
+    .action-log h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .log-entries {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .log-entry {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.875rem;
+        padding: 0.5rem;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+    }
+
+    .log-time {
+        color: var(--text-muted);
+        font-family: monospace;
+    }
+
+    .log-message {
+        color: var(--text-primary);
+    }
+</style>
+
+@code {
+    private BlogPluginsResponse? plugins;
+    private BlogStatsDto? stats;
+    private bool loading = true;
+    private List<LogEntry> actionLog = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        loading = true;
+        try
+        {
+            var pluginsTask = Api.GetPluginsAsync();
+            var statsTask = Api.GetStatsAsync();
+            await Task.WhenAll(pluginsTask, statsTask);
+            plugins = await pluginsTask;
+            stats = await statsTask;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ActivateDataPlugin(string alias) => await ActivatePlugin("data", alias);
+    private async Task ActivateEditorPlugin(string alias) => await ActivatePlugin("editor", alias);
+    private async Task ActivateAuthPlugin(string alias) => await ActivatePlugin("auth", alias);
+
+    private async Task ActivatePlugin(string type, string alias)
+    {
+        var success = await Api.ActivatePluginAsync(type, alias);
+        if (success)
+        {
+            actionLog.Add(new LogEntry(DateTime.Now, $"Activated {type} plugin: {alias}"));
+            plugins = await Api.GetPluginsAsync();
+        }
+    }
+
+    private async Task ToggleSyndication(string alias, bool activate)
+    {
+        bool success;
+        if (activate)
+        {
+            success = await Api.ActivatePluginAsync("syndication", alias);
+            if (success)
+            {
+                actionLog.Add(new LogEntry(DateTime.Now, $"Enabled syndication: {alias}"));
+            }
+        }
+        else
+        {
+            success = await Api.DeactivatePluginAsync("syndication", alias);
+            if (success)
+            {
+                actionLog.Add(new LogEntry(DateTime.Now, $"Disabled syndication: {alias}"));
+            }
+        }
+
+        if (success)
+        {
+            plugins = await Api.GetPluginsAsync();
+        }
+    }
+
+    private record LogEntry(DateTime Time, string Message);
+}

@@ -1,8 +1,11 @@
 @page "/experiments"
 @using AspireDemo.Web
 @using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
 @inject ExperimentApiClient ExperimentApi
 @inject ThemeService ThemeService
+@inject DemoStateService DemoState
 
 <SetPageTitle Title="Experiments - OptimizeLab" />
 
@@ -49,11 +52,11 @@
             <div class="stat-label">Total</div>
         </div>
         <div class="stat-card active">
-            <div class="stat-value">@(_loading ? "-" : _experiments.Count(e => e.Status == "Active").ToString())</div>
+            <div class="stat-value">@(_loading ? "-" : _experiments.Count(e => e.Status == "Active" && !DemoState.GetKillSwitch(e.Name)).ToString())</div>
             <div class="stat-label">Active</div>
         </div>
         <div class="stat-card killed">
-            <div class="stat-value">@(_loading ? "-" : _killSwitches.Count(k => k.Value).ToString())</div>
+            <div class="stat-value">@(_loading ? "-" : DemoState.GetAllKillSwitches().Count(k => k.Value).ToString())</div>
             <div class="stat-label">Killed</div>
         </div>
         <div class="stat-card">
@@ -65,13 +68,13 @@
     <!-- Filters & Search -->
     <div class="toolbar">
         <div class="filter-group">
-            <button class="filter-btn @(_filterCategory == null ? "active" : "")" @onclick="() => _filterCategory = null">
+            <button class="filter-btn @(DemoState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DemoState.ExperimentFilterCategory = null">
                 All
             </button>
             @foreach (var category in new[] { "Revenue", "Engagement", "UX" })
             {
-                <button class="filter-btn @(_filterCategory == category ? "active" : "")"
-                        @onclick="() => _filterCategory = category">
+                <button class="filter-btn @(DemoState.ExperimentFilterCategory == category ? "active" : "")"
+                        @onclick="() => DemoState.ExperimentFilterCategory = category">
                     @category
                 </button>
             }
@@ -81,7 +84,7 @@
                 <circle cx="11" cy="11" r="8"/>
                 <path d="M21 21l-4.35-4.35"/>
             </svg>
-            <input type="text" placeholder="Search experiments..." @bind="_searchQuery" @bind:event="oninput" />
+            <input type="text" placeholder="Search experiments..." @bind="DemoState.ExperimentSearchQuery" @bind:event="oninput" />
         </div>
     </div>
 
@@ -109,7 +112,7 @@
                     <path d="M12 8v4M12 16h.01"/>
                 </svg>
                 <p>No experiments match your criteria</p>
-                <button class="btn-secondary" @onclick="() => { _filterCategory = null; _searchQuery = string.Empty; }">
+                <button class="btn-secondary" @onclick="() => { DemoState.ExperimentFilterCategory = null; DemoState.ExperimentSearchQuery = string.Empty; }">
                     Clear Filters
                 </button>
             </div>
@@ -118,11 +121,11 @@
         {
             @foreach (var experiment in FilteredExperiments)
             {
-                var isKilled = _killSwitches.GetValueOrDefault(experiment.Name, false);
-                var isExpanded = _expandedExperiments.Contains(experiment.Name);
+                var isKilled = DemoState.GetKillSwitch(experiment.Name);
+                var isExpanded = DemoState.IsExpanded("experiments", experiment.Name);
 
                 <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "")">
-                    <div class="exp-main" @onclick="() => ToggleExpanded(experiment.Name)">
+                    <div class="exp-main" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
                         <div class="exp-info">
                             <div class="exp-header">
                                 <span class="exp-name">@experiment.DisplayName</span>
@@ -171,7 +174,7 @@
                                             <span class="control-hint">@(isKilled ? "Disabled - using default variant" : "Enabled - experiment is active")</span>
                                         </div>
                                         <label class="toggle">
-                                            <input type="checkbox" checked="@isKilled" @onchange="() => ToggleKillSwitch(experiment.Name)" />
+                                            <input type="checkbox" checked="@isKilled" @onchange="() => ToggleKillSwitchWithApi(experiment.Name)" />
                                             <span class="toggle-track"></span>
                                         </label>
                                     </div>
@@ -907,14 +910,10 @@
 
 @code {
     private List<ExperimentInfo> _experiments = [];
-    private Dictionary<string, bool> _killSwitches = new();
-    private HashSet<string> _expandedExperiments = new();
     private bool _loading = true;
     private bool _activating = false;
     private bool _dataLoaded = false;
     private string? _error;
-    private string? _filterCategory;
-    private string _searchQuery = string.Empty;
 
     private IEnumerable<ExperimentInfo> FilteredExperiments
     {
@@ -922,21 +921,36 @@
         {
             var filtered = _experiments.AsEnumerable();
 
-            if (!string.IsNullOrWhiteSpace(_filterCategory))
+            if (!string.IsNullOrWhiteSpace(DemoState.ExperimentFilterCategory))
             {
-                filtered = filtered.Where(e => e.Category.Equals(_filterCategory, StringComparison.OrdinalIgnoreCase));
+                filtered = filtered.Where(e => e.Category.Equals(DemoState.ExperimentFilterCategory, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            if (!string.IsNullOrWhiteSpace(DemoState.ExperimentSearchQuery))
             {
                 filtered = filtered.Where(e =>
-                    e.DisplayName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                    e.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                    e.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
+                    e.DisplayName.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    e.Name.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    e.Description.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
             return filtered;
         }
+    }
+
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -956,11 +970,17 @@
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
-            _experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
-            foreach (var exp in _experiments)
-            {
-                _killSwitches.TryAdd(exp.Name, false);
-            }
+            var experimentsTask = ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
+            var killSwitchTask = ExperimentApi.GetKillSwitchStatusesAsync().WaitAsync(cts.Token);
+
+            await Task.WhenAll(experimentsTask, killSwitchTask);
+
+            _experiments = await experimentsTask;
+            var killSwitches = await killSwitchTask;
+
+            // Sync state with API
+            DemoState.SyncVariantsFromApi(_experiments);
+            DemoState.SyncKillSwitchesFromApi(killSwitches);
         }
         catch (OperationCanceledException)
         {
@@ -984,22 +1004,36 @@
         return variant?.DisplayName ?? exp.ActiveVariant;
     }
 
-    private void ToggleKillSwitch(string experimentName)
+    private void ToggleExperimentExpanded(string experimentName)
     {
-        _killSwitches[experimentName] = !_killSwitches.GetValueOrDefault(experimentName, false);
+        DemoState.ToggleExpanded("experiments", experimentName);
     }
 
-    private void ToggleExpanded(string experimentName)
+    private async Task ToggleKillSwitchWithApi(string experimentName)
     {
-        if (_expandedExperiments.Contains(experimentName))
-            _expandedExperiments.Remove(experimentName);
-        else
-            _expandedExperiments.Add(experimentName);
+        var newState = !DemoState.GetKillSwitch(experimentName);
+        DemoState.SetKillSwitch(experimentName, newState);
+
+        try
+        {
+            // Persist to API
+            await ExperimentApi.UpdateKillSwitchAsync(new KillSwitchUpdate
+            {
+                Experiment = experimentName,
+                Disabled = newState
+            });
+        }
+        catch (Exception ex)
+        {
+            // Revert on error
+            DemoState.SetKillSwitch(experimentName, !newState);
+            _error = $"Failed to update kill switch: {ex.Message}";
+        }
     }
 
     private async Task ActivateVariant(string experimentName, string variantName)
     {
-        if (_killSwitches.GetValueOrDefault(experimentName, false)) return;
+        if (DemoState.GetKillSwitch(experimentName)) return;
 
         _activating = true;
         try
@@ -1012,6 +1046,9 @@
                 {
                     _experiments[index] = result;
                 }
+
+                // Update centralized state
+                DemoState.SetActiveVariant(experimentName, variantName);
 
                 if (experimentName == "ui-theme")
                 {

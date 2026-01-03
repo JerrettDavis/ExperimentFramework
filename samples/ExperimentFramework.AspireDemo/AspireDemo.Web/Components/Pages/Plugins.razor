@@ -1,7 +1,10 @@
 @page "/plugins"
 @using AspireDemo.Web
 @using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
 @inject ExperimentApiClient ExperimentApi
+@inject DemoStateService DemoState
 
 <SetPageTitle Title="Integrations - OptimizeLab" />
 
@@ -91,7 +94,7 @@
         {
             @foreach (var plugin in _plugins)
             {
-                var isExpanded = _expandedPlugins.Contains(plugin.Id);
+                var isExpanded = DemoState.IsExpanded("plugins", plugin.Id);
                 <div class="plugin-card @plugin.Status.ToLower()">
                     <div class="plugin-header">
                         <div class="plugin-icon @GetPluginIconClass(plugin)">
@@ -844,14 +847,27 @@
 @code {
     private List<PluginInfo> _plugins = [];
     private List<AuditLogEntry> _auditEvents = [];
-    private Dictionary<string, ActivePluginImplementation> _activeImplementations = [];
-    private HashSet<string> _expandedPlugins = [];
     private bool _loading = true;
     private bool _discovering = false;
     private bool _reloading = false;
     private bool _dataLoaded = false;
     private string? _error;
     private string? _success;
+
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -871,7 +887,8 @@
         try
         {
             _plugins = await ExperimentApi.GetPluginsAsync().WaitAsync(cts.Token);
-            _activeImplementations = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            DemoState.SyncPluginImplementationsFromApi(activeImpls);
             await LoadAuditEvents().WaitAsync(cts.Token);
         }
         catch (OperationCanceledException)
@@ -890,8 +907,8 @@
 
     private bool IsImplementationActive(string interfaceName, string pluginId, string implType)
     {
-        if (!_activeImplementations.TryGetValue(interfaceName, out var active))
-            return false;
+        var active = DemoState.GetActivePluginImplementation(interfaceName);
+        if (active == null) return false;
         return active.PluginId == pluginId && active.ImplementationType == implType;
     }
 
@@ -900,7 +917,7 @@
         try
         {
             await ExperimentApi.ClearActivePluginImplementationAsync(interfaceName);
-            _activeImplementations.Remove(interfaceName);
+            DemoState.SetActivePluginImplementation(interfaceName, null);
             _success = $"Cleared active implementation for {interfaceName}";
             await LoadAuditEvents();
         }
@@ -975,14 +992,14 @@
             var result = await ExperimentApi.UsePluginImplementationAsync(pluginId, interfaceName, implName);
             if (result != null)
             {
-                _activeImplementations[interfaceName] = new ActivePluginImplementation
+                DemoState.SetActivePluginImplementation(interfaceName, new ActivePluginImplementation
                 {
                     PluginId = result.PluginId,
                     Interface = result.Interface,
                     ImplementationType = result.Implementation,
                     Alias = result.Alias,
                     ActivatedAt = DateTime.UtcNow
-                };
+                });
             }
             _success = $"Now using {implName} for {interfaceName}. Go to Live Demo to see it in action!";
             await LoadAuditEvents();
@@ -1007,10 +1024,7 @@
 
     private void ToggleExpanded(string pluginId)
     {
-        if (_expandedPlugins.Contains(pluginId))
-            _expandedPlugins.Remove(pluginId);
-        else
-            _expandedPlugins.Add(pluginId);
+        DemoState.ToggleExpanded("plugins", pluginId);
     }
 
     private static string GetPluginIconClass(PluginInfo plugin)

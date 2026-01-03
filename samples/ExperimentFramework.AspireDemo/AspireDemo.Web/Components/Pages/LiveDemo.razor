@@ -1,8 +1,11 @@
 @page "/demo"
 @using AspireDemo.Web
 @using AspireDemo.Web.Components.Shared
+@using AspireDemo.Web.Services
+@implements IDisposable
 @inject ExperimentApiClient ExperimentApi
 @inject ThemeService ThemeService
+@inject DemoStateService DemoState
 
 <SetPageTitle Title="Test Lab - OptimizeLab" />
 
@@ -26,7 +29,7 @@
                     @foreach (var variant in new[] { ("tiered", "Tiered"), ("flat", "Flat"), ("volume", "Volume") })
                     {
                         var v = variant;
-                        var isActive = _activeVariants.GetValueOrDefault(pricingExp) == v.Item1 && !IsPluginActiveFor("IPricingStrategy");
+                        var isActive = DemoState.GetActiveVariant(pricingExp) == v.Item1 && !IsPluginActiveFor("IPricingStrategy");
                         <button class="toggle-btn @(isActive ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(pricingExp, v.Item1))"
                                 disabled="@(_switching || _initialLoading)">
@@ -98,7 +101,7 @@
                     @foreach (var variant in new[] { ("standard", "Standard"), ("personalized", "Personalized") })
                     {
                         var v = variant;
-                        <button class="toggle-btn @(_activeVariants.GetValueOrDefault(notifExp) == v.Item1 ? "active" : "")"
+                        <button class="toggle-btn @(DemoState.GetActiveVariant(notifExp) == v.Item1 ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(notifExp, v.Item1))"
                                 disabled="@(_switching || _initialLoading)">
                             @v.Item2
@@ -145,7 +148,7 @@
                     @foreach (var variant in new[] { ("basic", "Basic"), ("ai-powered", "AI"), ("collaborative", "Collab") })
                     {
                         var v = variant;
-                        var isActive = _activeVariants.GetValueOrDefault(recsExp) == v.Item1 && !IsPluginActiveFor("IRecommendationEngine");
+                        var isActive = DemoState.GetActiveVariant(recsExp) == v.Item1 && !IsPluginActiveFor("IRecommendationEngine");
                         <button class="toggle-btn @(isActive ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(recsExp, v.Item1))"
                                 disabled="@(_switching || _initialLoading)">
@@ -217,7 +220,7 @@
                     @foreach (var variant in new[] { ("light", "Light"), ("dark", "Dark"), ("system", "System") })
                     {
                         var v = variant;
-                        <button class="toggle-btn @(_activeVariants.GetValueOrDefault(themeExp) == v.Item1 ? "active" : "")"
+                        <button class="toggle-btn @(DemoState.GetActiveVariant(themeExp) == v.Item1 ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(themeExp, v.Item1))"
                                 disabled="@(_switching || _initialLoading)">
                             @v.Item2
@@ -860,15 +863,28 @@
     private bool _loadingTheme;
     private bool _switching;
 
-    private Dictionary<string, string> _activeVariants = new();
     private List<PluginInfo> _plugins = [];
-    private Dictionary<string, ActivePluginImplementation> _activePluginImpls = [];
     private bool _dataLoaded = false;
 
     private PricingResponse? _pricingResult;
     private NotificationResponse? _notificationResult;
     private RecommendationResponse? _recommendationResult;
     private ThemeResponse? _themeResult;
+
+    protected override void OnInitialized()
+    {
+        DemoState.OnStateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        DemoState.OnStateChanged -= HandleStateChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -888,10 +904,7 @@
         try
         {
             var experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
-            foreach (var exp in experiments)
-            {
-                _activeVariants[exp.Name] = exp.ActiveVariant;
-            }
+            DemoState.SyncVariantsFromApi(experiments);
         }
         catch { }
 
@@ -899,7 +912,8 @@
         try
         {
             _plugins = await ExperimentApi.GetPluginsAsync().WaitAsync(cts.Token);
-            _activePluginImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
+            DemoState.SyncPluginImplementationsFromApi(activeImpls);
         }
         catch { }
 
@@ -934,13 +948,13 @@
 
     private bool IsPluginActiveFor(string interfaceName)
     {
-        return _activePluginImpls.ContainsKey(interfaceName);
+        return DemoState.GetActivePluginImplementation(interfaceName) != null;
     }
 
     private bool IsPluginImplActive(string interfaceName, string pluginId, string implType)
     {
-        if (!_activePluginImpls.TryGetValue(interfaceName, out var active))
-            return false;
+        var active = DemoState.GetActivePluginImplementation(interfaceName);
+        if (active == null) return false;
         return active.PluginId == pluginId && active.ImplementationType == implType;
     }
 
@@ -952,14 +966,14 @@
             var result = await ExperimentApi.UsePluginImplementationAsync(pluginId, interfaceName, implName);
             if (result != null)
             {
-                _activePluginImpls[interfaceName] = new ActivePluginImplementation
+                DemoState.SetActivePluginImplementation(interfaceName, new ActivePluginImplementation
                 {
                     PluginId = result.PluginId,
                     Interface = result.Interface,
                     ImplementationType = result.Implementation,
                     Alias = result.Alias,
                     ActivatedAt = DateTime.UtcNow
-                };
+                });
 
                 // Refresh the relevant demo
                 if (interfaceName == "IPricingStrategy")
@@ -983,7 +997,7 @@
             var result = await ExperimentApi.ActivateVariantAsync(experimentName, variant);
             if (result != null)
             {
-                _activeVariants[experimentName] = variant;
+                DemoState.SetActiveVariant(experimentName, variant);
 
                 // Clear any active plugin implementation for this experiment's interface
                 string? interfaceToC = experimentName switch
@@ -993,10 +1007,10 @@
                     _ => null
                 };
 
-                if (interfaceToC != null && _activePluginImpls.ContainsKey(interfaceToC))
+                if (interfaceToC != null && DemoState.GetActivePluginImplementation(interfaceToC) != null)
                 {
                     await ExperimentApi.ClearActivePluginImplementationAsync(interfaceToC);
-                    _activePluginImpls.Remove(interfaceToC);
+                    DemoState.SetActivePluginImplementation(interfaceToC, null);
                 }
 
                 // Refresh the relevant demo based on which experiment changed
