@@ -141,9 +141,19 @@ public sealed class PersistentKillSwitchProvider : IKillSwitchProvider
         if (string.IsNullOrEmpty(value))
             return value;
 
-        return value
-            .Replace("\r", string.Empty)
-            .Replace("\n", string.Empty);
+        // Remove control characters (including newlines) to prevent log forging
+        var buffer = new char[value.Length];
+        var index = 0;
+
+        foreach (var ch in value)
+        {
+            if (!char.IsControl(ch))
+            {
+                buffer[index++] = ch;
+            }
+        }
+
+        return new string(buffer, 0, index);
     }
 
     private static string GetTrialKey(Type serviceType, string trialKey)
