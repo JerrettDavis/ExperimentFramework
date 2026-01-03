@@ -224,6 +224,7 @@ public sealed class RuntimeExperimentManager
                     DisplayName = GetMetadataString(expConfig.Metadata, "displayName") ?? expConfig.Name,
                     Description = GetMetadataString(expConfig.Metadata, "description") ?? "",
                     ActiveVariant = variants.FirstOrDefault()?.Name ?? "default",
+                    DefaultVariant = variants.FirstOrDefault()?.Name ?? "default",
                     Variants = variants.Any() ? variants : [new VariantInfo { Name = "default", DisplayName = "Default", Description = "Default variant" }],
                     Category = GetMetadataString(expConfig.Metadata, "category") ?? "Uncategorized",
                     Status = "Active",

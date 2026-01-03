@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
+using AspireDemo.ApiService.Models;
 using AspireDemo.ApiService.Services;
 using ExperimentFramework;
 using ExperimentFramework.Audit;
+using ExperimentFramework.KillSwitch;
 using ExperimentFramework.Targeting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,9 +15,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 // Experiment state management (in-memory for demo)
+var killSwitch = new InMemoryKillSwitchProvider();
+builder.Services.AddSingleton(killSwitch);
+builder.Services.AddSingleton<IKillSwitchProvider>(killSwitch);
 builder.Services.AddSingleton<ExperimentStateManager>();
 builder.Services.AddSingleton<PluginStateManager>();
 builder.Services.AddSingleton<RuntimeExperimentManager>();
+builder.Services.AddSingleton<FeatureAuditService>();
 
 // Register all experiment implementations
 builder.Services.AddSingleton<TieredPricing>();
@@ -46,6 +52,8 @@ builder.Services.AddSingleton<IAuditSink>(sp => sp.GetRequiredService<InMemoryAu
 
 var experiments = ExperimentFrameworkBuilder.Create()
     .UseDispatchProxy()
+    .WithTimeout(TimeSpan.FromSeconds(2), TimeoutAction.FallbackToDefault)
+    .WithKillSwitch(killSwitch)
     .Define<IPricingStrategy>(c => c
         .UsingConfigurationKey("Experiments:Pricing")
         .AddDefaultTrial<TieredPricing>("tiered")
@@ -502,7 +510,7 @@ app.MapGet("/api/config/yaml", (RuntimeExperimentManager dslManager) =>
 .WithName("GetConfigYaml")
 .WithTags("Configuration");
 
-app.MapGet("/api/config/info", (ExperimentStateManager state) =>
+app.MapGet("/api/config/info", (ExperimentStateManager state, FeatureAuditService featureAudit) =>
 {
     var info = new
     {
@@ -526,18 +534,42 @@ app.MapGet("/api/config/info", (ExperimentStateManager state) =>
             Active = state.GetAllExperiments().Count(e => e.Status == "Active"),
             Categories = state.GetAllExperiments().GroupBy(e => e.Category).ToDictionary(g => g.Key, g => g.Count()),
         },
-        Features = new[]
-        {
-            new { Name = "Targeting", Enabled = true, Description = "User/context-based experiment targeting" },
-            new { Name = "Audit Logging", Enabled = true, Description = "In-memory audit event recording" },
-            new { Name = "Theme Switching", Enabled = true, Description = "Live UI theme experimentation" },
-            new { Name = "YAML DSL Export", Enabled = true, Description = "Export experiments as YAML configuration" },
-            new { Name = "DSL Editor", Enabled = true, Description = "Runtime configuration via YAML DSL" }
-        }
+        Features = featureAudit.GetFeatures()
     };
     return Results.Ok(info);
 })
 .WithName("GetConfigInfo")
+.WithTags("Configuration");
+
+app.MapGet("/api/config/kill-switch", (ExperimentStateManager state) =>
+{
+    return Results.Ok(state.GetKillSwitchStatuses());
+})
+.WithName("GetKillSwitch")
+.WithTags("Configuration");
+
+app.MapPost("/api/config/kill-switch", (KillSwitchUpdate request, IKillSwitchProvider killSwitch, ExperimentStateManager state) =>
+{
+    var type = ExperimentTypeResolver.GetServiceType(request.Experiment);
+
+    if (string.IsNullOrWhiteSpace(request.Variant))
+    {
+        if (request.Disabled)
+            killSwitch.DisableExperiment(type);
+        else
+            killSwitch.EnableExperiment(type);
+    }
+    else
+    {
+        if (request.Disabled)
+            killSwitch.DisableTrial(type, request.Variant);
+        else
+            killSwitch.EnableTrial(type, request.Variant);
+    }
+
+    return Results.Ok(state.GetKillSwitchStatus(request.Experiment));
+})
+.WithName("UpdateKillSwitch")
 .WithTags("Configuration");
 
 // ============================================================================
@@ -700,6 +732,28 @@ static string GetConfigKey(string experimentName) => experimentName switch
     _ => experimentName
 };
 
+internal static class ExperimentTypeResolver
+{
+    private static readonly Dictionary<string, Type> ExperimentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["pricing-strategy"] = typeof(PricingExperimentMarker),
+        ["notification-style"] = typeof(NotificationExperimentMarker),
+        ["recommendation-algorithm"] = typeof(RecommendationExperimentMarker),
+        ["ui-theme"] = typeof(ThemeExperimentMarker)
+    };
+
+    public static Type GetServiceType(string experimentName) =>
+        ExperimentTypes.TryGetValue(experimentName, out var type)
+            ? type
+            : typeof(DslExperimentMarker);
+
+    private sealed class PricingExperimentMarker;
+    private sealed class NotificationExperimentMarker;
+    private sealed class RecommendationExperimentMarker;
+    private sealed class ThemeExperimentMarker;
+    private sealed class DslExperimentMarker;
+}
+
 static PricingResult SimulatePluginPricing(string implementationType, int units)
 {
     return implementationType switch
@@ -749,9 +803,16 @@ public class ExperimentStateManager
 {
     private readonly ConcurrentDictionary<string, ExperimentInfo> _experiments = new();
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, int>> _usageStats = new();
+    private readonly IKillSwitchProvider _killSwitch;
 
-    public ExperimentStateManager()
+    public bool SupportsFeatureFlags => true;
+    public bool SupportsCustomProviders => true;
+    public bool HasUsage => _usageStats.Any(kvp => kvp.Value.Any());
+
+    public ExperimentStateManager(IKillSwitchProvider killSwitch)
     {
+        _killSwitch = killSwitch;
+
         // Initialize experiments
         _experiments["pricing-strategy"] = new ExperimentInfo
         {
@@ -759,6 +820,7 @@ public class ExperimentStateManager
             DisplayName = "Pricing Strategy",
             Description = "A/B test different pricing models to optimize revenue",
             ActiveVariant = "tiered",
+            DefaultVariant = "tiered",
             Variants = [
                 new VariantInfo { Name = "tiered", DisplayName = "Tiered Pricing", Description = "Volume-based tiers: $10 (<100), $8 (100-500), $6 (500+)" },
                 new VariantInfo { Name = "flat", DisplayName = "Flat Rate", Description = "Simple $7.50 per unit for all quantities" },
@@ -774,6 +836,7 @@ public class ExperimentStateManager
             DisplayName = "Notification Style",
             Description = "Test personalized vs standard notification messaging",
             ActiveVariant = "standard",
+            DefaultVariant = "standard",
             Variants = [
                 new VariantInfo { Name = "standard", DisplayName = "Standard", Description = "Generic welcome messages" },
                 new VariantInfo { Name = "personalized", DisplayName = "Personalized", Description = "User-specific personalized messages" }
@@ -788,6 +851,7 @@ public class ExperimentStateManager
             DisplayName = "Recommendation Algorithm",
             Description = "Compare recommendation engine algorithms",
             ActiveVariant = "basic",
+            DefaultVariant = "basic",
             Variants = [
                 new VariantInfo { Name = "basic", DisplayName = "Basic", Description = "Rule-based popular items (60% confidence)" },
                 new VariantInfo { Name = "ai-powered", DisplayName = "AI-Powered", Description = "ML-based personalized recommendations (89% confidence)" },
@@ -803,8 +867,9 @@ public class ExperimentStateManager
             DisplayName = "UI Theme",
             Description = "Test different visual themes for user preference",
             ActiveVariant = "system",
+            DefaultVariant = "system",
             Variants = [
-                new VariantInfo { Name = "system", DisplayName = "System Default", Description = "Follows user's OS preference" },
+                new VariantInfo { Name = "system", DisplayName = "System Default", Description = "Follows user's OS preference"},
                 new VariantInfo { Name = "light", DisplayName = "Light Theme", Description = "Clean white background with blue accents" },
                 new VariantInfo { Name = "dark", DisplayName = "Dark Theme", Description = "Dark background for reduced eye strain" }
             ],
@@ -818,13 +883,29 @@ public class ExperimentStateManager
     public ExperimentInfo? GetExperiment(string name) =>
         _experiments.TryGetValue(name, out var exp) ? exp : null;
 
-    public string GetActiveVariant(string name) =>
-        _experiments.TryGetValue(name, out var exp) ? exp.ActiveVariant : "default";
+    public string GetActiveVariant(string name)
+    {
+        if (!_experiments.TryGetValue(name, out var exp)) return "default";
+
+        var serviceType = ExperimentTypeResolver.GetServiceType(name);
+        if (_killSwitch.IsExperimentDisabled(serviceType))
+        {
+            return exp.DefaultVariant;
+        }
+
+        var activeVariant = exp.ActiveVariant;
+        return _killSwitch.IsTrialDisabled(serviceType, activeVariant)
+            ? exp.DefaultVariant
+            : activeVariant;
+    }
 
     public bool SetActiveVariant(string name, string variant)
     {
         if (!_experiments.TryGetValue(name, out var exp)) return false;
         if (!exp.Variants.Any(v => v.Name == variant)) return false;
+
+        var serviceType = ExperimentTypeResolver.GetServiceType(name);
+        if (_killSwitch.IsTrialDisabled(serviceType, variant)) return false;
 
         exp.ActiveVariant = variant;
         exp.LastModified = DateTime.UtcNow;
@@ -839,6 +920,27 @@ public class ExperimentStateManager
 
     public Dictionary<string, Dictionary<string, int>> GetUsageStats() =>
         _usageStats.ToDictionary(x => x.Key, x => x.Value.ToDictionary(y => y.Key, y => y.Value));
+
+    public IEnumerable<KillSwitchStatus> GetKillSwitchStatuses()
+    {
+        foreach (var experiment in _experiments.Values)
+        {
+            yield return GetKillSwitchStatus(experiment.Name);
+        }
+    }
+
+    public KillSwitchStatus GetKillSwitchStatus(string experimentName)
+    {
+        var type = ExperimentTypeResolver.GetServiceType(experimentName);
+        var disabledVariants = _experiments.TryGetValue(experimentName, out var exp)
+            ? exp.Variants.Where(v => _killSwitch.IsTrialDisabled(type, v.Name)).Select(v => v.Name).ToList()
+            : new List<string>();
+
+        return new KillSwitchStatus(
+            experimentName,
+            _killSwitch.IsExperimentDisabled(type),
+            disabledVariants);
+    }
 
     // DSL Support Methods
 
@@ -877,6 +979,7 @@ public class ExperimentStateManager
             DisplayName = kvp.Value.DisplayName,
             Description = kvp.Value.Description,
             ActiveVariant = kvp.Value.ActiveVariant,
+            DefaultVariant = kvp.Value.DefaultVariant,
             Variants = kvp.Value.Variants.ToList(),
             Category = kvp.Value.Category,
             Status = kvp.Value.Status,
@@ -900,6 +1003,7 @@ public class ExperimentInfo
     public required string DisplayName { get; set; }
     public required string Description { get; set; }
     public required string ActiveVariant { get; set; }
+    public string DefaultVariant { get; set; } = "default";
     public required List<VariantInfo> Variants { get; set; }
     public required string Category { get; set; }
     public required string Status { get; set; }

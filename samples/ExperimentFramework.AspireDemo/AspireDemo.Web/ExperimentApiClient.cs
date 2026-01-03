@@ -96,6 +96,23 @@ public class ExperimentApiClient(HttpClient httpClient)
         return await httpClient.GetFromJsonAsync<FrameworkInfo>("/api/config/info", cancellationToken);
     }
 
+    public async Task<List<KillSwitchStatus>> GetKillSwitchStatusesAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await httpClient.GetFromJsonAsync<List<KillSwitchStatus>>("/api/config/kill-switch", cancellationToken);
+        return result ?? [];
+    }
+
+    public async Task<KillSwitchStatus?> UpdateKillSwitchAsync(KillSwitchUpdate request, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync("/api/config/kill-switch", request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadFromJsonAsync<KillSwitchStatus>(cancellationToken);
+        }
+
+        return null;
+    }
+
     // ============================================================================
     // DSL Configuration
     // ============================================================================
@@ -295,6 +312,21 @@ public class FeatureInfo
     public string Name { get; set; } = "";
     public bool Enabled { get; set; }
     public string Description { get; set; } = "";
+    public string Category { get; set; } = "General";
+}
+
+public class KillSwitchStatus
+{
+    public string Experiment { get; set; } = "";
+    public bool ExperimentDisabled { get; set; }
+    public List<string> DisabledVariants { get; set; } = [];
+}
+
+public class KillSwitchUpdate
+{
+    public string Experiment { get; set; } = "";
+    public string? Variant { get; set; }
+    public bool Disabled { get; set; }
 }
 
 // ============================================================================
