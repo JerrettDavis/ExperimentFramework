@@ -3,6 +3,7 @@
 @using AspireDemo.Web.Data
 @using Microsoft.AspNetCore.Identity
 @layout AspireDemo.Web.Components.Layout.MinimalLayout
+@rendermode InteractiveServer
 @inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager Navigation
 
@@ -239,13 +240,20 @@
 </style>
 
 @code {
-    private LoginModel _model = new();
+    [SupplyParameterFromForm]
+    private LoginModel? _model { get; set; }
+
     private string? _errorMessage;
     private bool _isProcessing;
 
     [Parameter]
     [SupplyParameterFromQuery(Name = "returnUrl")]
     public string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _model ??= new();
+    }
 
     private class LoginModel
     {
@@ -261,6 +269,8 @@
 
     private async Task HandleLogin()
     {
+        if (_model == null) return;
+
         _isProcessing = true;
         _errorMessage = null;
 
@@ -294,6 +304,7 @@
 
     private async Task LoginAsAdmin()
     {
+        if (_model == null) return;
         _model.Email = "admin@experimentdemo.com";
         _model.Password = "Admin123!";
         await HandleLogin();
@@ -301,6 +312,7 @@
 
     private async Task LoginAsExperimenter()
     {
+        if (_model == null) return;
         _model.Email = "experimenter@experimentdemo.com";
         _model.Password = "Experimenter123!";
         await HandleLogin();
@@ -308,6 +320,7 @@
 
     private async Task LoginAsViewer()
     {
+        if (_model == null) return;
         _model.Email = "viewer@experimentdemo.com";
         _model.Password = "Viewer123!";
         await HandleLogin();
@@ -315,6 +328,7 @@
 
     private async Task LoginAsAnalyst()
     {
+        if (_model == null) return;
         _model.Email = "analyst@experimentdemo.com";
         _model.Password = "Analyst123!";
         await HandleLogin();
