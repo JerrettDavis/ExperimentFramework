@@ -1,0 +1,15 @@
+@page "/Account/Logout"
+@using AspireDemo.Web.Data
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager Navigation
+
+<PageTitle>Logout - Experiment Demo</PageTitle>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await SignInManager.SignOutAsync();
+        Navigation.NavigateTo("/Account/Login", forceLoad: true);
+    }
+}

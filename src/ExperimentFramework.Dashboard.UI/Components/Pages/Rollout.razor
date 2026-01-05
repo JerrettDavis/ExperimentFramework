@@ -776,7 +776,7 @@
         _rolloutConfig = _selectedExperimentInfo?.Rollout;
         _selectedVariant = _rolloutConfig?.TargetVariant ?? "";
 
-        // Initialize with default stages if no rollout exists
+        // Initialize with default stages if no rollout exists or rollout is not enabled
         if (_rolloutConfig == null || !_rolloutConfig.Enabled)
         {
             _rolloutStages = [
@@ -785,6 +785,13 @@
                 new RolloutStageDto { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
             ];
         }
+        else
+        {
+            // Copy existing stages for editing (if rollout is enabled, it's already in progress)
+            _rolloutStages = _rolloutConfig.Stages.ToList();
+        }
+
+        StateHasChanged();
     }
 
     private void AddStage()
@@ -803,6 +810,8 @@
             return;
 
         _actionInProgress = true;
+        StateHasChanged();
+
         try
         {
             var config = new RolloutConfiguration
@@ -821,15 +830,23 @@
             {
                 _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
                 await LoadExperiments(); // Refresh
+                StateHasChanged();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to start rollout. Status: {response.StatusCode}, Error: {error}");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to start rollout: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
         finally
         {
             _actionInProgress = false;
+            StateHasChanged();
         }
     }
 
@@ -885,6 +902,8 @@
         if (string.IsNullOrEmpty(_selectedExperiment)) return;
 
         _actionInProgress = true;
+        StateHasChanged();
+
         try
         {
             var response = await ExperimentApi.HttpClient.PostAsync($"/api/rollout/{_selectedExperiment}/{action}", null);
@@ -892,6 +911,12 @@
             {
                 _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
                 await LoadExperiments();
+                StateHasChanged();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to {action} rollout. Status: {response.StatusCode}, Error: {error}");
             }
         }
         catch (Exception ex)
@@ -901,6 +926,7 @@
         finally
         {
             _actionInProgress = false;
+            StateHasChanged();
         }
     }
 
