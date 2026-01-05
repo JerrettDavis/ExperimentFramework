@@ -156,7 +156,10 @@ app.MapStaticAssets();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Map the ExperimentFramework Dashboard
+// Add ExperimentFramework Dashboard middleware (must be after auth)
+app.UseExperimentDashboard();
+
+// Map the ExperimentFramework Dashboard endpoints
 app.MapExperimentDashboard("/dashboard");
 
 app.MapRazorComponents<AspireDemo.Web.Components.App>()

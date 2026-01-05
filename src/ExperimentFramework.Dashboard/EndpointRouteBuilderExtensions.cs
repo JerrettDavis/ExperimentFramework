@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using ExperimentFramework.Dashboard.Api;
 
 namespace ExperimentFramework.Dashboard;
@@ -10,6 +11,24 @@ namespace ExperimentFramework.Dashboard;
 /// </summary>
 public static class EndpointRouteBuilderExtensions
 {
+    /// <summary>
+    /// Adds the dashboard middleware to the application pipeline.
+    /// This should be called before MapExperimentDashboard.
+    /// </summary>
+    /// <param name="app">The application builder.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseExperimentDashboard(this IApplicationBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        // Get DashboardOptions from DI
+        var options = app.ApplicationServices.GetService<DashboardOptions>()
+            ?? throw new InvalidOperationException("DashboardOptions not found in DI. Did you call AddExperimentDashboard?");
+
+        app.UseMiddleware<DashboardMiddleware>(options);
+        return app;
+    }
+
     /// <summary>
     /// Maps the experiment dashboard to the specified path prefix.
     /// </summary>
@@ -24,35 +43,27 @@ public static class EndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        // Get the DashboardOptions from DI (if registered), otherwise create new one
+        // Get the DashboardOptions from DI
         DashboardOptions? options = null;
 
         if (endpoints is IApplicationBuilder appBuilder)
         {
-            // Try to get options from DI
-            var services = appBuilder.ApplicationServices;
-            options = services.GetService(typeof(DashboardOptions)) as DashboardOptions;
+            options = appBuilder.ApplicationServices.GetService<DashboardOptions>();
         }
 
-        // If no options in DI, create new one
+        // If no options found, create default one
         if (options == null)
         {
             options = new DashboardOptions { PathBase = pathPrefix };
         }
         else
         {
-            // Update path base if different
+            // Update path base
             options.PathBase = pathPrefix;
         }
 
         // Apply any additional configuration
         configure?.Invoke(options);
-
-        // Register middleware (gets the IApplicationBuilder from endpoints)
-        if (endpoints is IApplicationBuilder app)
-        {
-            app.UseMiddleware<DashboardMiddleware>(options);
-        }
 
         // Create route group for dashboard APIs
         var group = endpoints.MapGroup(pathPrefix);

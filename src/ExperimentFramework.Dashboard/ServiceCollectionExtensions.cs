@@ -37,7 +37,12 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<ThemeService>();
         services.TryAddScoped<ExperimentCodeGenerator>();
 
-        // Register dashboard options
+        // Register dashboard options as singleton so it can be used by middleware
+        var options = new DashboardOptions();
+        configure?.Invoke(options);
+        services.AddSingleton(options);
+
+        // Also register with IOptions pattern for compatibility
         if (configure != null)
         {
             services.Configure(configure);
