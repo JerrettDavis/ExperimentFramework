@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using ExperimentFramework.Dashboard.Api;
 
 namespace ExperimentFramework.Dashboard;
@@ -23,8 +24,28 @@ public static class EndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        // Create dashboard options
-        var options = new DashboardOptions { PathBase = pathPrefix };
+        // Get the DashboardOptions from DI (if registered), otherwise create new one
+        DashboardOptions? options = null;
+
+        if (endpoints is IApplicationBuilder appBuilder)
+        {
+            // Try to get options from DI
+            var services = appBuilder.ApplicationServices;
+            options = services.GetService(typeof(DashboardOptions)) as DashboardOptions;
+        }
+
+        // If no options in DI, create new one
+        if (options == null)
+        {
+            options = new DashboardOptions { PathBase = pathPrefix };
+        }
+        else
+        {
+            // Update path base if different
+            options.PathBase = pathPrefix;
+        }
+
+        // Apply any additional configuration
         configure?.Invoke(options);
 
         // Register middleware (gets the IApplicationBuilder from endpoints)
