@@ -24,8 +24,7 @@
             </div>
         }
 
-        <EditForm Model="@_model" OnValidSubmit="HandleLogin" FormName="LoginForm" Enhance>
-            <AntiforgeryToken />
+        <EditForm Model="@_model" OnValidSubmit="HandleLogin">
             <DataAnnotationsValidator />
 
             <div class="form-group">
