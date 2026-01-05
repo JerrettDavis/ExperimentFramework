@@ -240,7 +240,7 @@
 </style>
 
 @code {
-    [SupplyParameterFromForm]
+    [SupplyParameterFromForm(FormName = "login-form")]
     private LoginModel? _model { get; set; }
 
     private string? _errorMessage;
