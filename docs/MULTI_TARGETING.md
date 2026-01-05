@@ -30,7 +30,7 @@ When you install an ExperimentFramework NuGet package, the appropriate target fr
 
 The framework uses centralized package version management in `Directory.Build.props`:
 
-- **Microsoft.Extensions.*** packages: Version `8.0.2` for .NET 8/9, `10.0.1` for .NET 10
+- **Microsoft.Extensions.*** packages: Version `8.0.2` for `netstandard2.0`/`netstandard2.1` targets; `net8.0`, `net9.0`, and `net10.0` rely on the versions provided by the corresponding .NET runtime/SDK
 - **Microsoft.FeatureManagement**: Version `4.4.0` (supports all target frameworks)
 
 ## Why Not .NET Standard 2.0/2.1?
