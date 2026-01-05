@@ -1,6 +1,7 @@
 using ExperimentFramework.Dashboard.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace ExperimentFramework.Dashboard;
 
@@ -18,20 +19,24 @@ public sealed class DashboardMiddleware
     private readonly RequestDelegate _next;
     private readonly DashboardOptions _options;
     private readonly IAuthorizationService? _authorizationService;
+    private readonly ILogger<DashboardMiddleware> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DashboardMiddleware"/> class.
     /// </summary>
     /// <param name="next">The next middleware in the pipeline.</param>
     /// <param name="options">The dashboard configuration options.</param>
+    /// <param name="logger">Logger for diagnostics.</param>
     /// <param name="authorizationService">Optional authorization service for policy-based authorization.</param>
     public DashboardMiddleware(
         RequestDelegate next,
         DashboardOptions options,
+        ILogger<DashboardMiddleware> logger,
         IAuthorizationService? authorizationService = null)
     {
         _next = next ?? throw new ArgumentNullException(nameof(next));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _authorizationService = authorizationService;
     }
 
@@ -48,6 +53,9 @@ public sealed class DashboardMiddleware
             return;
         }
 
+        _logger.LogInformation("Dashboard middleware invoked for path: {Path}, RequireAuthorization: {RequireAuth}",
+            context.Request.Path, _options.RequireAuthorization);
+
         // Resolve tenant context
         var tenantContext = await _options.TenantResolver.ResolveAsync(context);
 
@@ -60,9 +68,15 @@ public sealed class DashboardMiddleware
             // Validate authorization if required
             if (_options.RequireAuthorization)
             {
+                var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
+                _logger.LogInformation("User authenticated: {IsAuthenticated}, User: {UserName}",
+                    isAuthenticated, context.User.Identity?.Name ?? "Anonymous");
+
                 // Check if user is authenticated
-                if (!context.User.Identity?.IsAuthenticated ?? true)
+                if (!isAuthenticated)
                 {
+                    _logger.LogWarning("Unauthenticated access attempt to dashboard. Redirecting to login.");
+
                     // Redirect to login page
                     var returnUrl = context.Request.Path + context.Request.QueryString;
                     context.Response.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}");
@@ -72,17 +86,28 @@ public sealed class DashboardMiddleware
                 // Check authorization policy if specified
                 if (_authorizationService != null && !string.IsNullOrEmpty(_options.AuthorizationPolicy))
                 {
+                    _logger.LogInformation("Checking authorization policy: {Policy}", _options.AuthorizationPolicy);
+
                     var authResult = await _authorizationService.AuthorizeAsync(
                         context.User,
                         _options.AuthorizationPolicy);
 
                     if (!authResult.Succeeded)
                     {
+                        _logger.LogWarning("Authorization failed for user {UserName}. Redirecting to access denied.",
+                            context.User.Identity?.Name);
+
                         // User is authenticated but doesn't have required permissions
                         context.Response.Redirect("/Account/AccessDenied");
                         return;
                     }
+
+                    _logger.LogInformation("Authorization succeeded for user {UserName}", context.User.Identity?.Name);
                 }
+            }
+            else
+            {
+                _logger.LogWarning("Dashboard RequireAuthorization is FALSE - allowing anonymous access!");
             }
 
             // Continue to next middleware
