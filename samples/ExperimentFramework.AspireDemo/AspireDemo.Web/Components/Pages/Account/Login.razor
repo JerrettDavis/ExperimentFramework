@@ -3,7 +3,7 @@
 @using AspireDemo.Web.Data
 @using Microsoft.AspNetCore.Identity
 @layout AspireDemo.Web.Components.Layout.MinimalLayout
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager Navigation
 
