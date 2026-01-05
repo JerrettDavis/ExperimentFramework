@@ -24,7 +24,8 @@
             </div>
         }
 
-        <EditForm Model="@_model" OnValidSubmit="HandleLogin" FormName="LoginForm">
+        <EditForm Model="@_model" OnValidSubmit="HandleLogin" FormName="LoginForm" Enhance>
+            <AntiforgeryToken />
             <DataAnnotationsValidator />
 
             <div class="form-group">
@@ -59,22 +60,22 @@
         <div class="demo-users">
             <h3>Demo Users</h3>
             <div class="user-cards">
-                <div class="user-card" @onclick="LoginAsAdmin">
+                <button type="button" class="user-card" @onclick="LoginAsAdmin">
                     <strong>Admin</strong>
                     <span>Full access</span>
-                </div>
-                <div class="user-card" @onclick="LoginAsExperimenter">
+                </button>
+                <button type="button" class="user-card" @onclick="LoginAsExperimenter">
                     <strong>Experimenter</strong>
                     <span>Can modify experiments</span>
-                </div>
-                <div class="user-card" @onclick="LoginAsViewer">
+                </button>
+                <button type="button" class="user-card" @onclick="LoginAsViewer">
                     <strong>Viewer</strong>
                     <span>Read-only access</span>
-                </div>
-                <div class="user-card" @onclick="LoginAsAnalyst">
+                </button>
+                <button type="button" class="user-card" @onclick="LoginAsAnalyst">
                     <strong>Analyst</strong>
                     <span>Analytics focus</span>
-                </div>
+                </button>
             </div>
         </div>
     </div>
