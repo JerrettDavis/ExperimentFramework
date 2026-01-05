@@ -1,6 +1,7 @@
 using ExperimentFramework.Dashboard.Abstractions;
 using ExperimentFramework.Dashboard.Authorization;
 using ExperimentFramework.Dashboard.Data;
+using ExperimentFramework.Dashboard.Persistence;
 using ExperimentFramework.Dashboard.Theming;
 using ExperimentFramework.Dashboard.UI.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IAuthorizationProvider, ClaimsPrincipalAuthProvider>();
         services.TryAddSingleton<IDashboardDataProvider, DefaultDashboardDataProvider>();
         services.TryAddSingleton<IDashboardThemeProvider, DefaultThemeProvider>();
+        services.TryAddSingleton<IRolloutPersistenceBackplane, InMemoryRolloutPersistence>();
 
         // Register UI services
         services.TryAddScoped<DashboardStateService>();

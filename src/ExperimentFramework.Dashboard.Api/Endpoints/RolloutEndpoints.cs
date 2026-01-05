@@ -1,8 +1,9 @@
+using ExperimentFramework.Admin;
+using ExperimentFramework.Dashboard.Abstractions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Concurrent;
 
 namespace ExperimentFramework.Dashboard.Api.Endpoints;
 
@@ -11,9 +12,6 @@ namespace ExperimentFramework.Dashboard.Api.Endpoints;
 /// </summary>
 public static class RolloutEndpoints
 {
-    // In-memory storage for rollout configurations (replace with persistence in production)
-    private static readonly ConcurrentDictionary<string, RolloutConfiguration> _rollouts = new();
-
     /// <summary>
     /// Maps rollout endpoints to the specified route group.
     /// </summary>
@@ -51,9 +49,24 @@ public static class RolloutEndpoints
         return group;
     }
 
-    private static IResult GetRolloutConfig(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> GetRolloutConfig(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        if (!_rollouts.TryGetValue(experimentName, out var config))
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem(
+                "Rollout persistence not configured. Register IRolloutPersistenceBackplane in DI.",
+                statusCode: 503);
+        }
+
+        var tenantId = GetTenantId(httpContext);
+        var config = await persistence.GetRolloutConfigAsync(experimentName, tenantId, ct);
+
+        if (config == null)
         {
             return Results.NotFound(new { message = $"No rollout configuration found for experiment '{experimentName}'" });
         }
@@ -61,14 +74,50 @@ public static class RolloutEndpoints
         return Results.Ok(config);
     }
 
-    private static IResult CreateOrUpdateRolloutConfig(
+    private static async Task<IResult> CreateOrUpdateRolloutConfig(
         string experimentName,
+        HttpContext httpContext,
         IServiceProvider sp,
         RolloutConfiguration request,
         CancellationToken ct)
     {
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem(
+                "Rollout persistence not configured. Register IRolloutPersistenceBackplane in DI.",
+                statusCode: 503);
+        }
+
+        var registry = sp.GetService<IMutableExperimentRegistry>();
+        if (registry == null)
+        {
+            return Results.Problem(
+                "Mutable experiment registry not available. Rollout requires IMutableExperimentRegistry.",
+                statusCode: 503);
+        }
+
+        // Validate experiment exists
+        var experiment = registry.GetExperiment(experimentName);
+        if (experiment == null)
+        {
+            return Results.NotFound(new { message = $"Experiment '{experimentName}' not found" });
+        }
+
+        // Validate target variant exists
+        if (string.IsNullOrEmpty(request.TargetVariant))
+        {
+            return Results.BadRequest(new { message = "Target variant must be specified" });
+        }
+
+        var variantExists = experiment.Trials?.Any(t => t.Key == request.TargetVariant) ?? false;
+        if (!variantExists)
+        {
+            return Results.BadRequest(new { message = $"Variant '{request.TargetVariant}' not found in experiment '{experimentName}'" });
+        }
+
         request.ExperimentName = experimentName;
-        request.LastModified = DateTimeOffset.UtcNow;
+        var tenantId = GetTenantId(httpContext);
 
         // Initialize first stage as active if starting
         if (request.Status == RolloutStatus.InProgress && request.Stages.Any())
@@ -77,16 +126,38 @@ public static class RolloutEndpoints
             request.Stages[0].ExecutedDate = DateTimeOffset.UtcNow;
             request.Percentage = request.Stages[0].Percentage;
             request.StartDate = DateTimeOffset.UtcNow;
+
+            // Update experiment rollout percentage
+            registry.SetRolloutPercentage(experimentName, request.Percentage);
         }
 
-        _rollouts[experimentName] = request;
+        await persistence.SaveRolloutConfigAsync(request, tenantId, ct);
 
         return Results.Ok(request);
     }
 
-    private static IResult AdvanceRollout(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> AdvanceRollout(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        if (!_rollouts.TryGetValue(experimentName, out var config))
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem("Rollout persistence not configured", statusCode: 503);
+        }
+
+        var registry = sp.GetService<IMutableExperimentRegistry>();
+        if (registry == null)
+        {
+            return Results.Problem("Mutable experiment registry not available", statusCode: 503);
+        }
+
+        var tenantId = GetTenantId(httpContext);
+        var config = await persistence.GetRolloutConfigAsync(experimentName, tenantId, ct);
+
+        if (config == null)
         {
             return Results.NotFound(new { message = $"No rollout configuration found for experiment '{experimentName}'" });
         }
@@ -114,24 +185,43 @@ public static class RolloutEndpoints
             nextStage.ExecutedDate = DateTimeOffset.UtcNow;
             config.Percentage = nextStage.Percentage;
 
+            // Update experiment rollout percentage
+            registry.SetRolloutPercentage(experimentName, config.Percentage);
+
             // Simulate users affected (in real implementation, query from data backplane)
             nextStage.UsersAffected = (int)(config.TotalUsers * (nextStage.Percentage / 100.0));
         }
         else
         {
-            // Rollout completed
+            // Rollout completed - reached 100%
             config.Status = RolloutStatus.Completed;
             config.Percentage = 100;
+
+            // Set rollout to 100%
+            registry.SetRolloutPercentage(experimentName, 100);
         }
 
-        config.LastModified = DateTimeOffset.UtcNow;
+        await persistence.SaveRolloutConfigAsync(config, tenantId, ct);
 
         return Results.Ok(config);
     }
 
-    private static IResult PauseRollout(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> PauseRollout(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        if (!_rollouts.TryGetValue(experimentName, out var config))
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem("Rollout persistence not configured", statusCode: 503);
+        }
+
+        var tenantId = GetTenantId(httpContext);
+        var config = await persistence.GetRolloutConfigAsync(experimentName, tenantId, ct);
+
+        if (config == null)
         {
             return Results.NotFound(new { message = $"No rollout configuration found for experiment '{experimentName}'" });
         }
@@ -142,14 +232,33 @@ public static class RolloutEndpoints
         }
 
         config.Status = RolloutStatus.Paused;
-        config.LastModified = DateTimeOffset.UtcNow;
+        await persistence.SaveRolloutConfigAsync(config, tenantId, ct);
 
         return Results.Ok(config);
     }
 
-    private static IResult ResumeRollout(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> ResumeRollout(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        if (!_rollouts.TryGetValue(experimentName, out var config))
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem("Rollout persistence not configured", statusCode: 503);
+        }
+
+        var registry = sp.GetService<IMutableExperimentRegistry>();
+        if (registry == null)
+        {
+            return Results.Problem("Mutable experiment registry not available", statusCode: 503);
+        }
+
+        var tenantId = GetTenantId(httpContext);
+        var config = await persistence.GetRolloutConfigAsync(experimentName, tenantId, ct);
+
+        if (config == null)
         {
             return Results.NotFound(new { message = $"No rollout configuration found for experiment '{experimentName}'" });
         }
@@ -160,20 +269,46 @@ public static class RolloutEndpoints
         }
 
         config.Status = RolloutStatus.InProgress;
-        config.LastModified = DateTimeOffset.UtcNow;
+
+        // Reapply current percentage
+        registry.SetRolloutPercentage(experimentName, config.Percentage);
+
+        await persistence.SaveRolloutConfigAsync(config, tenantId, ct);
 
         return Results.Ok(config);
     }
 
-    private static IResult RollbackRollout(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> RollbackRollout(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        if (!_rollouts.TryGetValue(experimentName, out var config))
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem("Rollout persistence not configured", statusCode: 503);
+        }
+
+        var registry = sp.GetService<IMutableExperimentRegistry>();
+        if (registry == null)
+        {
+            return Results.Problem("Mutable experiment registry not available", statusCode: 503);
+        }
+
+        var tenantId = GetTenantId(httpContext);
+        var config = await persistence.GetRolloutConfigAsync(experimentName, tenantId, ct);
+
+        if (config == null)
         {
             return Results.NotFound(new { message = $"No rollout configuration found for experiment '{experimentName}'" });
         }
 
         config.Status = RolloutStatus.RolledBack;
         config.Percentage = 0;
+
+        // Rollback experiment to 0%
+        registry.SetRolloutPercentage(experimentName, 0);
 
         // Mark all stages as skipped except completed ones
         foreach (var stage in config.Stages)
@@ -185,14 +320,33 @@ public static class RolloutEndpoints
         }
 
         config.UsersInRollout = 0;
-        config.LastModified = DateTimeOffset.UtcNow;
+        await persistence.SaveRolloutConfigAsync(config, tenantId, ct);
 
         return Results.Ok(config);
     }
 
-    private static IResult RestartRollout(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> RestartRollout(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        if (!_rollouts.TryGetValue(experimentName, out var config))
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem("Rollout persistence not configured", statusCode: 503);
+        }
+
+        var registry = sp.GetService<IMutableExperimentRegistry>();
+        if (registry == null)
+        {
+            return Results.Problem("Mutable experiment registry not available", statusCode: 503);
+        }
+
+        var tenantId = GetTenantId(httpContext);
+        var config = await persistence.GetRolloutConfigAsync(experimentName, tenantId, ct);
+
+        if (config == null)
         {
             return Results.NotFound(new { message = $"No rollout configuration found for experiment '{experimentName}'" });
         }
@@ -211,64 +365,51 @@ public static class RolloutEndpoints
             config.Stages[0].Status = RolloutStageStatus.Active;
             config.Stages[0].ExecutedDate = DateTimeOffset.UtcNow;
             config.Percentage = config.Stages[0].Percentage;
+
+            // Update experiment rollout percentage
+            registry.SetRolloutPercentage(experimentName, config.Percentage);
         }
 
         config.Status = RolloutStatus.InProgress;
         config.StartDate = DateTimeOffset.UtcNow;
         config.UsersInRollout = 0;
-        config.LastModified = DateTimeOffset.UtcNow;
+
+        await persistence.SaveRolloutConfigAsync(config, tenantId, ct);
 
         return Results.Ok(config);
     }
 
-    private static IResult DeleteRolloutConfig(string experimentName, IServiceProvider sp)
+    private static async Task<IResult> DeleteRolloutConfig(
+        string experimentName,
+        HttpContext httpContext,
+        IServiceProvider sp,
+        CancellationToken ct)
     {
-        _rollouts.TryRemove(experimentName, out _);
+        var persistence = sp.GetService<IRolloutPersistenceBackplane>();
+        if (persistence == null)
+        {
+            return Results.Problem("Rollout persistence not configured", statusCode: 503);
+        }
+
+        var registry = sp.GetService<IMutableExperimentRegistry>();
+
+        var tenantId = GetTenantId(httpContext);
+        await persistence.DeleteRolloutConfigAsync(experimentName, tenantId, ct);
+
+        // Reset experiment rollout percentage to 100 (no rollout)
+        registry?.SetRolloutPercentage(experimentName, 100);
+
         return Results.Ok(new { message = "Rollout configuration deleted" });
     }
-}
 
-// DTOs
-public class RolloutConfiguration
-{
-    public string ExperimentName { get; set; } = "";
-    public bool Enabled { get; set; }
-    public string? TargetVariant { get; set; }
-    public int Percentage { get; set; } = 0;
-    public List<RolloutStageDto> Stages { get; set; } = [];
-    public DateTimeOffset? StartDate { get; set; }
-    public RolloutStatus Status { get; set; } = RolloutStatus.NotStarted;
-    public int TotalUsers { get; set; } = 10000; // Default estimate
-    public int UsersInRollout { get; set; } = 0;
-    public DateTimeOffset LastModified { get; set; }
-}
+    private static string? GetTenantId(HttpContext httpContext)
+    {
+        if (httpContext.Items.TryGetValue("TenantContext", out var tenantContext) &&
+            tenantContext is TenantContext context)
+        {
+            return context.TenantId;
+        }
 
-public class RolloutStageDto
-{
-    public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
-    public int Percentage { get; set; }
-    public DateTimeOffset? ScheduledDate { get; set; }
-    public DateTimeOffset? ExecutedDate { get; set; }
-    public RolloutStageStatus Status { get; set; } = RolloutStageStatus.Pending;
-    public int? DurationHours { get; set; }
-    public int UsersAffected { get; set; } = 0;
-    public Dictionary<string, double> Metrics { get; set; } = [];
-}
-
-public enum RolloutStatus
-{
-    NotStarted,
-    InProgress,
-    Completed,
-    Paused,
-    RolledBack
-}
-
-public enum RolloutStageStatus
-{
-    Pending,
-    Active,
-    Completed,
-    Skipped
+        return null;
+    }
 }

@@ -1,5 +1,6 @@
 @page "/dashboard/rollout"
 @using ExperimentFramework.Dashboard.UI.Services
+@using ExperimentFramework.Dashboard.Abstractions
 @inject ExperimentApiClient ExperimentApi
 @implements IDisposable
 
@@ -733,14 +734,14 @@
 </style>
 
 @code {
-    private List<ExperimentInfo> _experiments = [];
+    private List<Services.ExperimentInfo> _experiments = [];
     private bool _loading = true;
     private bool _actionInProgress = false;
     private string _selectedExperiment = "";
     private string _selectedVariant = "";
-    private ExperimentInfo? _selectedExperimentInfo;
-    private RolloutConfig? _rolloutConfig;
-    private List<RolloutStage> _rolloutStages = [];
+    private Services.ExperimentInfo? _selectedExperimentInfo;
+    private RolloutConfiguration? _rolloutConfig;
+    private List<RolloutStageDto> _rolloutStages = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -779,16 +780,16 @@
         if (_rolloutConfig == null || !_rolloutConfig.Enabled)
         {
             _rolloutStages = [
-                new RolloutStage { Name = "Initial rollout", Percentage = 10, DurationHours = 24 },
-                new RolloutStage { Name = "Expand to half", Percentage = 50, DurationHours = 48 },
-                new RolloutStage { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
+                new RolloutStageDto { Name = "Initial rollout", Percentage = 10, DurationHours = 24 },
+                new RolloutStageDto { Name = "Expand to half", Percentage = 50, DurationHours = 48 },
+                new RolloutStageDto { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
             ];
         }
     }
 
     private void AddStage()
     {
-        _rolloutStages.Add(new RolloutStage { Percentage = 10 });
+        _rolloutStages.Add(new RolloutStageDto { Percentage = 10 });
     }
 
     private void RemoveStage(int index)
@@ -804,8 +805,9 @@
         _actionInProgress = true;
         try
         {
-            var config = new RolloutConfig
+            var config = new RolloutConfiguration
             {
+                ExperimentName = _selectedExperiment,
                 Enabled = true,
                 TargetVariant = _selectedVariant,
                 Stages = _rolloutStages,
@@ -817,7 +819,7 @@
 
             if (response.IsSuccessStatusCode)
             {
-                _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfig>();
+                _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
                 await LoadExperiments(); // Refresh
             }
         }
@@ -888,7 +890,7 @@
             var response = await ExperimentApi.HttpClient.PostAsync($"/api/rollout/{_selectedExperiment}/{action}", null);
             if (response.IsSuccessStatusCode)
             {
-                _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfig>();
+                _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
                 await LoadExperiments();
             }
         }

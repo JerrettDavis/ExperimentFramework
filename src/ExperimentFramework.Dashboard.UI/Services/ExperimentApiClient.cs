@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using ExperimentFramework.Dashboard.Abstractions;
 
 namespace ExperimentFramework.Dashboard.UI.Services;
 
@@ -310,7 +311,7 @@ public class ExperimentInfo
     public string Category { get; set; } = "";
     public string Status { get; set; } = "";
     public DateTime LastModified { get; set; }
-    public RolloutConfig? Rollout { get; set; }
+    public RolloutConfiguration? Rollout { get; set; }
     public List<TargetingRule> TargetingRules { get; set; } = [];
     public HypothesisInfo? Hypothesis { get; set; }
 }
@@ -510,50 +511,10 @@ public class AppliedExperiment
 }
 
 // ============================================================================
-// Rollout DTOs
+// Rollout DTOs - using types from ExperimentFramework.Dashboard.Abstractions
 // ============================================================================
-
-public class RolloutConfig
-{
-    public bool Enabled { get; set; }
-    public string? TargetVariant { get; set; }
-    public int Percentage { get; set; } = 0;
-    public List<RolloutStage> Stages { get; set; } = [];
-    public DateTime? StartDate { get; set; }
-    public RolloutStatus Status { get; set; } = RolloutStatus.NotStarted;
-    public int TotalUsers { get; set; } = 0;
-    public int UsersInRollout { get; set; } = 0;
-}
-
-public class RolloutStage
-{
-    public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
-    public int Percentage { get; set; }
-    public DateTime? ScheduledDate { get; set; }
-    public DateTime? ExecutedDate { get; set; }
-    public RolloutStageStatus Status { get; set; } = RolloutStageStatus.Pending;
-    public int? DurationHours { get; set; }
-    public int UsersAffected { get; set; } = 0;
-    public Dictionary<string, double> Metrics { get; set; } = [];
-}
-
-public enum RolloutStatus
-{
-    NotStarted,
-    InProgress,
-    Completed,
-    Paused,
-    RolledBack
-}
-
-public enum RolloutStageStatus
-{
-    Pending,
-    Active,
-    Completed,
-    Skipped
-}
+// RolloutConfiguration, RolloutStageDto, RolloutStatus, RolloutStageStatus
+// are now imported from ExperimentFramework.Dashboard.Abstractions
 
 // ============================================================================
 // Targeting DTOs
