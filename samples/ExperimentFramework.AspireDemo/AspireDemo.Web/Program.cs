@@ -118,7 +118,8 @@ builder.Services.AddExperimentDashboard(options =>
     options.Title = "AspireDemo Experiment Dashboard";
     options.EnableAnalytics = true;
     options.EnableGovernanceUI = true;
-    options.RequireAuthorization = false;
+    options.RequireAuthorization = true;
+    options.AuthorizationPolicy = "CanAccessExperiments";
 });
 
 var app = builder.Build();

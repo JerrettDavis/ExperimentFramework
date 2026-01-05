@@ -1,22 +1,74 @@
 @inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
 
-<div class="page">
-    <div class="sidebar">
-        <div class="sidebar-brand">
-            <h1>Experiment Dashboard</h1>
+<AuthorizeView>
+    <Authorized>
+        <div class="page">
+            <div class="sidebar">
+                <div class="sidebar-brand">
+                    <h1>Experiment Dashboard</h1>
+                </div>
+                <NavMenu />
+
+                <div class="sidebar-user">
+                    <div class="user-avatar">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                        </svg>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">@context.User.Identity?.Name</div>
+                        <div class="user-role">
+                            @if (context.User.IsInRole("Admin"))
+                            {
+                                <span class="role-badge role-admin">Admin</span>
+                            }
+                            else if (context.User.IsInRole("Experimenter"))
+                            {
+                                <span class="role-badge role-experimenter">Experimenter</span>
+                            }
+                            else if (context.User.IsInRole("Analyst"))
+                            {
+                                <span class="role-badge role-analyst">Analyst</span>
+                            }
+                            else if (context.User.IsInRole("Viewer"))
+                            {
+                                <span class="role-badge role-viewer">Viewer</span>
+                            }
+                        </div>
+                    </div>
+                    <a href="/Account/Logout" class="logout-button" title="Sign out">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+
+            <main>
+                <div class="top-row px-4">
+                    <div class="breadcrumb">
+                        @* Breadcrumb navigation can be added here *@
+                    </div>
+                </div>
+
+                <article class="content px-4">
+                    @Body
+                </article>
+            </main>
         </div>
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <div class="user-info">
-                @* User info will be added during migration *@
+    </Authorized>
+    <NotAuthorized>
+        <div class="unauthorized-page">
+            <div class="unauthorized-card">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <h1>Authentication Required</h1>
+                <p>Please sign in to access the Experiment Dashboard.</p>
+                <a href="/Account/Login" class="btn-signin">Sign In</a>
             </div>
         </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+    </NotAuthorized>
+</AuthorizeView>
