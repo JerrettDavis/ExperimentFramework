@@ -242,6 +242,10 @@
     private string? _errorMessage;
     private bool _isProcessing;
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
     private class LoginModel
     {
         [Required]
@@ -269,7 +273,8 @@
 
             if (result.Succeeded)
             {
-                Navigation.NavigateTo("/dashboard", forceLoad: true);
+                var redirectUrl = !string.IsNullOrEmpty(ReturnUrl) ? ReturnUrl : "/dashboard";
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
             }
             else if (result.IsLockedOut)
             {

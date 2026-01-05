@@ -58,17 +58,30 @@ public sealed class DashboardMiddleware
         try
         {
             // Validate authorization if required
-            if (_options.RequireAuthorization && _authorizationService != null)
+            if (_options.RequireAuthorization)
             {
-                var authResult = await _authorizationService.AuthorizeAsync(
-                    context.User,
-                    _options.AuthorizationPolicy ?? string.Empty);
-
-                if (!authResult.Succeeded)
+                // Check if user is authenticated
+                if (!context.User.Identity?.IsAuthenticated ?? true)
                 {
-                    context.Response.StatusCode = 403;
-                    await context.Response.WriteAsync("Forbidden: You do not have access to the dashboard.");
+                    // Redirect to login page
+                    var returnUrl = context.Request.Path + context.Request.QueryString;
+                    context.Response.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}");
                     return;
+                }
+
+                // Check authorization policy if specified
+                if (_authorizationService != null && !string.IsNullOrEmpty(_options.AuthorizationPolicy))
+                {
+                    var authResult = await _authorizationService.AuthorizeAsync(
+                        context.User,
+                        _options.AuthorizationPolicy);
+
+                    if (!authResult.Succeeded)
+                    {
+                        // User is authenticated but doesn't have required permissions
+                        context.Response.Redirect("/Account/AccessDenied");
+                        return;
+                    }
                 }
             }
 
