@@ -58,7 +58,7 @@ public sealed class RolloutConfiguration
     /// <summary>
     /// Gets or sets the experiment name.
     /// </summary>
-    public required string ExperimentName { get; set; }
+    public string ExperimentName { get; set; } = "";
 
     /// <summary>
     /// Gets or sets whether the rollout is enabled.

@@ -61,6 +61,11 @@ public sealed class ExperimentInfo
     /// Gets or sets the selection mode.
     /// </summary>
     public string? SelectionMode { get; init; }
+
+    /// <summary>
+    /// Gets or sets the rollout configuration for this experiment.
+    /// </summary>
+    public RolloutConfiguration? Rollout { get; init; }
 }
 
 /// <summary>

@@ -11,26 +11,44 @@ namespace ExperimentFramework.Dashboard.Data;
 public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
 {
     private readonly IExperimentRegistry? _registry;
+    private readonly IRolloutPersistenceBackplane? _rolloutPersistence;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DefaultDashboardDataProvider"/> class.
     /// </summary>
     /// <param name="registry">The experiment registry.</param>
-    public DefaultDashboardDataProvider(IExperimentRegistry? registry = null)
+    /// <param name="rolloutPersistence">Optional rollout persistence provider.</param>
+    public DefaultDashboardDataProvider(
+        IExperimentRegistry? registry = null,
+        IRolloutPersistenceBackplane? rolloutPersistence = null)
     {
         _registry = registry;
+        _rolloutPersistence = rolloutPersistence;
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<DashboardExperimentInfo>> GetExperimentsAsync(string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DashboardExperimentInfo>> GetExperimentsAsync(string? tenantId, CancellationToken cancellationToken = default)
     {
         if (_registry == null)
         {
-            return Task.FromResult<IEnumerable<DashboardExperimentInfo>>(Array.Empty<DashboardExperimentInfo>());
+            return Array.Empty<DashboardExperimentInfo>();
         }
 
-        var experiments = _registry.GetAllExperiments()
-            .Select(e => new DashboardExperimentInfo
+        var experiments = new List<DashboardExperimentInfo>();
+
+        foreach (var e in _registry.GetAllExperiments())
+        {
+            RolloutConfiguration? rollout = null;
+            if (_rolloutPersistence != null)
+            {
+                rollout = await _rolloutPersistence.GetRolloutConfigAsync(e.Name, tenantId, cancellationToken);
+                if (rollout != null)
+                {
+                    rollout.ExperimentName = e.Name;
+                }
+            }
+
+            experiments.Add(new DashboardExperimentInfo
             {
                 Name = e.Name,
                 ServiceType = e.ServiceType?.Name,
@@ -41,27 +59,39 @@ public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
                     Key = t.Key,
                     ImplementationType = t.ImplementationType?.Name,
                     IsControl = t.IsControl
-                }).ToList()
+                }).ToList(),
+                Rollout = rollout
             });
+        }
 
         // Note: Tenant filtering would require additional metadata in the experiment registry
         // For now, we return all experiments. Implementers can override this for tenant-specific filtering.
 
-        return Task.FromResult(experiments);
+        return experiments;
     }
 
     /// <inheritdoc />
-    public Task<DashboardExperimentInfo?> GetExperimentAsync(string name, string? tenantId, CancellationToken cancellationToken = default)
+    public async Task<DashboardExperimentInfo?> GetExperimentAsync(string name, string? tenantId, CancellationToken cancellationToken = default)
     {
         if (_registry == null)
         {
-            return Task.FromResult<DashboardExperimentInfo?>(null);
+            return null;
         }
 
         var experiment = _registry.GetExperiment(name);
         if (experiment == null)
         {
-            return Task.FromResult<DashboardExperimentInfo?>(null);
+            return null;
+        }
+
+        RolloutConfiguration? rollout = null;
+        if (_rolloutPersistence != null)
+        {
+            rollout = await _rolloutPersistence.GetRolloutConfigAsync(name, tenantId, cancellationToken);
+            if (rollout != null)
+            {
+                rollout.ExperimentName = name;
+            }
         }
 
         var info = new DashboardExperimentInfo
@@ -75,9 +105,10 @@ public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
                 Key = t.Key,
                 ImplementationType = t.ImplementationType?.Name,
                 IsControl = t.IsControl
-            }).ToList()
+            }).ToList(),
+            Rollout = rollout
         };
 
-        return Task.FromResult<DashboardExperimentInfo?>(info);
+        return info;
     }
 }
