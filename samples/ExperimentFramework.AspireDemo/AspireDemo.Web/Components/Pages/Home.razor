@@ -1,10 +1,26 @@
 @page "/"
 @using AspireDemo.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Authorization
 @layout AspireDemo.Web.Components.Layout.MinimalLayout
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <SetPageTitle Title="AspireDemo - ExperimentFramework" />
 
 <div style="max-width: 1200px; margin: 0 auto; padding: 60px 20px; font-family: system-ui, -apple-system, sans-serif;">
+    <AuthorizeView>
+        <Authorized>
+            <div style="text-align: right; margin-bottom: 20px;">
+                <span style="color: #666; margin-right: 12px;">Signed in as <strong>@context.User.Identity?.Name</strong></span>
+                <a href="/Account/Logout" style="color: #667eea; text-decoration: none; font-weight: 500;">Sign Out</a>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div style="text-align: right; margin-bottom: 20px;">
+                <a href="/Account/Login" style="color: #667eea; text-decoration: none; font-weight: 500;">Sign In</a>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+
     <div style="text-align: center; margin-bottom: 60px;">
         <h1 style="font-size: 3rem; font-weight: 700; margin-bottom: 20px;">
             ExperimentFramework
