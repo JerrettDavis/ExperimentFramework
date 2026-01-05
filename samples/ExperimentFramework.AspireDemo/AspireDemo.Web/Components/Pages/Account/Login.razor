@@ -1,10 +1,6 @@
 @page "/Account/Login"
-@using System.ComponentModel.DataAnnotations
-@using AspireDemo.Web.Data
-@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
 @layout AspireDemo.Web.Components.Layout.MinimalLayout
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
-@inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager Navigation
 
 <PageTitle>Login - Experiment Demo</PageTitle>
@@ -24,53 +20,69 @@
             </div>
         }
 
-        <div class="form-container">
+        <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")">
             <div class="form-group">
                 <label for="email">Email</label>
-                <input @bind="_model.Email" id="email" class="form-control" placeholder="admin@experimentdemo.com" />
+                <input name="email" id="email" class="form-control" placeholder="admin@experimentdemo.com" required />
             </div>
 
             <div class="form-group">
                 <label for="password">Password</label>
-                <input @bind="_model.Password" id="password" type="password" class="form-control" />
+                <input name="password" id="password" type="password" class="form-control" required />
             </div>
 
             <div class="form-check">
-                <input @bind="_model.RememberMe" id="rememberMe" type="checkbox" class="form-check-input" />
+                <input name="rememberMe" id="rememberMe" type="checkbox" class="form-check-input" value="true" />
                 <label for="rememberMe" class="form-check-label">Remember me</label>
             </div>
 
-            <button type="button" class="btn btn-primary" @onclick="HandleLogin" disabled="@_isProcessing">
-                @if (_isProcessing)
-                {
-                    <span>Signing in...</span>
-                }
-                else
-                {
-                    <span>Sign In</span>
-                }
+            <button type="submit" class="btn btn-primary">
+                <span>Sign In</span>
             </button>
-        </div>
+        </form>
 
         <div class="demo-users">
             <h3>Demo Users</h3>
             <div class="user-cards">
-                <button type="button" class="user-card" @onclick="LoginAsAdmin">
-                    <strong>Admin</strong>
-                    <span>Full access</span>
-                </button>
-                <button type="button" class="user-card" @onclick="LoginAsExperimenter">
-                    <strong>Experimenter</strong>
-                    <span>Can modify experiments</span>
-                </button>
-                <button type="button" class="user-card" @onclick="LoginAsViewer">
-                    <strong>Viewer</strong>
-                    <span>Read-only access</span>
-                </button>
-                <button type="button" class="user-card" @onclick="LoginAsAnalyst">
-                    <strong>Analyst</strong>
-                    <span>Analytics focus</span>
-                </button>
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                    <input type="hidden" name="email" value="admin@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Admin123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Admin</strong>
+                        <span>Full access</span>
+                    </button>
+                </form>
+
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                    <input type="hidden" name="email" value="experimenter@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Experimenter123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Experimenter</strong>
+                        <span>Can modify experiments</span>
+                    </button>
+                </form>
+
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                    <input type="hidden" name="email" value="viewer@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Viewer123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Viewer</strong>
+                        <span>Read-only access</span>
+                    </button>
+                </form>
+
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                    <input type="hidden" name="email" value="analyst@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Analyst123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Analyst</strong>
+                        <span>Analytics focus</span>
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -236,84 +248,26 @@
 </style>
 
 @code {
-    private LoginModel _model = new();
     private string? _errorMessage;
-    private bool _isProcessing;
 
     [Parameter]
     [SupplyParameterFromQuery(Name = "returnUrl")]
     public string? ReturnUrl { get; set; }
 
-    private class LoginModel
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    protected override void OnInitialized()
     {
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
-
-        [Required]
-        public string Password { get; set; } = "";
-
-        public bool RememberMe { get; set; }
-    }
-
-    private async Task HandleLogin()
-    {
-        _isProcessing = true;
-        _errorMessage = null;
-
-        try
+        if (!string.IsNullOrEmpty(Error))
         {
-            var result = await SignInManager.PasswordSignInAsync(
-                _model.Email,
-                _model.Password,
-                _model.RememberMe,
-                lockoutOnFailure: true);
-
-            if (result.Succeeded)
+            _errorMessage = Error switch
             {
-                var redirectUrl = !string.IsNullOrEmpty(ReturnUrl) ? ReturnUrl : "/dashboard";
-                Navigation.NavigateTo(redirectUrl, forceLoad: true);
-            }
-            else if (result.IsLockedOut)
-            {
-                _errorMessage = "Account is locked out. Please try again later.";
-            }
-            else
-            {
-                _errorMessage = "Invalid email or password.";
-            }
+                "locked" => "Account is locked out. Please try again later.",
+                "invalid" => "Invalid email or password.",
+                _ => "An error occurred during login."
+            };
         }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
-
-    private async Task LoginAsAdmin()
-    {
-        _model.Email = "admin@experimentdemo.com";
-        _model.Password = "Admin123!";
-        await HandleLogin();
-    }
-
-    private async Task LoginAsExperimenter()
-    {
-        _model.Email = "experimenter@experimentdemo.com";
-        _model.Password = "Experimenter123!";
-        await HandleLogin();
-    }
-
-    private async Task LoginAsViewer()
-    {
-        _model.Email = "viewer@experimentdemo.com";
-        _model.Password = "Viewer123!";
-        await HandleLogin();
-    }
-
-    private async Task LoginAsAnalyst()
-    {
-        _model.Email = "analyst@experimentdemo.com";
-        _model.Password = "Analyst123!";
-        await HandleLogin();
     }
 }

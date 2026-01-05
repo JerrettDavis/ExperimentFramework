@@ -162,6 +162,9 @@ app.UseExperimentDashboard();
 // Map the ExperimentFramework Dashboard endpoints
 app.MapExperimentDashboard("/dashboard");
 
+// Map account endpoints
+AspireDemo.Web.Endpoints.AccountEndpoints.MapAccountEndpoints(app);
+
 app.MapRazorComponents<AspireDemo.Web.Components.App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(ExperimentFramework.Dashboard.UI.Components.Pages.Home).Assembly);
