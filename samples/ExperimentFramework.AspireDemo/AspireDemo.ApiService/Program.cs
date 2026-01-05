@@ -817,29 +817,61 @@ app.MapGet("/api/blog/search", (string q, BlogDataStore store) =>
 
 // Blog Plugin Management Endpoints
 
-app.MapGet("/api/blog/plugins", (BlogPluginStateManager blogPlugins) =>
+app.MapGet("/api/blog/plugins", (BlogPluginStateManager blogPlugins, IKillSwitchProvider killSwitch) =>
 {
+    // Helper to get active plugin respecting killswitches
+    string GetActivePluginWithKillSwitch(string experimentName, string currentActive, string defaultValue)
+    {
+        var type = ExperimentTypeResolver.GetServiceType(experimentName);
+
+        // If entire experiment is disabled, return default
+        if (killSwitch.IsExperimentDisabled(type))
+            return defaultValue;
+
+        // If current active variant is disabled, return default
+        if (killSwitch.IsTrialDisabled(type, currentActive))
+            return defaultValue;
+
+        return currentActive;
+    }
+
+    // Get active plugins respecting killswitches
+    var activeDataProvider = GetActivePluginWithKillSwitch(
+        "blog-data-provider",
+        blogPlugins.ActiveDataProviderAlias,
+        "in-memory");
+
+    var activeEditor = GetActivePluginWithKillSwitch(
+        "blog-editor",
+        blogPlugins.ActiveEditorAlias,
+        "markdown");
+
+    var activeAuth = GetActivePluginWithKillSwitch(
+        "blog-auth",
+        blogPlugins.ActiveAuthAlias,
+        "simple-token");
+
     return Results.Ok(new
     {
         Data = new
         {
             Options = BlogPluginStateManager.DataProviders,
-            Active = blogPlugins.ActiveDataProviderAlias
+            Active = activeDataProvider
         },
         Editor = new
         {
             Options = BlogPluginStateManager.Editors,
-            Active = blogPlugins.ActiveEditorAlias
+            Active = activeEditor
         },
         Syndication = new
         {
             Options = BlogPluginStateManager.Syndicators,
-            Active = blogPlugins.ActiveSyndicatorAliases
+            Active = blogPlugins.ActiveSyndicatorAliases // Syndication doesn't use killswitches (multi-select)
         },
         Auth = new
         {
             Options = BlogPluginStateManager.AuthProviders,
-            Active = blogPlugins.ActiveAuthAlias
+            Active = activeAuth
         }
     });
 })
@@ -907,9 +939,19 @@ app.MapPost("/api/blog/plugins/deactivate", async (BlogPluginActivateRequest req
 .WithName("DeactivateBlogPlugin")
 .WithTags("BlogPlugins");
 
-app.MapGet("/api/blog/editor/config", (BlogPluginStateManager blogPlugins) =>
+app.MapGet("/api/blog/editor/config", (BlogPluginStateManager blogPlugins, IKillSwitchProvider killSwitch) =>
 {
-    var activeEditor = BlogPluginStateManager.Editors.FirstOrDefault(e => e.Alias == blogPlugins.ActiveEditorAlias);
+    // Check killswitch first
+    var type = ExperimentTypeResolver.GetServiceType("blog-editor");
+    var activeEditorAlias = blogPlugins.ActiveEditorAlias;
+
+    // If experiment disabled or active variant disabled, use default (markdown)
+    if (killSwitch.IsExperimentDisabled(type) || killSwitch.IsTrialDisabled(type, activeEditorAlias))
+    {
+        activeEditorAlias = "markdown";
+    }
+
+    var activeEditor = BlogPluginStateManager.Editors.FirstOrDefault(e => e.Alias == activeEditorAlias);
     if (activeEditor == null)
         return Results.NotFound();
 

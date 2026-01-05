@@ -1,0 +1,151 @@
+@page "/dashboard"
+@page "/dashboard/home"
+
+<PageTitle>Home - Experiment Dashboard</PageTitle>
+
+<div class="home-container">
+    <div class="hero">
+        <h1>Experiment Dashboard</h1>
+        <p class="hero-subtitle">Manage, monitor, and optimize your experiments with enterprise-grade features</p>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🧪</div>
+            <h3>Experiment Management</h3>
+            <p>Create, configure, and manage experiments with an intuitive wizard and DSL editor.</p>
+            <a href="/dashboard/experiments" class="feature-link">View Experiments →</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Advanced Analytics</h3>
+            <p>Statistical analysis, confidence intervals, and experiment comparisons.</p>
+            <a href="/dashboard/analytics" class="feature-link">View Analytics →</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">🔄</div>
+            <h3>Governance & Lifecycle</h3>
+            <p>Approval workflows, policy evaluation, and audit trails.</p>
+            <a href="/dashboard/governance/lifecycle" class="feature-link">View Governance →</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>Targeting & Rollout</h3>
+            <p>Advanced targeting rules and staged rollout management.</p>
+            <a href="/dashboard/targeting" class="feature-link">View Targeting →</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">🔌</div>
+            <h3>Plugin System</h3>
+            <p>Extend functionality with plugins and custom implementations.</p>
+            <a href="/dashboard/plugins" class="feature-link">View Plugins →</a>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">🔬</div>
+            <h3>Hypothesis Testing</h3>
+            <p>A/B testing with statistical significance and confidence intervals.</p>
+            <a href="/dashboard/hypothesis" class="feature-link">View Hypothesis Tests →</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .home-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .hero {
+        text-align: center;
+        padding: 3rem 0;
+        margin-bottom: 3rem;
+    }
+
+    .hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0 0 1rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.125rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .feature-card {
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 200ms ease;
+    }
+
+    .feature-card:hover {
+        border-color: var(--color-primary, #6366f1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .feature-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0 0 0.5rem;
+    }
+
+    .feature-card p {
+        color: var(--color-text-secondary, #64748b);
+        margin: 0 0 1rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .feature-link {
+        color: var(--color-primary, #6366f1);
+        font-weight: 500;
+        font-size: 0.875rem;
+        text-decoration: none;
+    }
+
+    .feature-link:hover {
+        text-decoration: underline;
+    }
+
+    :global(.theme-dark) .feature-card {
+        background: #1e293b;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    @@media (max-width: 768px) {
+        .hero h1 {
+            font-size: 2rem;
+        }
+
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+
+}

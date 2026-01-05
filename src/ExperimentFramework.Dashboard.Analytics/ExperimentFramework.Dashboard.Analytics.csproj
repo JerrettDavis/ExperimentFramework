@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ExperimentFramework.Dashboard.Abstractions\ExperimentFramework.Dashboard.Abstractions.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.DataPlane.Abstractions\ExperimentFramework.DataPlane.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ExperimentFramework.Dashboard.Api</PackageId>
+    <Authors>JD</Authors>
+    <Description>API endpoints for the ExperimentFramework Dashboard. Provides REST APIs for experiment management, configuration, governance workflows, analytics, rollout, and targeting. Used internally by ExperimentFramework.Dashboard package.</Description>
+    <PackageTags>experiments;ab-testing;dashboard;api;rest;aspnetcore</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ExperimentFramework.Dashboard.Abstractions\ExperimentFramework.Dashboard.Abstractions.csproj" />
+    <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Admin\ExperimentFramework.Admin.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

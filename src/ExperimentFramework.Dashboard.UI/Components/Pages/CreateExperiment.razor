@@ -1,12 +1,12 @@
+@page "/dashboard/create"
 @page "/create"
-@using AspireDemo.Web.Models
-@using AspireDemo.Web.Services
-@using AspireDemo.Web.Components.Shared
+@using ExperimentFramework.Dashboard.UI.Services
+@using ExperimentFramework.Dashboard.UI.Models
 @inject ExperimentApiClient ExperimentApi
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
-<SetPageTitle Title="Create Experiment - OptimizeLab" />
+<PageTitle>Create Experiment - Experiment Dashboard</PageTitle>
 
 <div class="create-experiment-page">
     <div class="page-header">
@@ -1248,3 +1248,4 @@
         }
     }
 </style>
+

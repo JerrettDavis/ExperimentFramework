@@ -1,0 +1,518 @@
+@page "/dashboard/governance/audit"
+@using ExperimentFramework.Dashboard.UI.Services
+@inject ExperimentApiClient ExperimentApi
+
+<PageTitle>Audit Trail - Experiment Dashboard</PageTitle>
+
+<div class="governance-page">
+    <div class="page-header">
+        <h1>Audit Trail</h1>
+        <p class="subtitle">Complete audit log of all experiment changes and transitions</p>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="loading-state">
+            <p>Loading experiments...</p>
+        </div>
+    }
+    else if (_experiments.Count == 0)
+    {
+        <div class="empty-state">
+            <p>No experiments found. Create an experiment to view its audit trail.</p>
+        </div>
+    }
+    else
+    {
+        <div class="audit-controls">
+            <div class="experiment-selector">
+                <label for="experiment-select">Select Experiment:</label>
+                <select id="experiment-select" @onchange="OnExperimentSelected">
+                    <option value="">-- Select an experiment --</option>
+                    @foreach (var exp in _experiments)
+                    {
+                        <option value="@exp.Name" selected="@(_selectedExperiment == exp.Name)">@exp.DisplayName (@exp.Name)</option>
+                    }
+                </select>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_selectedExperiment))
+            {
+                <div class="filter-controls">
+                    <label for="type-filter">Filter by Type:</label>
+                    <select id="type-filter" @bind="_typeFilter" @oninput="ApplyFilters">
+                        <option value="">All Types</option>
+                        <option value="StateTransition">State Transitions</option>
+                        <option value="Approval">Approvals</option>
+                    </select>
+
+                    <input type="search"
+                           placeholder="Search by actor or details..."
+                           @bind="_searchQuery"
+                           @oninput="ApplyFilters"
+                           class="search-input" />
+                </div>
+            }
+        </div>
+
+        @if (_selectedExperiment != null)
+        {
+            @if (_loadingAudit)
+            {
+                <div class="loading-state">
+                    <p>Loading audit trail...</p>
+                </div>
+            }
+            else if (_auditLog.Count == 0)
+            {
+                <div class="info-message">
+                    <div class="info-icon">ℹ️</div>
+                    <div class="info-content">
+                        <h3>Governance Not Configured</h3>
+                        <p>The governance audit trail requires <code>IGovernancePersistenceBackplane</code> to be registered in your application's dependency injection container.</p>
+                        <p>To enable audit logging, add a governance persistence implementation such as:</p>
+                        <ul>
+                            <li>In-Memory persistence (for development/testing)</li>
+                            <li>SQL Server persistence</li>
+                            <li>Azure Cosmos DB persistence</li>
+                            <li>Custom implementation of IGovernancePersistenceBackplane</li>
+                        </ul>
+                        <p>Once configured, you'll be able to track all experiment state transitions, approvals, and changes in a comprehensive audit trail.</p>
+                    </div>
+                </div>
+            }
+            else if (_filteredAuditLog.Count == 0)
+            {
+                <div class="empty-state">
+                    <p>No audit entries match your filters.</p>
+                </div>
+            }
+            else
+            {
+                <div class="audit-stats">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Entries</span>
+                        <span class="stat-value">@_auditLog.Count</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">State Transitions</span>
+                        <span class="stat-value">@_auditLog.Count(e => e.Type == "StateTransition")</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Approvals</span>
+                        <span class="stat-value">@_auditLog.Count(e => e.Type == "Approval")</span>
+                    </div>
+                    @if (_filteredAuditLog.Count != _auditLog.Count)
+                    {
+                        <div class="stat-card highlight">
+                            <span class="stat-label">Filtered Results</span>
+                            <span class="stat-value">@_filteredAuditLog.Count</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="audit-timeline">
+                    @foreach (var entry in _filteredAuditLog)
+                    {
+                        <div class="audit-entry @entry.Type.ToLower()">
+                            <div class="entry-icon">
+                                @if (entry.Type == "StateTransition")
+                                {
+                                    <span class="icon">⚡</span>
+                                }
+                                else
+                                {
+                                    <span class="icon">✓</span>
+                                }
+                            </div>
+                            <div class="entry-content">
+                                <div class="entry-header">
+                                    <span class="entry-type-badge">@entry.Type</span>
+                                    <span class="entry-timestamp">@entry.Timestamp.ToString("g")</span>
+                                </div>
+                                <div class="entry-details">
+                                    <strong>@entry.Details</strong>
+                                </div>
+                                @if (!string.IsNullOrEmpty(entry.Actor))
+                                {
+                                    <div class="entry-actor">
+                                        <span class="actor-label">Actor:</span>
+                                        <span class="actor-name">@entry.Actor</span>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(entry.Reason))
+                                {
+                                    <div class="entry-reason">
+                                        <span class="reason-label">Reason:</span>
+                                        <span class="reason-text">@entry.Reason</span>
+                                    </div>
+                                }
+                                <div class="entry-id">
+                                    <span class="id-label">ID:</span>
+                                    <code>@entry.TransitionId</code>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    }
+</div>
+
+<style>
+    .governance-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0;
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 2rem;
+    }
+
+    .loading-state, .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .audit-controls {
+        margin-bottom: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .experiment-selector label {
+        font-weight: 600;
+        margin-right: 0.5rem;
+        color: #374151;
+    }
+
+    .experiment-selector select {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        min-width: 300px;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .filter-controls label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+
+    .filter-controls select {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .audit-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .stat-card.highlight {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .audit-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .audit-timeline::before {
+        content: "";
+        position: absolute;
+        left: 1.125rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e5e7eb;
+    }
+
+    .audit-entry {
+        position: relative;
+        margin-bottom: 1.5rem;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.25rem;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .audit-entry.statetransition {
+        border-left: 4px solid #3b82f6;
+    }
+
+    .audit-entry.approval {
+        border-left: 4px solid #10b981;
+    }
+
+    .entry-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.25rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .audit-entry.statetransition .entry-icon {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .audit-entry.approval .entry-icon {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .icon {
+        filter: brightness(0) invert(1);
+    }
+
+    .entry-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .entry-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .entry-type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: #f3f4f6;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+    }
+
+    .audit-entry.statetransition .entry-type-badge {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .audit-entry.approval .entry-type-badge {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .entry-timestamp {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .entry-details {
+        font-size: 0.875rem;
+        color: #1f2937;
+    }
+
+    .entry-actor, .entry-reason, .entry-id {
+        font-size: 0.75rem;
+        display: flex;
+        gap: 0.5rem;
+        align-items: baseline;
+    }
+
+    .actor-label, .reason-label, .id-label {
+        font-weight: 600;
+        color: #6b7280;
+    }
+
+    .actor-name {
+        color: #374151;
+    }
+
+    .reason-text {
+        color: #6b7280;
+        font-style: italic;
+    }
+
+    .entry-id code {
+        font-size: 0.7rem;
+        color: #9ca3af;
+        background: #f9fafb;
+        padding: 0.125rem 0.375rem;
+        border-radius: 3px;
+    }
+
+    .info-message {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #3b82f6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .info-icon {
+        font-size: 2rem;
+        flex-shrink: 0;
+    }
+
+    .info-content h3 {
+        margin: 0 0 0.75rem;
+        color: #1f2937;
+        font-size: 1.125rem;
+    }
+
+    .info-content p {
+        margin: 0.5rem 0;
+        color: #4b5563;
+        line-height: 1.6;
+    }
+
+    .info-content code {
+        background: #f3f4f6;
+        padding: 0.125rem 0.375rem;
+        border-radius: 3px;
+        font-size: 0.875rem;
+        color: #1f2937;
+    }
+
+    .info-content ul {
+        margin: 0.75rem 0;
+        padding-left: 1.5rem;
+        color: #4b5563;
+    }
+
+    .info-content li {
+        margin: 0.375rem 0;
+    }
+</style>
+
+@code {
+    private List<ExperimentInfo> _experiments = [];
+    private string? _selectedExperiment;
+    private List<AuditLogItem> _auditLog = [];
+    private List<AuditLogItem> _filteredAuditLog = [];
+    private bool _loading = true;
+    private bool _loadingAudit = false;
+    private string _typeFilter = "";
+    private string _searchQuery = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExperiments();
+    }
+
+    private async Task LoadExperiments()
+    {
+        _loading = true;
+        try
+        {
+            _experiments = await ExperimentApi.GetExperimentsAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnExperimentSelected(ChangeEventArgs e)
+    {
+        _selectedExperiment = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(_selectedExperiment))
+        {
+            await LoadAuditLog();
+        }
+        else
+        {
+            _auditLog = [];
+            _filteredAuditLog = [];
+        }
+    }
+
+    private async Task LoadAuditLog()
+    {
+        if (string.IsNullOrEmpty(_selectedExperiment)) return;
+
+        _loadingAudit = true;
+        try
+        {
+            _auditLog = await ExperimentApi.GetGovernanceAuditLogAsync(_selectedExperiment);
+            ApplyFilters();
+        }
+        finally
+        {
+            _loadingAudit = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        _filteredAuditLog = _auditLog
+            .Where(e => string.IsNullOrEmpty(_typeFilter) || e.Type == _typeFilter)
+            .Where(e => string.IsNullOrEmpty(_searchQuery) ||
+                       (e.Actor?.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                       e.Details.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+}

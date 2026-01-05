@@ -1,10 +1,11 @@
-@page "/dsl-editor"
-@using AspireDemo.Web.Components.Shared
-@using AspireDemo.Web.Models
+@page "/dashboard/dsl"
+@using ExperimentFramework.Dashboard.UI.Services
+@using ExperimentFramework.Dashboard.UI.Models
+@using ExperimentFramework.Dashboard.UI.Components.Shared
 @inject ExperimentApiClient ExperimentApi
 @inject IJSRuntime JS
 
-<SetPageTitle Title="DSL Editor - OptimizeLab" />
+<PageTitle>DSL Editor - Experiment Dashboard</PageTitle>
 
 <div class="dsl-editor-page">
     <div class="page-header">

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ExperimentFramework.Dashboard</PackageId>
+    <Authors>JD</Authors>
+    <Description>Enterprise-grade embeddable dashboard for ExperimentFramework. Provides a Hangfire-style web UI for managing A/B tests, feature flags, and experiments. Features include: experiment management, analytics visualization, governance workflows, rollout management, targeting rules, configuration DSL, and plugin support. Supports multi-tenancy and custom authorization. Embed with app.MapExperimentDashboard("/dashboard").</Description>
+    <PackageTags>experiments;ab-testing;dashboard;blazor;governance;analytics;multi-tenancy;aspnetcore;middleware;hangfire-style</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>DASHBOARD_README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ExperimentFramework.Dashboard.Abstractions\ExperimentFramework.Dashboard.Abstractions.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Dashboard.UI\ExperimentFramework.Dashboard.UI.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Dashboard.Api\ExperimentFramework.Dashboard.Api.csproj" />
+    <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\ExperimentFramework.Admin\ExperimentFramework.Admin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="DASHBOARD_README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

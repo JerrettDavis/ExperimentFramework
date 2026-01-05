@@ -1,10 +1,9 @@
-@page "/config"
-@using AspireDemo.Web
-@using AspireDemo.Web.Components.Shared
+@page "/dashboard/configuration"
+@using ExperimentFramework.Dashboard.UI.Services
 @inject ExperimentApiClient ExperimentApi
 @inject IJSRuntime JS
 
-<SetPageTitle Title="Settings - OptimizeLab" />
+<PageTitle>Configuration - Experiment Dashboard</PageTitle>
 
 <div class="config-page">
     <div class="page-header">
@@ -630,3 +629,4 @@
 builder.Services.AddExperimentFramework(experiments);";
     }
 }
+

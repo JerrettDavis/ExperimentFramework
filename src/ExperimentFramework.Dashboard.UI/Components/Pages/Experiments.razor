@@ -1,13 +1,11 @@
-@page "/experiments"
-@using AspireDemo.Web
-@using AspireDemo.Web.Components.Shared
-@using AspireDemo.Web.Services
+@page "/dashboard/experiments"
+@using ExperimentFramework.Dashboard.UI.Services
 @implements IDisposable
 @inject ExperimentApiClient ExperimentApi
 @inject ThemeService ThemeService
-@inject DemoStateService DemoState
+@inject DashboardStateService DashboardState
 
-<SetPageTitle Title="Experiments - OptimizeLab" />
+<PageTitle>Experiments - Experiment Dashboard</PageTitle>
 
 <div class="experiments-console">
     <!-- Header -->
@@ -52,11 +50,11 @@
             <div class="stat-label">Total</div>
         </div>
         <div class="stat-card active">
-            <div class="stat-value">@(_loading ? "-" : _experiments.Count(e => e.Status == "Active" && !DemoState.GetKillSwitch(e.Name)).ToString())</div>
+            <div class="stat-value">@(_loading ? "-" : _experiments.Count(e => e.Status == "Active" && !DashboardState.GetKillSwitch(e.Name)).ToString())</div>
             <div class="stat-label">Active</div>
         </div>
         <div class="stat-card killed">
-            <div class="stat-value">@(_loading ? "-" : DemoState.GetAllKillSwitches().Count(k => k.Value).ToString())</div>
+            <div class="stat-value">@(_loading ? "-" : DashboardState.GetAllKillSwitches().Count(k => k.Value).ToString())</div>
             <div class="stat-label">Killed</div>
         </div>
         <div class="stat-card">
@@ -68,13 +66,13 @@
     <!-- Filters & Search -->
     <div class="toolbar">
         <div class="filter-group">
-            <button class="filter-btn @(DemoState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DemoState.ExperimentFilterCategory = null">
+            <button class="filter-btn @(DashboardState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DashboardState.ExperimentFilterCategory = null">
                 All
             </button>
             @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog" })
             {
-                <button class="filter-btn @(DemoState.ExperimentFilterCategory == category ? "active" : "")"
-                        @onclick="() => DemoState.ExperimentFilterCategory = category">
+                <button class="filter-btn @(DashboardState.ExperimentFilterCategory == category ? "active" : "")"
+                        @onclick="() => DashboardState.ExperimentFilterCategory = category">
                     @category
                 </button>
             }
@@ -84,7 +82,7 @@
                 <circle cx="11" cy="11" r="8"/>
                 <path d="M21 21l-4.35-4.35"/>
             </svg>
-            <input type="text" placeholder="Search experiments..." @bind="DemoState.ExperimentSearchQuery" @bind:event="oninput" />
+            <input type="text" placeholder="Search experiments..." @bind="DashboardState.ExperimentSearchQuery" @bind:event="oninput" />
         </div>
     </div>
 
@@ -112,7 +110,7 @@
                     <path d="M12 8v4M12 16h.01"/>
                 </svg>
                 <p>No experiments match your criteria</p>
-                <button class="btn-secondary" @onclick="() => { DemoState.ExperimentFilterCategory = null; DemoState.ExperimentSearchQuery = string.Empty; }">
+                <button class="btn-secondary" @onclick="() => { DashboardState.ExperimentFilterCategory = null; DashboardState.ExperimentSearchQuery = string.Empty; }">
                     Clear Filters
                 </button>
             </div>
@@ -121,8 +119,8 @@
         {
             @foreach (var experiment in FilteredExperiments)
             {
-                var isKilled = DemoState.GetKillSwitch(experiment.Name);
-                var isExpanded = DemoState.IsExpanded("experiments", experiment.Name);
+                var isKilled = DashboardState.GetKillSwitch(experiment.Name);
+                var isExpanded = DashboardState.IsExpanded("experiments", experiment.Name);
 
                 <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "")">
                     <div class="exp-main" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
@@ -915,6 +913,7 @@
     private bool _activating = false;
     private bool _dataLoaded = false;
     private string? _error;
+    private System.Timers.Timer? _refreshTimer;
 
     private IEnumerable<ExperimentInfo> FilteredExperiments
     {
@@ -922,17 +921,17 @@
         {
             var filtered = _experiments.AsEnumerable();
 
-            if (!string.IsNullOrWhiteSpace(DemoState.ExperimentFilterCategory))
+            if (!string.IsNullOrWhiteSpace(DashboardState.ExperimentFilterCategory))
             {
-                filtered = filtered.Where(e => e.Category.Equals(DemoState.ExperimentFilterCategory, StringComparison.OrdinalIgnoreCase));
+                filtered = filtered.Where(e => e.Category.Equals(DashboardState.ExperimentFilterCategory, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!string.IsNullOrWhiteSpace(DemoState.ExperimentSearchQuery))
+            if (!string.IsNullOrWhiteSpace(DashboardState.ExperimentSearchQuery))
             {
                 filtered = filtered.Where(e =>
-                    e.DisplayName.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                    e.Name.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                    e.Description.Contains(DemoState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase));
+                    e.DisplayName.Contains(DashboardState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    e.Name.Contains(DashboardState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    e.Description.Contains(DashboardState.ExperimentSearchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
             return filtered;
@@ -941,7 +940,12 @@
 
     protected override void OnInitialized()
     {
-        DemoState.OnStateChanged += HandleStateChanged;
+        DashboardState.OnStateChanged += HandleStateChanged;
+
+        // Poll for killswitch updates every 3 seconds to sync state across apps
+        _refreshTimer = new System.Timers.Timer(3000);
+        _refreshTimer.Elapsed += async (sender, e) => await RefreshKillSwitches();
+        _refreshTimer.AutoReset = true;
     }
 
     private void HandleStateChanged()
@@ -951,7 +955,13 @@
 
     public void Dispose()
     {
-        DemoState.OnStateChanged -= HandleStateChanged;
+        DashboardState.OnStateChanged -= HandleStateChanged;
+
+        if (_refreshTimer != null)
+        {
+            _refreshTimer.Stop();
+            _refreshTimer.Dispose();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -961,6 +971,24 @@
             _dataLoaded = true;
             await LoadExperiments();
             StateHasChanged();
+
+            // Start polling after initial load
+            _refreshTimer?.Start();
+        }
+    }
+
+    private async Task RefreshKillSwitches()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var killSwitches = await ExperimentApi.GetKillSwitchStatusesAsync().WaitAsync(cts.Token);
+            DashboardState.SyncKillSwitchesFromApi(killSwitches);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Silently fail - don't interrupt user experience
         }
     }
 
@@ -980,8 +1008,8 @@
             var killSwitches = await killSwitchTask;
 
             // Sync state with API
-            DemoState.SyncVariantsFromApi(_experiments);
-            DemoState.SyncKillSwitchesFromApi(killSwitches);
+            DashboardState.SyncVariantsFromApi(_experiments);
+            DashboardState.SyncKillSwitchesFromApi(killSwitches);
         }
         catch (OperationCanceledException)
         {
@@ -1007,13 +1035,13 @@
 
     private void ToggleExperimentExpanded(string experimentName)
     {
-        DemoState.ToggleExpanded("experiments", experimentName);
+        DashboardState.ToggleExpanded("experiments", experimentName);
     }
 
     private async Task ToggleKillSwitchWithApi(string experimentName)
     {
-        var newState = !DemoState.GetKillSwitch(experimentName);
-        DemoState.SetKillSwitch(experimentName, newState);
+        var newState = !DashboardState.GetKillSwitch(experimentName);
+        DashboardState.SetKillSwitch(experimentName, newState);
 
         try
         {
@@ -1027,14 +1055,14 @@
         catch (Exception ex)
         {
             // Revert on error
-            DemoState.SetKillSwitch(experimentName, !newState);
+            DashboardState.SetKillSwitch(experimentName, !newState);
             _error = $"Failed to update kill switch: {ex.Message}";
         }
     }
 
     private async Task ActivateVariant(string experimentName, string variantName)
     {
-        if (DemoState.GetKillSwitch(experimentName)) return;
+        if (DashboardState.GetKillSwitch(experimentName)) return;
 
         _activating = true;
         try
@@ -1049,7 +1077,7 @@
                 }
 
                 // Update centralized state
-                DemoState.SetActiveVariant(experimentName, variantName);
+                DashboardState.SetActiveVariant(experimentName, variantName);
 
                 if (experimentName == "ui-theme")
                 {

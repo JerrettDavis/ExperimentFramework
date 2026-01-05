@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+    <StaticWebAssetBasePath>_content/ExperimentFramework.Dashboard.UI</StaticWebAssetBasePath>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>ExperimentFramework.Dashboard.UI</PackageId>
+    <Authors>JD</Authors>
+    <Description>Blazor UI components for the ExperimentFramework Dashboard. Provides a rich web interface for managing experiments, viewing analytics, governance workflows, and configuration. Embedded as a Razor Class Library with static web assets.</Description>
+    <PackageTags>experiments;ab-testing;dashboard;blazor;ui;aspnetcore;razor</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ExperimentFramework.Dashboard.Abstractions\ExperimentFramework.Dashboard.Abstractions.csproj" />
+    <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\**\*" />
+  </ItemGroup>
+
+</Project>
