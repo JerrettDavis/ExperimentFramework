@@ -1,10 +1,13 @@
 # Authentication Test Plan
 
 ## Issue Fixed
-The `MapExperimentDashboard()` was creating a new `DashboardOptions` instance instead of using the one configured with `AddExperimentDashboard()`, so the `RequireAuthorization = true` setting was being ignored.
+The dashboard middleware was being registered too late in the ASP.NET Core pipeline (during endpoint mapping instead of in the middleware pipeline), so authentication was never enforced.
 
 ## Fix Applied
-Modified `EndpointRouteBuilderExtensions.cs` to retrieve `DashboardOptions` from DI before falling back to creating a new instance.
+1. Created `UseExperimentDashboard()` method to properly register middleware in the pipeline
+2. Register `DashboardOptions` as singleton (in addition to IOptions pattern)
+3. Updated `Program.cs` to call `app.UseExperimentDashboard()` after authentication/authorization middleware
+4. Split middleware registration from endpoint mapping
 
 ## Testing Steps
 
@@ -59,34 +62,57 @@ Modified `EndpointRouteBuilderExtensions.cs` to retrieve `DashboardOptions` from
 
 ## What Was Wrong Before
 
-```csharp
-// OLD CODE - Always created new options
-var options = new DashboardOptions { PathBase = pathPrefix };
-configure?.Invoke(options); // This was never called in the scenario
-```
+The middleware was being registered inside `MapExperimentDashboard()`, which is called during endpoint mapping:
 
-This meant that even though you configured:
 ```csharp
-builder.Services.AddExperimentDashboard(options =>
+public static RouteGroupBuilder MapExperimentDashboard(...)
 {
-    options.RequireAuthorization = true; // ⚠️ This was ignored!
-    options.AuthorizationPolicy = "CanAccessExperiments";
-});
-```
+    // ⚠️ WRONG - Middleware registered during endpoint mapping (too late!)
+    if (endpoints is IApplicationBuilder app)
+    {
+        app.UseMiddleware<DashboardMiddleware>(options);
+    }
 
-The middleware was getting a fresh `DashboardOptions` with default values (`RequireAuthorization = false`).
-
-## What's Fixed Now
-
-```csharp
-// NEW CODE - Gets options from DI first
-var services = appBuilder.ApplicationServices;
-options = services.GetService(typeof(DashboardOptions)) as DashboardOptions;
-
-if (options == null)
-{
-    options = new DashboardOptions { PathBase = pathPrefix };
+    var group = endpoints.MapGroup(pathPrefix);
+    // ...
 }
 ```
 
-Now the middleware uses the options you configured in `AddExperimentDashboard`, so `RequireAuthorization = true` is properly enforced.
+By the time endpoint mapping happens, the middleware pipeline is already built. Adding middleware here doesn't work correctly.
+
+## What's Fixed Now
+
+Now you must call `UseExperimentDashboard()` to register the middleware BEFORE mapping endpoints:
+
+```csharp
+// In Program.cs:
+app.UseAuthentication();
+app.UseAuthorization();
+
+// ✅ Register middleware in the pipeline (BEFORE endpoint mapping)
+app.UseExperimentDashboard();
+
+// Then map endpoints
+app.MapExperimentDashboard("/dashboard");
+```
+
+The middleware is now properly registered in the pipeline and will enforce authentication before allowing access to dashboard routes.
+
+## Updated Usage Pattern
+
+**Before** (broken):
+```csharp
+builder.Services.AddExperimentDashboard(options => { ... });
+// ...
+app.MapExperimentDashboard("/dashboard"); // ⚠️ Auth not enforced
+```
+
+**After** (working):
+```csharp
+builder.Services.AddExperimentDashboard(options => { ... });
+// ...
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseExperimentDashboard(); // ✅ Register middleware
+app.MapExperimentDashboard("/dashboard"); // ✅ Map endpoints
+```
