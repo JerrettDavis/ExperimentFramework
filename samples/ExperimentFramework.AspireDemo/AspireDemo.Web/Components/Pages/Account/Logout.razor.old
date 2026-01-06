@@ -1,5 +1,8 @@
 @page "/Account/Logout"
+@using Microsoft.AspNetCore.Authorization
 @inject NavigationManager Navigation
+@attribute [ExcludeFromInteractiveRouting]
+@attribute [AllowAnonymous]
 
 <PageTitle>Logout - Experiment Demo</PageTitle>
 

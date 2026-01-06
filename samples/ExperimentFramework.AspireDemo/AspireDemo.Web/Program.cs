@@ -74,6 +74,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Add services to the container
+builder.Services.AddRazorPages(); // For Login/Logout pages
+builder.Services.AddCascadingAuthenticationState(); // Make auth state available to Blazor
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -107,6 +109,12 @@ builder.Services.AddHttpClient("DashboardApiClient", client =>
 
 // Theme service for cross-component theme synchronization
 builder.Services.AddScoped<AspireDemo.Web.ThemeService>();
+
+// Dashboard UI theme service (used by dashboard pages)
+builder.Services.AddScoped<ExperimentFramework.Dashboard.UI.Services.ThemeService>();
+
+// Dashboard UI state service (used by dashboard pages)
+builder.Services.AddScoped<ExperimentFramework.Dashboard.UI.Services.DashboardStateService>();
 
 // Centralized demo state service for cross-page state management
 builder.Services.AddScoped<DemoStateService>();
@@ -147,23 +155,26 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseAntiforgery();
 app.UseOutputCache();
 
 app.MapStaticAssets();
 
-// Add authentication and authorization middleware
+// Add authentication and authorization middleware (MUST be before UseAntiforgery)
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Antiforgery must come after authentication/authorization
+app.UseAntiforgery();
+
 // Add ExperimentFramework Dashboard middleware (must be after auth)
-app.UseExperimentDashboard();
+// DISABLED: Using component-level authorization instead
+// app.UseExperimentDashboard();
 
-// Map the ExperimentFramework Dashboard endpoints
-app.MapExperimentDashboard("/dashboard");
-
-// Map account endpoints
+// Map account endpoints (must be before MapRazorComponents)
 AspireDemo.Web.Endpoints.AccountEndpoints.MapAccountEndpoints(app);
+
+// Map Razor Pages (for Login/Logout)
+app.MapRazorPages();
 
 app.MapRazorComponents<AspireDemo.Web.Components.App>()
     .AddInteractiveServerRenderMode()

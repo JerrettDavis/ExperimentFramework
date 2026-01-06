@@ -1,0 +1,26 @@
+@page "/test"
+@model AspireDemo.Web.Pages.TestModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Page</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <p style="color: green;">Success! Message: @Model.Message</p>
+    }
+
+    <form method="post" action="/test">
+        @Html.AntiForgeryToken()
+        <input type="text" name="message" placeholder="Enter a message" />
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>

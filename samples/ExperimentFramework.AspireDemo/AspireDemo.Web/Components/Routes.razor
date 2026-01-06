@@ -1,9 +1,23 @@
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
 
 <Router AppAssembly="typeof(Program).Assembly"
         AdditionalAssemblies="new[] { typeof(ExperimentFramework.Dashboard.UI.Components.Pages.Home).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData">
+            <Authorizing>
+                <div style="text-align: center; padding: 4rem;">
+                    <p>Checking authorization...</p>
+                </div>
+            </Authorizing>
+            <NotAuthorized>
+                <div style="text-align: center; padding: 4rem;">
+                    <h1>Not Authorized</h1>
+                    <p>You don't have permission to access this page.</p>
+                    <a href="/Account/Login">Sign In</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>
@@ -11,7 +25,7 @@
             <div style="text-align: center; padding: 4rem;">
                 <h1>Page Not Found</h1>
                 <p>Sorry, the page you requested could not be found.</p>
-                <a href="/">Go to Dashboard</a>
+                <a href="/">Go to Home</a>
             </div>
         </LayoutView>
     </NotFound>

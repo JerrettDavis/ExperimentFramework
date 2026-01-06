@@ -1,0 +1,16 @@
+@page "/test-blazor"
+
+<PageTitle>Test Blazor</PageTitle>
+
+<h1>Blazor Server Test</h1>
+<p>Current time: @currentTime</p>
+<button @onclick="UpdateTime">Update Time</button>
+
+@code {
+    private string currentTime = DateTime.Now.ToString();
+
+    private void UpdateTime()
+    {
+        currentTime = DateTime.Now.ToString();
+    }
+}

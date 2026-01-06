@@ -1,77 +1,97 @@
 <nav class="nav-menu">
-    <div class="nav-section">
-        <div class="nav-section-title">Overview</div>
-        <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
-            <span class="nav-icon">🏠</span>
-            <span class="nav-text">Home</span>
-        </NavLink>
-    </div>
+    <NavLink href="/dashboard" Match="NavLinkMatch.All">
+        <span class="nav-icon">🏠</span>
+        <span>Home</span>
+    </NavLink>
 
-    <div class="nav-section">
-        <div class="nav-section-title">Experimentation</div>
-        <NavLink class="nav-item" href="/experiments">
-            <span class="nav-icon">🧪</span>
-            <span class="nav-text">Experiments</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/create">
-            <span class="nav-icon">➕</span>
-            <span class="nav-text">Create Experiment</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/dsl">
-            <span class="nav-icon">📝</span>
-            <span class="nav-text">DSL Editor</span>
-        </NavLink>
-    </div>
+    <NavLink href="/dashboard/experiments">
+        <span class="nav-icon">🧪</span>
+        <span>Experiments</span>
+    </NavLink>
 
-    <div class="nav-section">
-        <div class="nav-section-title">Intelligence</div>
-        <NavLink class="nav-item" href="/analytics">
-            <span class="nav-icon">📊</span>
-            <span class="nav-text">Analytics</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/hypothesis">
-            <span class="nav-icon">🔬</span>
-            <span class="nav-text">Hypothesis Testing</span>
-        </NavLink>
-    </div>
+    <NavLink href="/dashboard/analytics">
+        <span class="nav-icon">📊</span>
+        <span>Analytics</span>
+    </NavLink>
 
-    <div class="nav-section">
-        <div class="nav-section-title">Advanced Features</div>
-        <NavLink class="nav-item" href="/rollout">
-            <span class="nav-icon">📈</span>
-            <span class="nav-text">Rollout</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/targeting">
-            <span class="nav-icon">🎯</span>
-            <span class="nav-text">Targeting</span>
-        </NavLink>
-    </div>
+    <NavLink href="/dashboard/governance/lifecycle">
+        <span class="nav-icon">🔄</span>
+        <span>Governance</span>
+    </NavLink>
 
-    <div class="nav-section">
-        <div class="nav-section-title">Platform</div>
-        <NavLink class="nav-item" href="/plugins">
-            <span class="nav-icon">🔌</span>
-            <span class="nav-text">Plugins</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/configuration">
-            <span class="nav-icon">⚙️</span>
-            <span class="nav-text">Configuration</span>
-        </NavLink>
-    </div>
+    <NavLink href="/dashboard/targeting">
+        <span class="nav-icon">🎯</span>
+        <span>Targeting</span>
+    </NavLink>
 
-    <div class="nav-section">
-        <div class="nav-section-title">Governance</div>
-        <NavLink class="nav-item" href="/governance/lifecycle">
-            <span class="nav-icon">🔄</span>
-            <span class="nav-text">Lifecycle</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/governance/approvals">
-            <span class="nav-icon">✅</span>
-            <span class="nav-text">Approvals</span>
-        </NavLink>
-        <NavLink class="nav-item" href="/governance/audit">
-            <span class="nav-icon">📋</span>
-            <span class="nav-text">Audit Trail</span>
-        </NavLink>
-    </div>
+    <NavLink href="/dashboard/rollout">
+        <span class="nav-icon">📈</span>
+        <span>Rollout</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/hypothesis">
+        <span class="nav-icon">🔬</span>
+        <span>Hypothesis Testing</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/plugins">
+        <span class="nav-icon">🔌</span>
+        <span>Plugins</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/configuration">
+        <span class="nav-icon">⚙️</span>
+        <span>Configuration</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/dsl-editor">
+        <span class="nav-icon">📝</span>
+        <span>DSL Editor</span>
+    </NavLink>
 </nav>
+
+<style>
+    .nav-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 1rem 0;
+    }
+
+    .nav-menu :global(a) {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        color: var(--color-text-secondary, #64748b);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 150ms ease;
+        font-size: 0.875rem;
+    }
+
+    .nav-menu :global(a:hover) {
+        background: var(--color-bg-hover, rgba(99, 102, 241, 0.1));
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .nav-menu :global(a.active) {
+        background: var(--color-primary, #6366f1);
+        color: white;
+        font-weight: 500;
+    }
+
+    .nav-icon {
+        font-size: 1.125rem;
+        line-height: 1;
+    }
+
+    :global(.theme-dark) .nav-menu :global(a) {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .nav-menu :global(a:hover) {
+        background: rgba(99, 102, 241, 0.2);
+        color: #e5e7eb;
+    }
+</style>

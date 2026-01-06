@@ -36,4 +36,10 @@
     <EmbeddedResource Include="wwwroot\**\*" />
   </ItemGroup>
 
+  <!-- Include MSBuild targets file in NuGet package -->
+  <ItemGroup>
+    <None Include="build\**\*" Pack="true" PackagePath="build\" />
+    <None Include="templates\**\*" Pack="true" PackagePath="templates\" />
+  </ItemGroup>
+
 </Project>

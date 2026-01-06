@@ -1,7 +1,10 @@
 @page "/Account/Login"
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Authorization
 @layout AspireDemo.Web.Components.Layout.MinimalLayout
 @inject NavigationManager Navigation
+@attribute [ExcludeFromInteractiveRouting]
+@attribute [AllowAnonymous]
 
 <PageTitle>Login - Experiment Demo</PageTitle>
 
@@ -20,7 +23,7 @@
             </div>
         }
 
-        <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")">
+        <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" data-enhance="false">
             <div class="form-group">
                 <label for="email">Email</label>
                 <input name="email" id="email" class="form-control" placeholder="admin@experimentdemo.com" required />
@@ -44,7 +47,7 @@
         <div class="demo-users">
             <h3>Demo Users</h3>
             <div class="user-cards">
-                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
                     <input type="hidden" name="email" value="admin@experimentdemo.com" />
                     <input type="hidden" name="password" value="Admin123!" />
                     <input type="hidden" name="rememberMe" value="true" />
@@ -54,7 +57,7 @@
                     </button>
                 </form>
 
-                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
                     <input type="hidden" name="email" value="experimenter@experimentdemo.com" />
                     <input type="hidden" name="password" value="Experimenter123!" />
                     <input type="hidden" name="rememberMe" value="true" />
@@ -64,7 +67,7 @@
                     </button>
                 </form>
 
-                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
                     <input type="hidden" name="email" value="viewer@experimentdemo.com" />
                     <input type="hidden" name="password" value="Viewer123!" />
                     <input type="hidden" name="rememberMe" value="true" />
@@ -74,7 +77,7 @@
                     </button>
                 </form>
 
-                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;">
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
                     <input type="hidden" name="email" value="analyst@experimentdemo.com" />
                     <input type="hidden" name="password" value="Analyst123!" />
                     <input type="hidden" name="rememberMe" value="true" />

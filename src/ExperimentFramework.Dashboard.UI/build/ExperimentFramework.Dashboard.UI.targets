@@ -1,0 +1,26 @@
+<Project>
+  <PropertyGroup>
+    <DashboardLayoutsDirectory Condition="'$(DashboardLayoutsDirectory)' == ''">$(MSBuildProjectDirectory)\Components\Layout</DashboardLayoutsDirectory>
+    <DashboardLayoutTemplateFile>$(MSBuildThisFileDirectory)..\templates\DashboardMainLayout.razor.template</DashboardLayoutTemplateFile>
+    <DashboardLayoutOutputFile>$(DashboardLayoutsDirectory)\DashboardMainLayout.razor</DashboardLayoutOutputFile>
+  </PropertyGroup>
+
+  <!-- Copy dashboard layout template to consuming project if it doesn't exist -->
+  <Target Name="CopyDashboardLayoutTemplate" BeforeTargets="BeforeBuild" Condition="!Exists('$(DashboardLayoutOutputFile)')">
+    <Message Text="ExperimentFramework.Dashboard.UI: Creating DashboardMainLayout.razor in $(DashboardLayoutsDirectory)" Importance="high" />
+    
+    <!-- Create the Layout directory if it doesn't exist -->
+    <MakeDir Directories="$(DashboardLayoutsDirectory)" Condition="!Exists('$(DashboardLayoutsDirectory)')" />
+    
+    <!-- Copy the template file -->
+    <Copy SourceFiles="$(DashboardLayoutTemplateFile)" DestinationFiles="$(DashboardLayoutOutputFile)" />
+    
+    <Message Text="ExperimentFramework.Dashboard.UI: DashboardMainLayout.razor has been created. You can customize it for your application." Importance="high" />
+    <Message Text="ExperimentFramework.Dashboard.UI: To use this layout, add '@layout YourNamespace.Components.Layout.DashboardMainLayout' to your Components/_Imports.razor" Importance="high" />
+  </Target>
+
+  <!-- Include the created layout in the project compile -->
+  <ItemGroup Condition="Exists('$(DashboardLayoutOutputFile)')">
+    <Compile Include="$(DashboardLayoutOutputFile)" />
+  </ItemGroup>
+</Project>

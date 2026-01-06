@@ -46,6 +46,17 @@ public sealed class DashboardMiddleware
     /// <param name="context">The HTTP context.</param>
     public async Task InvokeAsync(HttpContext context)
     {
+        // Skip middleware for Blazor framework requests (SignalR, static assets, etc.)
+        var path = context.Request.Path.Value ?? "";
+        if (path.StartsWith("/_framework", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/_blazor", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/_content", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/_vs", StringComparison.OrdinalIgnoreCase))
+        {
+            await _next(context);
+            return;
+        }
+
         // Check if request is for dashboard path
         if (!context.Request.Path.StartsWithSegments(_options.PathBase))
         {
@@ -53,8 +64,8 @@ public sealed class DashboardMiddleware
             return;
         }
 
-        _logger.LogInformation("Dashboard middleware invoked for path: {Path}, RequireAuthorization: {RequireAuth}",
-            context.Request.Path, _options.RequireAuthorization);
+        _logger.LogInformation("Dashboard middleware invoked for path: {Path}, Method: {Method}, RequireAuthorization: {RequireAuth}",
+            context.Request.Path, context.Request.Method, _options.RequireAuthorization);
 
         // Resolve tenant context
         var tenantContext = await _options.TenantResolver.ResolveAsync(context);

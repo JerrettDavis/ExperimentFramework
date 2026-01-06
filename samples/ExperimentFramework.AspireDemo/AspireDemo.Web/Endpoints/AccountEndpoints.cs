@@ -13,7 +13,7 @@ public static class AccountEndpoints
         group.MapPost("/login", async (
             [FromForm] string email,
             [FromForm] string password,
-            [FromForm] bool rememberMe,
+            [FromForm] bool? rememberMe,
             [FromQuery] string? returnUrl,
             SignInManager<ApplicationUser> signInManager,
             HttpContext httpContext) =>
@@ -21,7 +21,7 @@ public static class AccountEndpoints
             var result = await signInManager.PasswordSignInAsync(
                 email,
                 password,
-                rememberMe,
+                rememberMe ?? false,
                 lockoutOnFailure: true);
 
             if (result.Succeeded)

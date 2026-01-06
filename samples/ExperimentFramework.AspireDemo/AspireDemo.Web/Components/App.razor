@@ -108,9 +108,11 @@
 </head>
 
 <body>
-    <AspireDemo.Web.Components.Shared.AppErrorBoundary>
-        <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
-    </AspireDemo.Web.Components.Shared.AppErrorBoundary>
+    <CascadingAuthenticationState>
+        <AspireDemo.Web.Components.Shared.AppErrorBoundary>
+            <Routes @rendermode="InteractiveServer" />
+        </AspireDemo.Web.Components.Shared.AppErrorBoundary>
+    </CascadingAuthenticationState>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="monaco/monaco-interop.js"></script>
 </body>

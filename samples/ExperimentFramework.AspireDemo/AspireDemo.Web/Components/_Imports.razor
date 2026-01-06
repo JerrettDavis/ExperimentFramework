@@ -3,9 +3,14 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.AspNetCore.OutputCaching
 @using Microsoft.JSInterop
 @using AspireDemo.Web
 @using AspireDemo.Web.Components
+
+@* Use DashboardMainLayout for Dashboard pages - this layout is in the host app, not the RCL *@
+@* Dashboard.UI pages will inherit this layout since they don't specify their own *@
+@layout AspireDemo.Web.Components.Layout.DashboardMainLayout
