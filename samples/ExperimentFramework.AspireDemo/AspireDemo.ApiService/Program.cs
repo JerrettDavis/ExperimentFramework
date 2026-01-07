@@ -3,7 +3,10 @@ using AspireDemo.ApiService.Data;
 using AspireDemo.ApiService.Models;
 using AspireDemo.ApiService.Services;
 using ExperimentFramework;
+using ExperimentFramework.Admin;
 using ExperimentFramework.Audit;
+using ExperimentFramework.Governance;
+using ExperimentFramework.Governance.Persistence;
 using ExperimentFramework.KillSwitch;
 using ExperimentFramework.Models;
 using ExperimentFramework.Targeting;
@@ -100,6 +103,31 @@ var experiments = ExperimentFrameworkBuilder.Create()
 
 builder.Services.AddExperimentFramework(experiments);
 
+// Configure Experiment Governance
+builder.Services.AddExperimentGovernance(gov =>
+{
+    // Use in-memory persistence for demo purposes
+    gov.UsePersistence(p =>
+    {
+        p.AddInMemoryGovernancePersistence();
+    });
+
+    // Configure approval gates for lifecycle transitions
+    gov.WithAutomaticApproval(
+        ExperimentLifecycleState.Draft,
+        ExperimentLifecycleState.PendingApproval);
+
+    gov.WithRoleBasedApproval(
+        ExperimentLifecycleState.PendingApproval,
+        ExperimentLifecycleState.Approved,
+        "admin", "experimenter");
+
+    gov.WithRoleBasedApproval(
+        ExperimentLifecycleState.Approved,
+        ExperimentLifecycleState.Running,
+        "admin", "operator");
+});
+
 var app = builder.Build();
 
 // Initialize database and load persisted state
@@ -130,6 +158,44 @@ await using (var scope = app.Services.CreateAsyncScope())
             ExperimentName = "PluginSystem",
             SelectedTrialKey = $"Auto-discovered {discoveredCount} plugins on startup"
         });
+    }
+
+    // Initialize governance system with demo experiments
+    var lifecycleManager = scope.ServiceProvider.GetRequiredService<ILifecycleManager>();
+    var experimentStateManager = scope.ServiceProvider.GetRequiredService<ExperimentStateManager>();
+
+    // Register experiments in governance system
+    var experimentsToRegister = new[]
+    {
+        "pricing-strategy",
+        "recommendation-algorithm",
+        "ui-theme",
+        "notification-style",
+        "blog-data-provider",
+        "blog-editor",
+        "blog-auth",
+        "blog-syndication"
+    };
+
+    foreach (var experimentName in experimentsToRegister)
+    {
+        try
+        {
+            var currentState = lifecycleManager.GetState(experimentName);
+            if (currentState == null)
+            {
+                // Initialize new experiments in Draft state
+                await lifecycleManager.TransitionAsync(
+                    experimentName,
+                    ExperimentLifecycleState.Draft,
+                    actor: "system",
+                    reason: "Initial registration");
+            }
+        }
+        catch
+        {
+            // Experiment already exists or error occurred, continue
+        }
     }
 }
 
@@ -1270,6 +1336,34 @@ app.MapGet("/api/dsl/schema", () =>
 })
 .WithName("GetDslSchema")
 .WithTags("DSL");
+
+// Simple diagnostic endpoint
+app.MapGet("/api/test/hello", () => Results.Ok(new { message = "Hello from API!" }));
+
+// Diagnostic endpoint to test ILifecycleManager
+app.MapGet("/api/governance/test", (IServiceProvider sp) =>
+{
+    var lifecycleManager = sp.GetService<ILifecycleManager>();
+    if (lifecycleManager == null)
+    {
+        return Results.Ok(new { status = "ILifecycleManager NOT FOUND" });
+    }
+
+    var state = lifecycleManager.GetState("pricing-strategy");
+    var allowed = lifecycleManager.GetAllowedTransitions("pricing-strategy");
+    var history = lifecycleManager.GetHistory("pricing-strategy");
+
+    return Results.Ok(new
+    {
+        status = "ILifecycleManager FOUND",
+        pricingStrategyState = state?.ToString() ?? "null",
+        allowedTransitions = allowed?.Select(s => s.ToString()),
+        historyCount = history?.Count ?? 0
+    });
+});
+
+// Map Governance Admin API
+app.MapGovernanceAdminApi("/api/governance");
 
 app.MapDefaultEndpoints();
 app.Run();

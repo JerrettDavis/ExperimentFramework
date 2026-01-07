@@ -37,7 +37,14 @@
 
         @if (_selectedExperiment != null)
         {
-            @if (_currentState == null && !_loadingData)
+            @if (_loadingData)
+            {
+                <div class="loading-state">
+                    <span class="spinner"></span>
+                    <p>Loading lifecycle data...</p>
+                </div>
+            }
+            else if (_currentState == null)
             {
                 <div class="info-message">
                     <div class="info-icon">ℹ️</div>
@@ -115,10 +122,10 @@
 
                 <div class="transitions-card">
                     <h2>Available Transitions</h2>
-                    @if (_currentState.Transitions.Length > 0)
+                    @if ((_currentState.AllowedTransitions ?? _currentState.Transitions).Length > 0)
                     {
                         <div class="transitions-list">
-                            @foreach (var transition in _currentState.Transitions)
+                            @foreach (var transition in (_currentState.AllowedTransitions ?? _currentState.Transitions))
                             {
                                 <button class="transition-btn" @onclick="() => ShowTransitionDialog(transition)" disabled="@_transitioning">
                                     Transition to @transition
@@ -610,6 +617,7 @@
             _currentState = null;
             _transitionHistory = [];
         }
+        StateHasChanged();
     }
 
     private async Task LoadLifecycleData()
@@ -617,14 +625,23 @@
         if (string.IsNullOrEmpty(_selectedExperiment)) return;
 
         _loadingData = true;
+        StateHasChanged();
+
         try
         {
             _currentState = await ExperimentApi.GetLifecycleStateAsync(_selectedExperiment);
             _transitionHistory = await ExperimentApi.GetStateTransitionHistoryAsync(_selectedExperiment);
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading lifecycle data: {ex.Message}");
+            _currentState = null;
+            _transitionHistory = [];
+        }
         finally
         {
             _loadingData = false;
+            StateHasChanged();
         }
     }
 

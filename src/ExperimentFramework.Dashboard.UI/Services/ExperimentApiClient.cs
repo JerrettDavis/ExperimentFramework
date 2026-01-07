@@ -211,10 +211,14 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            return await httpClient.GetFromJsonAsync<ExperimentStateInfo>($"/api/governance/{experimentName}/state", cancellationToken);
+            Console.WriteLine($"[DEBUG] Calling: /api/governance/{experimentName}/lifecycle/state");
+            var result = await httpClient.GetFromJsonAsync<ExperimentStateInfo>($"/api/governance/{experimentName}/lifecycle/state", cancellationToken);
+            Console.WriteLine($"[DEBUG] Result: {(result != null ? $"State={result.State}" : "null")}");
+            return result;
         }
-        catch (HttpRequestException)
+        catch (Exception ex)
         {
+            Console.WriteLine($"[DEBUG] Error getting lifecycle state: {ex.Message}");
             return null;
         }
     }
@@ -222,7 +226,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     public async Task<bool> TransitionStateAsync(string experimentName, string targetState, string? actor = null, string? reason = null, CancellationToken cancellationToken = default)
     {
         var request = new { TargetState = targetState, Actor = actor, Reason = reason };
-        var response = await httpClient.PostAsJsonAsync($"/api/governance/{experimentName}/transition", request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"/api/governance/{experimentName}/lifecycle/transition", request, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -230,8 +234,8 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<GovernanceListResponse<StateTransitionInfo>>($"/api/governance/{experimentName}/transitions", cancellationToken);
-            return response?.Transitions ?? [];
+            var response = await httpClient.GetFromJsonAsync<LifecycleHistoryResponse>($"/api/governance/{experimentName}/lifecycle/history", cancellationToken);
+            return response?.Transitions?.ToList() ?? [];
         }
         catch (HttpRequestException)
         {
@@ -589,27 +593,59 @@ public enum HypothesisStatus
 
 public class ExperimentStateInfo
 {
+    [System.Text.Json.Serialization.JsonPropertyName("experimentName")]
     public string ExperimentName { get; set; } = "";
+
+    [System.Text.Json.Serialization.JsonPropertyName("state")]
     public string State { get; set; } = "";
+
+    [System.Text.Json.Serialization.JsonPropertyName("configurationVersion")]
     public int ConfigurationVersion { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("lastModified")]
     public DateTimeOffset LastModified { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("lastModifiedBy")]
     public string? LastModifiedBy { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("transitions")]
     public string[] Transitions { get; set; } = Array.Empty<string>();
+
+    [System.Text.Json.Serialization.JsonPropertyName("allowedTransitions")]
+    public string[]? AllowedTransitions { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("tenantId")]
     public string? TenantId { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("environment")]
     public string? Environment { get; set; }
+}
+
+public class LifecycleHistoryResponse
+{
+    [System.Text.Json.Serialization.JsonPropertyName("experimentName")]
+    public string ExperimentName { get; set; } = "";
+
+    [System.Text.Json.Serialization.JsonPropertyName("transitions")]
+    public StateTransitionInfo[] Transitions { get; set; } = Array.Empty<StateTransitionInfo>();
 }
 
 public class StateTransitionInfo
 {
-    public string TransitionId { get; set; } = "";
-    public string ExperimentName { get; set; } = "";
+    [System.Text.Json.Serialization.JsonPropertyName("from")]
     public string FromState { get; set; } = "";
+
+    [System.Text.Json.Serialization.JsonPropertyName("to")]
     public string ToState { get; set; } = "";
+
+    [System.Text.Json.Serialization.JsonPropertyName("timestamp")]
     public DateTimeOffset Timestamp { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("actor")]
     public string? Actor { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("reason")]
     public string? Reason { get; set; }
-    public string? TenantId { get; set; }
-    public string? Environment { get; set; }
 }
 
 public class PolicyEvaluationInfo
