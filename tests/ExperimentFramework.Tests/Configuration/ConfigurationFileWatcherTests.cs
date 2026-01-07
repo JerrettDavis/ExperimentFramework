@@ -55,6 +55,19 @@ public class ConfigurationFileWatcherTests : IDisposable
 
     #region Helper Methods
 
+    private async Task<bool> WaitForConditionAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var startTime = DateTime.UtcNow;
+        while (DateTime.UtcNow - startTime < timeout)
+        {
+            if (condition())
+                return true;
+
+            await Task.Delay(50);
+        }
+        return condition();
+    }
+
     private string CreateYamlFile(string fileName, string content)
     {
         var path = Path.Combine(_tempDir, fileName);
@@ -158,11 +171,14 @@ public class ConfigurationFileWatcherTests : IDisposable
         await Task.Delay(100);
 
         await File.WriteAllTextAsync(yamlPath, GetUpdatedYaml());
-        await Task.Delay(1000);
+
+        // Wait for callback to be invoked (up to 5 seconds)
+        var callbackReceived = await WaitForConditionAsync(() => callbackInvoked, TimeSpan.FromSeconds(5));
 
         await watcher.StopAsync(CancellationToken.None);
 
         // Assert
+        Assert.True(callbackReceived, "Callback was not invoked within the timeout period");
         Assert.True(callbackInvoked);
         Assert.NotNull(receivedConfig);
         Assert.NotNull(receivedConfig.Trials);
