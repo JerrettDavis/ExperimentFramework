@@ -4,7 +4,7 @@
 <Router AppAssembly="typeof(Program).Assembly"
         AdditionalAssemblies="new[] { typeof(ExperimentFramework.Dashboard.UI.Components.Pages.Home).Assembly }">
     <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(AspireDemo.Web.Components.Layout.DashboardMainLayout)">
             <Authorizing>
                 <div style="text-align: center; padding: 4rem;">
                     <p>Checking authorization...</p>

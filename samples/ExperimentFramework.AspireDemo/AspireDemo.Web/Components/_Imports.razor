@@ -11,6 +11,6 @@
 @using AspireDemo.Web
 @using AspireDemo.Web.Components
 
-@* Use DashboardMainLayout for Dashboard pages - this layout is in the host app, not the RCL *@
-@* Dashboard.UI pages will inherit this layout since they don't specify their own *@
-@layout AspireDemo.Web.Components.Layout.DashboardMainLayout
+@* Layout is configured per-page or via subfolder _Imports.razor *@
+@* Dashboard pages will use DashboardMainLayout *@
+@* Non-dashboard pages will use their own layouts or no layout *@
