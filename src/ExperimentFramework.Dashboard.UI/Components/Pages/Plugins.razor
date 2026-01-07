@@ -13,11 +13,8 @@
             <p class="subtitle">Dynamically load and manage experiment strategy plugins</p>
         </div>
         <div class="header-actions">
-            <button class="action-btn primary" @onclick="DiscoverPlugins" disabled="@_discovering">
-                @if (_discovering) { <span class="btn-spinner"></span> }
-                Discover Plugins
-            </button>
             <button class="action-btn secondary" @onclick="RefreshPlugins" disabled="@_loading">
+                @if (_loading) { <span class="btn-spinner"></span> }
                 Refresh
             </button>
         </div>
@@ -84,8 +81,8 @@
         {
             <div class="empty-state">
                 <span class="empty-icon">PLUG</span>
-                <h3>No Plugins Loaded</h3>
-                <p>Click "Discover Plugins" to search for and load available plugins.</p>
+                <h3>No Plugins Available</h3>
+                <p>No plugins were found during automatic discovery at startup. Add plugin assemblies to the configured plugin directory and restart the application.</p>
             </div>
         }
         else
@@ -846,7 +843,6 @@
     private List<PluginInfo> _plugins = [];
     private List<AuditLogEntry> _auditEvents = [];
     private bool _loading = true;
-    private bool _discovering = false;
     private bool _reloading = false;
     private bool _dataLoaded = false;
     private string? _error;
@@ -922,26 +918,6 @@
         catch (Exception ex)
         {
             _error = $"Failed to clear: {ex.Message}";
-        }
-    }
-
-    private async Task DiscoverPlugins()
-    {
-        _discovering = true;
-        _error = null;
-        try
-        {
-            var discovered = await ExperimentApi.DiscoverPluginsAsync();
-            _success = $"Discovered and loaded {discovered} plugin(s)";
-            await RefreshPlugins();
-        }
-        catch (Exception ex)
-        {
-            _error = $"Discovery failed: {ex.Message}";
-        }
-        finally
-        {
-            _discovering = false;
         }
     }
 

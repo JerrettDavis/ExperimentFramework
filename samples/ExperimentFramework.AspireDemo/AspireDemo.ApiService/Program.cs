@@ -116,6 +116,21 @@ await using (var scope = app.Services.CreateAsyncScope())
     // Initialize audit sink from persisted state
     var auditSink = scope.ServiceProvider.GetRequiredService<PersistentAuditSink>();
     await auditSink.InitializeAsync();
+
+    // Auto-discover and load plugins on startup
+    var pluginManager = scope.ServiceProvider.GetRequiredService<PluginStateManager>();
+    var discoveredCount = pluginManager.DiscoverPlugins();
+    if (discoveredCount > 0)
+    {
+        await auditSink.RecordAsync(new AuditEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            Timestamp = DateTimeOffset.UtcNow,
+            EventType = AuditEventType.ExperimentCreated,
+            ExperimentName = "PluginSystem",
+            SelectedTrialKey = $"Auto-discovered {discoveredCount} plugins on startup"
+        });
+    }
 }
 
 app.UseCors();
