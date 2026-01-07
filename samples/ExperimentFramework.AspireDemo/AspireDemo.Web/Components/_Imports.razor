@@ -3,9 +3,14 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.AspNetCore.OutputCaching
 @using Microsoft.JSInterop
 @using AspireDemo.Web
 @using AspireDemo.Web.Components
+
+@* Layout is configured per-page or via subfolder _Imports.razor *@
+@* Dashboard pages will use DashboardMainLayout *@
+@* Non-dashboard pages will use their own layouts or no layout *@

@@ -1,0 +1,19 @@
+@page "/Account/Logout"
+@using Microsoft.AspNetCore.Authorization
+@inject NavigationManager Navigation
+@attribute [ExcludeFromInteractiveRouting]
+@attribute [AllowAnonymous]
+
+<PageTitle>Logout - Experiment Demo</PageTitle>
+
+<div style="text-align: center; padding: 4rem;">
+    <p>Signing out...</p>
+</div>
+
+<form id="logoutForm" method="post" action="/api/account/logout" style="display: none;">
+    <button type="submit">Logout</button>
+</form>
+
+<script>
+    document.getElementById('logoutForm').submit();
+</script>

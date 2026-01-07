@@ -3,7 +3,10 @@ using AspireDemo.ApiService.Data;
 using AspireDemo.ApiService.Models;
 using AspireDemo.ApiService.Services;
 using ExperimentFramework;
+using ExperimentFramework.Admin;
 using ExperimentFramework.Audit;
+using ExperimentFramework.Governance;
+using ExperimentFramework.Governance.Persistence;
 using ExperimentFramework.KillSwitch;
 using ExperimentFramework.Models;
 using ExperimentFramework.Targeting;
@@ -100,6 +103,31 @@ var experiments = ExperimentFrameworkBuilder.Create()
 
 builder.Services.AddExperimentFramework(experiments);
 
+// Configure Experiment Governance
+builder.Services.AddExperimentGovernance(gov =>
+{
+    // Use in-memory persistence for demo purposes
+    gov.UsePersistence(p =>
+    {
+        p.AddInMemoryGovernancePersistence();
+    });
+
+    // Configure approval gates for lifecycle transitions
+    gov.WithAutomaticApproval(
+        ExperimentLifecycleState.Draft,
+        ExperimentLifecycleState.PendingApproval);
+
+    gov.WithRoleBasedApproval(
+        ExperimentLifecycleState.PendingApproval,
+        ExperimentLifecycleState.Approved,
+        "admin", "experimenter");
+
+    gov.WithRoleBasedApproval(
+        ExperimentLifecycleState.Approved,
+        ExperimentLifecycleState.Running,
+        "admin", "operator");
+});
+
 var app = builder.Build();
 
 // Initialize database and load persisted state
@@ -116,6 +144,59 @@ await using (var scope = app.Services.CreateAsyncScope())
     // Initialize audit sink from persisted state
     var auditSink = scope.ServiceProvider.GetRequiredService<PersistentAuditSink>();
     await auditSink.InitializeAsync();
+
+    // Auto-discover and load plugins on startup
+    var pluginManager = scope.ServiceProvider.GetRequiredService<PluginStateManager>();
+    var discoveredCount = pluginManager.DiscoverPlugins();
+    if (discoveredCount > 0)
+    {
+        await auditSink.RecordAsync(new AuditEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            Timestamp = DateTimeOffset.UtcNow,
+            EventType = AuditEventType.ExperimentCreated,
+            ExperimentName = "PluginSystem",
+            SelectedTrialKey = $"Auto-discovered {discoveredCount} plugins on startup"
+        });
+    }
+
+    // Initialize governance system with demo experiments
+    var lifecycleManager = scope.ServiceProvider.GetRequiredService<ILifecycleManager>();
+    var experimentStateManager = scope.ServiceProvider.GetRequiredService<ExperimentStateManager>();
+
+    // Register experiments in governance system
+    var experimentsToRegister = new[]
+    {
+        "pricing-strategy",
+        "recommendation-algorithm",
+        "ui-theme",
+        "notification-style",
+        "blog-data-provider",
+        "blog-editor",
+        "blog-auth",
+        "blog-syndication"
+    };
+
+    foreach (var experimentName in experimentsToRegister)
+    {
+        try
+        {
+            var currentState = lifecycleManager.GetState(experimentName);
+            if (currentState == null)
+            {
+                // Initialize new experiments in Draft state
+                await lifecycleManager.TransitionAsync(
+                    experimentName,
+                    ExperimentLifecycleState.Draft,
+                    actor: "system",
+                    reason: "Initial registration");
+            }
+        }
+        catch
+        {
+            // Experiment already exists or error occurred, continue
+        }
+    }
 }
 
 app.UseCors();
@@ -132,9 +213,41 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => "ExperimentFramework Aspire Demo API");
 
-app.MapGet("/api/experiments", (ExperimentStateManager state) =>
+app.MapGet("/api/experiments", (ExperimentStateManager state, PluginStateManager plugins) =>
 {
-    return Results.Ok(state.GetAllExperiments());
+    var experiments = state.GetAllExperiments().ToList();
+
+    // Add plugin services as pseudo-experiments
+    foreach (var plugin in plugins.GetAllPlugins())
+    {
+        foreach (var service in plugin.Services)
+        {
+            var activeImpl = plugins.GetActiveImplementation(service.Interface);
+            var variants = service.Implementations.Select(impl => new VariantInfo
+            {
+                Name = impl.Alias ?? impl.Type,
+                DisplayName = impl.Alias ?? impl.Type,
+                Description = $"{impl.Type} from {plugin.Name}"
+            }).ToList();
+
+            var pluginExperiment = new ExperimentInfo
+            {
+                Name = $"plugin:{service.Interface}",
+                DisplayName = service.Interface,
+                Description = $"Plugin-provided implementations for {service.Interface}",
+                ActiveVariant = activeImpl?.Alias ?? activeImpl?.ImplementationType ?? variants.FirstOrDefault()?.Name ?? "none",
+                DefaultVariant = variants.FirstOrDefault()?.Name ?? "none",
+                Variants = variants,
+                Category = "Plugins",
+                Status = plugin.Status,
+                LastModified = plugin.LoadTime
+            };
+            pluginExperiment.SourceEnum = ExperimentSource.Plugin;
+            experiments.Add(pluginExperiment);
+        }
+    }
+
+    return Results.Ok(experiments);
 })
 .WithName("GetExperiments")
 .WithTags("Experiments");
@@ -147,8 +260,41 @@ app.MapGet("/api/experiments/{name}", (string name, ExperimentStateManager state
 .WithName("GetExperiment")
 .WithTags("Experiments");
 
-app.MapPost("/api/experiments/{name}/activate/{variant}", async (string name, string variant, ExperimentStateManager state, IConfiguration config, PersistentAuditSink auditSink, BlogPluginStateManager? blogPlugins) =>
+app.MapPost("/api/experiments/{name}/activate/{variant}", async (string name, string variant, ExperimentStateManager state, PluginStateManager plugins, IConfiguration config, PersistentAuditSink auditSink, BlogPluginStateManager? blogPlugins) =>
 {
+    // Handle plugin-based experiments
+    if (name.StartsWith("plugin:"))
+    {
+        var interfaceName = name.Substring("plugin:".Length);
+        var plugin = plugins.GetAllPlugins().FirstOrDefault(p => p.Services.Any(s => s.Interface == interfaceName));
+        if (plugin == null) return Results.NotFound();
+
+        var service = plugin.Services.First(s => s.Interface == interfaceName);
+        var impl = service.Implementations.FirstOrDefault(i => i.Alias == variant || i.Type == variant);
+        if (impl == null) return Results.BadRequest(new { Error = "Invalid variant" });
+
+        var previousActive = plugins.GetActiveImplementation(interfaceName);
+        plugins.SetActiveImplementation(interfaceName, plugin.Id, impl.Type, impl.Alias);
+
+        await auditSink.RecordAsync(new AuditEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            Timestamp = DateTimeOffset.UtcNow,
+            EventType = AuditEventType.ExperimentModified,
+            ExperimentName = interfaceName,
+            SelectedTrialKey = variant,
+            Details = new Dictionary<string, object>
+            {
+                ["previousVariant"] = previousActive?.Alias ?? previousActive?.ImplementationType ?? "none",
+                ["newVariant"] = variant,
+                ["source"] = "Dashboard",
+                ["pluginId"] = plugin.Id
+            }
+        });
+
+        return Results.Ok(new { success = true, interfaceName, variant });
+    }
+
     var previousVariant = state.GetActiveVariant(name);
     var success = state.SetActiveVariant(name, variant);
     if (!success) return Results.BadRequest(new { Error = "Invalid experiment or variant" });
@@ -817,29 +963,61 @@ app.MapGet("/api/blog/search", (string q, BlogDataStore store) =>
 
 // Blog Plugin Management Endpoints
 
-app.MapGet("/api/blog/plugins", (BlogPluginStateManager blogPlugins) =>
+app.MapGet("/api/blog/plugins", (BlogPluginStateManager blogPlugins, IKillSwitchProvider killSwitch) =>
 {
+    // Helper to get active plugin respecting killswitches
+    string GetActivePluginWithKillSwitch(string experimentName, string currentActive, string defaultValue)
+    {
+        var type = ExperimentTypeResolver.GetServiceType(experimentName);
+
+        // If entire experiment is disabled, return default
+        if (killSwitch.IsExperimentDisabled(type))
+            return defaultValue;
+
+        // If current active variant is disabled, return default
+        if (killSwitch.IsTrialDisabled(type, currentActive))
+            return defaultValue;
+
+        return currentActive;
+    }
+
+    // Get active plugins respecting killswitches
+    var activeDataProvider = GetActivePluginWithKillSwitch(
+        "blog-data-provider",
+        blogPlugins.ActiveDataProviderAlias,
+        "in-memory");
+
+    var activeEditor = GetActivePluginWithKillSwitch(
+        "blog-editor",
+        blogPlugins.ActiveEditorAlias,
+        "markdown");
+
+    var activeAuth = GetActivePluginWithKillSwitch(
+        "blog-auth",
+        blogPlugins.ActiveAuthAlias,
+        "simple-token");
+
     return Results.Ok(new
     {
         Data = new
         {
             Options = BlogPluginStateManager.DataProviders,
-            Active = blogPlugins.ActiveDataProviderAlias
+            Active = activeDataProvider
         },
         Editor = new
         {
             Options = BlogPluginStateManager.Editors,
-            Active = blogPlugins.ActiveEditorAlias
+            Active = activeEditor
         },
         Syndication = new
         {
             Options = BlogPluginStateManager.Syndicators,
-            Active = blogPlugins.ActiveSyndicatorAliases
+            Active = blogPlugins.ActiveSyndicatorAliases // Syndication doesn't use killswitches (multi-select)
         },
         Auth = new
         {
             Options = BlogPluginStateManager.AuthProviders,
-            Active = blogPlugins.ActiveAuthAlias
+            Active = activeAuth
         }
     });
 })
@@ -907,9 +1085,19 @@ app.MapPost("/api/blog/plugins/deactivate", async (BlogPluginActivateRequest req
 .WithName("DeactivateBlogPlugin")
 .WithTags("BlogPlugins");
 
-app.MapGet("/api/blog/editor/config", (BlogPluginStateManager blogPlugins) =>
+app.MapGet("/api/blog/editor/config", (BlogPluginStateManager blogPlugins, IKillSwitchProvider killSwitch) =>
 {
-    var activeEditor = BlogPluginStateManager.Editors.FirstOrDefault(e => e.Alias == blogPlugins.ActiveEditorAlias);
+    // Check killswitch first
+    var type = ExperimentTypeResolver.GetServiceType("blog-editor");
+    var activeEditorAlias = blogPlugins.ActiveEditorAlias;
+
+    // If experiment disabled or active variant disabled, use default (markdown)
+    if (killSwitch.IsExperimentDisabled(type) || killSwitch.IsTrialDisabled(type, activeEditorAlias))
+    {
+        activeEditorAlias = "markdown";
+    }
+
+    var activeEditor = BlogPluginStateManager.Editors.FirstOrDefault(e => e.Alias == activeEditorAlias);
     if (activeEditor == null)
         return Results.NotFound();
 
@@ -1148,6 +1336,34 @@ app.MapGet("/api/dsl/schema", () =>
 })
 .WithName("GetDslSchema")
 .WithTags("DSL");
+
+// Simple diagnostic endpoint
+app.MapGet("/api/test/hello", () => Results.Ok(new { message = "Hello from API!" }));
+
+// Diagnostic endpoint to test ILifecycleManager
+app.MapGet("/api/governance/test", (IServiceProvider sp) =>
+{
+    var lifecycleManager = sp.GetService<ILifecycleManager>();
+    if (lifecycleManager == null)
+    {
+        return Results.Ok(new { status = "ILifecycleManager NOT FOUND" });
+    }
+
+    var state = lifecycleManager.GetState("pricing-strategy");
+    var allowed = lifecycleManager.GetAllowedTransitions("pricing-strategy");
+    var history = lifecycleManager.GetHistory("pricing-strategy");
+
+    return Results.Ok(new
+    {
+        status = "ILifecycleManager FOUND",
+        pricingStrategyState = state?.ToString() ?? "null",
+        allowedTransitions = allowed?.Select(s => s.ToString()),
+        historyCount = history?.Count ?? 0
+    });
+});
+
+// Map Governance Admin API
+app.MapGovernanceAdminApi("/api/governance");
 
 app.MapDefaultEndpoints();
 app.Run();
@@ -1519,11 +1735,11 @@ public class ExperimentStateManager
     // DSL Support Methods
 
     public IEnumerable<ExperimentInfo> GetDslExperiments() =>
-        _experiments.Values.Where(e => e.Source == ExperimentSource.Dsl);
+        _experiments.Values.Where(e => e.SourceEnum == ExperimentSource.Dsl);
 
     public bool AddExperiment(ExperimentInfo experiment)
     {
-        experiment.Source = ExperimentSource.Dsl;
+        experiment.SourceEnum = ExperimentSource.Dsl;
         experiment.LastModified = DateTime.UtcNow;
         return _experiments.TryAdd(experiment.Name, experiment);
     }
@@ -1541,7 +1757,7 @@ public class ExperimentStateManager
     public bool RemoveExperiment(string name)
     {
         if (!_experiments.TryGetValue(name, out var exp)) return false;
-        if (exp.Source != ExperimentSource.Dsl) return false; // Only allow removing DSL experiments
+        if (exp.SourceEnum != ExperimentSource.Dsl) return false; // Only allow removing DSL experiments
 
         return _experiments.TryRemove(name, out _);
     }
@@ -1582,7 +1798,23 @@ public class ExperimentInfo
     public required string Category { get; set; }
     public required string Status { get; set; }
     public DateTime LastModified { get; set; } = DateTime.UtcNow;
-    public ExperimentSource Source { get; set; } = ExperimentSource.Code;
+
+    // Use string for Source to support JSON serialization
+    private ExperimentSource _sourceEnum = ExperimentSource.Code;
+    public string Source
+    {
+        get => _sourceEnum.ToString();
+        set => _sourceEnum = Enum.TryParse<ExperimentSource>(value, out var result) ? result : ExperimentSource.Code;
+    }
+
+    // Internal property for code use
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ExperimentSource SourceEnum
+    {
+        get => _sourceEnum;
+        set => _sourceEnum = value;
+    }
+
     public RolloutConfig? Rollout { get; set; }
     public List<TargetingRule> TargetingRules { get; set; } = [];
     public HypothesisInfo? Hypothesis { get; set; }
@@ -1591,7 +1823,8 @@ public class ExperimentInfo
 public enum ExperimentSource
 {
     Code,
-    Dsl
+    Dsl,
+    Plugin
 }
 
 public record DslRequest(string Yaml);

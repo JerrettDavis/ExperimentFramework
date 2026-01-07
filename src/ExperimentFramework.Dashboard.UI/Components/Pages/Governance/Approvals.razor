@@ -1,0 +1,325 @@
+@page "/dashboard/governance/approvals"
+@using ExperimentFramework.Dashboard.UI.Services
+@inject ExperimentApiClient ExperimentApi
+
+<PageTitle>Approval Queue - Experiment Dashboard</PageTitle>
+
+<div class="governance-page">
+    <div class="page-header">
+        <h1>Approval Queue</h1>
+        <p class="subtitle">Review and approve experiment state transitions</p>
+    </div>
+
+    <div class="info-card">
+        <div class="info-icon">ℹ️</div>
+        <div class="info-content">
+            <h3>Approval Workflow</h3>
+            <p>The approval workflow system tracks and manages state transition requests that require authorization before execution.</p>
+
+            <div class="workflow-steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <strong>Request Submitted</strong>
+                        <p>An experiment owner requests a state transition (e.g., Draft → PendingApproval)</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <strong>Awaiting Approval</strong>
+                        <p>The request enters the approval queue and awaits review by authorized approvers</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <div class="step-content">
+                        <strong>Review & Decision</strong>
+                        <p>Approvers review the request and either approve or reject with a reason</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <div class="step-content">
+                        <strong>Execution</strong>
+                        <p>If approved, the state transition is automatically executed and recorded in the audit trail</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="implementation-note">
+                <strong>Implementation Status:</strong>
+                <p>The approval queue requires additional infrastructure to track pending approval requests separately from completed approvals. The current system records approval decisions in the audit log, but a dedicated pending approvals table/collection would enable real-time approval workflows.</p>
+
+                <p>To view approval history, navigate to <a href="/dashboard/governance/audit">Audit Trail</a> and filter by "Approval" event type.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Policy-Based Approval</h3>
+            <p>Approvals can be required based on policies such as environment (production transitions), state changes (going to Running), or experiment criticality.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">👥</div>
+            <h3>Multi-Level Approval</h3>
+            <p>Support for approval gates that require multiple approvers or specific roles before a transition can proceed.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⏰</div>
+            <h3>Time-Based Rules</h3>
+            <p>Configure approval expiration windows and automatic rejections for requests that exceed time limits.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Audit Integration</h3>
+            <p>All approval decisions are automatically recorded in the audit trail for compliance and historical tracking.</p>
+        </div>
+    </div>
+
+    <div class="action-card">
+        <h3>Next Steps</h3>
+        <p>To enable the full approval workflow system:</p>
+        <ol>
+            <li>Implement a pending approvals storage mechanism (database table or in-memory queue)</li>
+            <li>Add approval gate policies to determine which transitions require approval</li>
+            <li>Configure role-based access control for approvers</li>
+            <li>Set up notification system to alert approvers of pending requests</li>
+            <li>Build real-time dashboard updates when approvals are granted/rejected</li>
+        </ol>
+
+        <div class="action-buttons">
+            <a href="/dashboard/governance/lifecycle" class="btn-primary">Manage Lifecycles</a>
+            <a href="/dashboard/governance/audit" class="btn-secondary">View Audit Trail</a>
+            <a href="/dashboard/governance/policies" class="btn-secondary">View Policies</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .governance-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0;
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 2rem;
+    }
+
+    .info-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #3b82f6;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        gap: 1.5rem;
+    }
+
+    .info-icon {
+        font-size: 2.5rem;
+        flex-shrink: 0;
+    }
+
+    .info-content {
+        flex: 1;
+    }
+
+    .info-content h3 {
+        margin: 0 0 1rem;
+        font-size: 1.25rem;
+        color: #1f2937;
+    }
+
+    .info-content > p {
+        margin: 0 0 1.5rem;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+
+    .workflow-steps {
+        display: grid;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .step {
+        display: flex;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .step-number {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .step-content {
+        flex: 1;
+    }
+
+    .step-content strong {
+        display: block;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .step-content p {
+        margin: 0;
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .implementation-note {
+        padding: 1.5rem;
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        border-radius: 6px;
+    }
+
+    .implementation-note strong {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #92400e;
+    }
+
+    .implementation-note p {
+        margin: 0 0 0.75rem;
+        color: #92400e;
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    .implementation-note p:last-child {
+        margin-bottom: 0;
+    }
+
+    .implementation-note a {
+        color: #1e40af;
+        text-decoration: underline;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .feature-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .feature-card h3 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+        color: #1f2937;
+    }
+
+    .feature-card p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+
+    .action-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+
+    .action-card h3 {
+        margin: 0 0 1rem;
+        font-size: 1.125rem;
+        color: #1f2937;
+    }
+
+    .action-card p {
+        margin: 0 0 1rem;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+
+    .action-card ol {
+        margin: 0 0 2rem;
+        padding-left: 1.5rem;
+        color: #374151;
+    }
+
+    .action-card li {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .btn-secondary:hover {
+        background: #e5e7eb;
+    }
+</style>
+
+@code {
+    // This page is informational-only for now
+    // Pending approvals would require additional infrastructure
+}

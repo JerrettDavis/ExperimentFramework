@@ -1,0 +1,53 @@
+using ExperimentFramework.Dashboard.Abstractions;
+using ExperimentFramework.Dashboard.Authorization;
+using ExperimentFramework.Dashboard.Data;
+using ExperimentFramework.Dashboard.Persistence;
+using ExperimentFramework.Dashboard.Theming;
+using ExperimentFramework.Dashboard.UI.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace ExperimentFramework.Dashboard;
+
+/// <summary>
+/// Extension methods for registering dashboard services with dependency injection.
+/// </summary>
+public static class ServiceCollectionExtensions
+{
+    /// <summary>
+    /// Adds the experiment dashboard services to the service collection.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Optional configuration action.</param>
+    /// <returns>The service collection for chaining.</returns>
+    public static IServiceCollection AddExperimentDashboard(
+        this IServiceCollection services,
+        Action<DashboardOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        // Register default implementations
+        services.TryAddSingleton<IAuthorizationProvider, ClaimsPrincipalAuthProvider>();
+        services.TryAddSingleton<IDashboardDataProvider, DefaultDashboardDataProvider>();
+        services.TryAddSingleton<IDashboardThemeProvider, DefaultThemeProvider>();
+        services.TryAddSingleton<IRolloutPersistenceBackplane, InMemoryRolloutPersistence>();
+
+        // Register UI services
+        services.TryAddScoped<DashboardStateService>();
+        services.TryAddScoped<ThemeService>();
+        services.TryAddScoped<ExperimentCodeGenerator>();
+
+        // Register dashboard options as singleton so it can be used by middleware
+        var options = new DashboardOptions();
+        configure?.Invoke(options);
+        services.AddSingleton(options);
+
+        // Also register with IOptions pattern for compatibility
+        if (configure != null)
+        {
+            services.Configure(configure);
+        }
+
+        return services;
+    }
+}

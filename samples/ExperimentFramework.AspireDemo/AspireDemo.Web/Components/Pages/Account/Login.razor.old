@@ -1,0 +1,276 @@
+@page "/Account/Login"
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Authorization
+@layout AspireDemo.Web.Components.Layout.MinimalLayout
+@inject NavigationManager Navigation
+@attribute [ExcludeFromInteractiveRouting]
+@attribute [AllowAnonymous]
+
+<PageTitle>Login - Experiment Demo</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <h1>Experiment Dashboard Login</h1>
+        <p class="subtitle">Sign in to access experiments and analytics</p>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                @_errorMessage
+            </div>
+        }
+
+        <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" data-enhance="false">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input name="email" id="email" class="form-control" placeholder="admin@experimentdemo.com" required />
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input name="password" id="password" type="password" class="form-control" required />
+            </div>
+
+            <div class="form-check">
+                <input name="rememberMe" id="rememberMe" type="checkbox" class="form-check-input" value="true" />
+                <label for="rememberMe" class="form-check-label">Remember me</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                <span>Sign In</span>
+            </button>
+        </form>
+
+        <div class="demo-users">
+            <h3>Demo Users</h3>
+            <div class="user-cards">
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
+                    <input type="hidden" name="email" value="admin@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Admin123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Admin</strong>
+                        <span>Full access</span>
+                    </button>
+                </form>
+
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
+                    <input type="hidden" name="email" value="experimenter@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Experimenter123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Experimenter</strong>
+                        <span>Can modify experiments</span>
+                    </button>
+                </form>
+
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
+                    <input type="hidden" name="email" value="viewer@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Viewer123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Viewer</strong>
+                        <span>Read-only access</span>
+                    </button>
+                </form>
+
+                <form method="post" action="/api/account/login?returnUrl=@Uri.EscapeDataString(ReturnUrl ?? "/dashboard")" style="margin: 0;" data-enhance="false">
+                    <input type="hidden" name="email" value="analyst@experimentdemo.com" />
+                    <input type="hidden" name="password" value="Analyst123!" />
+                    <input type="hidden" name="rememberMe" value="true" />
+                    <button type="submit" class="user-card">
+                        <strong>Analyst</strong>
+                        <span>Analytics focus</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 16px;
+        padding: 3rem;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-card h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 0.5rem;
+    }
+
+    .subtitle {
+        color: #718096;
+        font-size: 0.95rem;
+        margin: 0 0 2rem;
+    }
+
+    .alert-error {
+        background: #fed7d7;
+        color: #c53030;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .form-check {
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-check-label {
+        font-size: 0.875rem;
+        color: #4a5568;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        width: 100%;
+        padding: 0.875rem;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #5568d3;
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .demo-users {
+        margin-top: 2.5rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e2e8f0;
+    }
+
+    .demo-users h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #4a5568;
+        margin: 0 0 1rem;
+    }
+
+    .user-cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .user-card {
+        padding: 1rem;
+        background: #f7fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .user-card:hover {
+        background: #edf2f7;
+        border-color: #667eea;
+        transform: translateY(-2px);
+    }
+
+    .user-card strong {
+        font-size: 0.95rem;
+        color: #2d3748;
+    }
+
+    .user-card span {
+        font-size: 0.8rem;
+        color: #718096;
+    }
+
+    .validation-message {
+        color: #c53030;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+@code {
+    private string? _errorMessage;
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(Error))
+        {
+            _errorMessage = Error switch
+            {
+                "locked" => "Account is locked out. Please try again later.",
+                "invalid" => "Invalid email or password.",
+                _ => "An error occurred during login."
+            };
+        }
+    }
+}

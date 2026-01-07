@@ -1,0 +1,688 @@
+@page "/dashboard/governance/lifecycle"
+@using ExperimentFramework.Dashboard.UI.Services
+@inject ExperimentApiClient ExperimentApi
+
+<PageTitle>Lifecycle Management - Experiment Dashboard</PageTitle>
+
+<div class="governance-page">
+    <div class="page-header">
+        <h1>Lifecycle Management</h1>
+        <p class="subtitle">State machine visualization and workflow management</p>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="loading-state">
+            <p>Loading experiments...</p>
+        </div>
+    }
+    else if (_experiments.Count == 0)
+    {
+        <div class="empty-state">
+            <p>No experiments found. Create an experiment to manage its lifecycle.</p>
+        </div>
+    }
+    else
+    {
+        <div class="experiment-selector">
+            <label for="experiment-select">Select Experiment:</label>
+            <select id="experiment-select" @onchange="OnExperimentSelected">
+                <option value="">-- Select an experiment --</option>
+                @foreach (var exp in _experiments)
+                {
+                    <option value="@exp.Name" selected="@(_selectedExperiment == exp.Name)">@exp.DisplayName (@exp.Name)</option>
+                }
+            </select>
+        </div>
+
+        @if (_selectedExperiment != null)
+        {
+            @if (_loadingData)
+            {
+                <div class="loading-state">
+                    <span class="spinner"></span>
+                    <p>Loading lifecycle data...</p>
+                </div>
+            }
+            else if (_currentState == null)
+            {
+                <div class="info-message">
+                    <div class="info-icon">ℹ️</div>
+                    <div class="info-content">
+                        <h3>Governance Not Configured</h3>
+                        <p>The governance system requires <code>IGovernancePersistenceBackplane</code> to be registered in your application's dependency injection container.</p>
+                        <p>To enable governance features, add a governance persistence implementation such as:</p>
+                        <ul>
+                            <li>In-Memory persistence (for development/testing)</li>
+                            <li>SQL Server persistence</li>
+                            <li>Azure Cosmos DB persistence</li>
+                            <li>Custom implementation of IGovernancePersistenceBackplane</li>
+                        </ul>
+                        <p>Once configured, you'll be able to track experiment lifecycle states, approve transitions, view audit logs, and manage configuration versions.</p>
+                    </div>
+                </div>
+            }
+            else if (_currentState != null)
+            {
+            <div class="lifecycle-container">
+                <div class="current-state-card">
+                    <h2>Current State</h2>
+                    <div class="state-info">
+                        <div class="state-badge @_currentState.State.ToLower()">@_currentState.State</div>
+                        <div class="state-details">
+                            <p><strong>Configuration Version:</strong> @_currentState.ConfigurationVersion</p>
+                            <p><strong>Last Modified:</strong> @_currentState.LastModified.ToString("g")</p>
+                            <p><strong>Modified By:</strong> @(_currentState.LastModifiedBy ?? "Unknown")</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="state-machine-card">
+                    <h2>State Machine</h2>
+                    <div class="state-diagram">
+                        @* Draft *@
+                        <div class="state-node @(_currentState.State == "Draft" ? "active" : "")">
+                            <span class="state-label">Draft</span>
+                        </div>
+
+                        @* PendingApproval *@
+                        <div class="state-node @(_currentState.State == "PendingApproval" ? "active" : "")">
+                            <span class="state-label">Pending Approval</span>
+                        </div>
+
+                        @* Approved *@
+                        <div class="state-node @(_currentState.State == "Approved" ? "active" : "")">
+                            <span class="state-label">Approved</span>
+                        </div>
+
+                        @* Running *@
+                        <div class="state-node @(_currentState.State == "Running" ? "active" : "")">
+                            <span class="state-label">Running</span>
+                        </div>
+
+                        @* Paused *@
+                        <div class="state-node @(_currentState.State == "Paused" ? "active" : "")">
+                            <span class="state-label">Paused</span>
+                        </div>
+
+                        @* Terminal States *@
+                        <div class="terminal-states">
+                            <div class="state-node @(_currentState.State == "Completed" ? "active" : "")">
+                                <span class="state-label">Completed</span>
+                            </div>
+                            <div class="state-node @(_currentState.State == "Cancelled" ? "active" : "")">
+                                <span class="state-label">Cancelled</span>
+                            </div>
+                            <div class="state-node @(_currentState.State == "Archived" ? "active" : "")">
+                                <span class="state-label">Archived</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="transitions-card">
+                    <h2>Available Transitions</h2>
+                    @if ((_currentState.AllowedTransitions ?? _currentState.Transitions).Length > 0)
+                    {
+                        <div class="transitions-list">
+                            @foreach (var transition in (_currentState.AllowedTransitions ?? _currentState.Transitions))
+                            {
+                                <button class="transition-btn" @onclick="() => ShowTransitionDialog(transition)" disabled="@_transitioning">
+                                    Transition to @transition
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="no-transitions">No transitions available from @_currentState.State state.</p>
+                    }
+                </div>
+
+                <div class="history-card">
+                    <h2>Transition History</h2>
+                    @if (_transitionHistory.Count > 0)
+                    {
+                        <div class="history-list">
+                            @foreach (var transition in _transitionHistory)
+                            {
+                                <div class="history-item">
+                                    <div class="history-arrow">@transition.FromState → @transition.ToState</div>
+                                    <div class="history-details">
+                                        <span class="history-time">@transition.Timestamp.ToString("g")</span>
+                                        <span class="history-actor">@(transition.Actor ?? "Unknown")</span>
+                                        @if (!string.IsNullOrEmpty(transition.Reason))
+                                        {
+                                            <span class="history-reason">@transition.Reason</span>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="no-history">No transition history available.</p>
+                    }
+                </div>
+            </div>
+            }
+        }
+    }
+</div>
+
+@if (_showTransitionDialog)
+{
+    <div class="modal-overlay" @onclick="CancelTransition">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h3>Transition to @_selectedTransition</h3>
+            <div class="modal-form">
+                <div class="form-group">
+                    <label for="actor">Actor (Your Name):</label>
+                    <input type="text" id="actor" @bind="_transitionActor" placeholder="Enter your name" />
+                </div>
+                <div class="form-group">
+                    <label for="reason">Reason:</label>
+                    <textarea id="reason" @bind="_transitionReason" rows="3" placeholder="Explain why this transition is needed"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" @onclick="ConfirmTransition" disabled="@_transitioning">
+                        @if (_transitioning)
+                        {
+                            <span>Transitioning...</span>
+                        }
+                        else
+                        {
+                            <span>Confirm Transition</span>
+                        }
+                    </button>
+                    <button class="btn-secondary" @onclick="CancelTransition" disabled="@_transitioning">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .governance-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.5rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0;
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 2rem;
+    }
+
+    .loading-state, .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .experiment-selector {
+        margin-bottom: 2rem;
+    }
+
+    .experiment-selector label {
+        font-weight: 600;
+        margin-right: 0.5rem;
+        color: #374151;
+    }
+
+    .experiment-selector select {
+        padding: 0.5rem 1rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        min-width: 300px;
+    }
+
+    .lifecycle-container {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .current-state-card, .state-machine-card, .transitions-card, .history-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+
+    .current-state-card h2, .state-machine-card h2, .transitions-card h2, .history-card h2 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 0 0 1rem;
+        color: #1f2937;
+    }
+
+    .state-info {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+    }
+
+    .state-badge {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 1.125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .state-badge.draft {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .state-badge.pendingapproval {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .state-badge.approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .state-badge.running {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .state-badge.paused {
+        background: #fce7f3;
+        color: #9f1239;
+    }
+
+    .state-badge.completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .state-badge.cancelled {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .state-badge.archived {
+        background: #e5e7eb;
+        color: #4b5563;
+    }
+
+    .state-details p {
+        margin: 0.25rem 0;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+
+    .state-diagram {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .state-node {
+        padding: 0.75rem 1.5rem;
+        border: 2px solid #d1d5db;
+        border-radius: 8px;
+        background: white;
+        min-width: 150px;
+        text-align: center;
+        position: relative;
+    }
+
+    .state-node.active {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .state-node::after {
+        content: "↓";
+        position: absolute;
+        bottom: -1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #9ca3af;
+        font-size: 1.5rem;
+    }
+
+    .state-node:last-child::after,
+    .terminal-states .state-node::after {
+        display: none;
+    }
+
+    .state-label {
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .state-node.active .state-label {
+        color: #1e40af;
+    }
+
+    .terminal-states {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .transitions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .transition-btn {
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .transition-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .transition-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .no-transitions, .no-history {
+        color: #9ca3af;
+        font-size: 0.875rem;
+        font-style: italic;
+    }
+
+    .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .history-item {
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 6px;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .history-arrow {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+
+    .history-details {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+
+    .history-reason {
+        font-style: italic;
+    }
+
+    .history-card {
+        grid-column: 1 / -1;
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-content h3 {
+        margin: 0 0 1.5rem;
+        color: #1f2937;
+    }
+
+    .modal-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .btn-primary, .btn-secondary {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        flex: 1;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+    }
+
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .info-message {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #3b82f6;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-top: 2rem;
+        display: flex;
+        gap: 1.5rem;
+    }
+
+    .info-message .info-icon {
+        font-size: 2.5rem;
+        flex-shrink: 0;
+    }
+
+    .info-message .info-content h3 {
+        margin: 0 0 1rem;
+        font-size: 1.25rem;
+        color: #1f2937;
+    }
+
+    .info-message .info-content p {
+        margin: 0 0 1rem;
+        color: #6b7280;
+        line-height: 1.6;
+    }
+
+    .info-message .info-content ul {
+        margin: 0 0 1rem;
+        padding-left: 1.5rem;
+        color: #374151;
+    }
+
+    .info-message .info-content li {
+        margin-bottom: 0.5rem;
+    }
+
+    .info-message code {
+        background: #f3f4f6;
+        padding: 0.125rem 0.375rem;
+        border-radius: 3px;
+        font-size: 0.875rem;
+    }
+</style>
+
+@code {
+    private List<ExperimentInfo> _experiments = [];
+    private string? _selectedExperiment;
+    private ExperimentStateInfo? _currentState;
+    private List<StateTransitionInfo> _transitionHistory = [];
+    private bool _loading = true;
+    private bool _loadingData = false;
+    private bool _showTransitionDialog = false;
+    private string? _selectedTransition;
+    private string _transitionActor = "";
+    private string _transitionReason = "";
+    private bool _transitioning = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExperiments();
+    }
+
+    private async Task LoadExperiments()
+    {
+        _loading = true;
+        try
+        {
+            _experiments = await ExperimentApi.GetExperimentsAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnExperimentSelected(ChangeEventArgs e)
+    {
+        _selectedExperiment = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(_selectedExperiment))
+        {
+            await LoadLifecycleData();
+        }
+        else
+        {
+            _currentState = null;
+            _transitionHistory = [];
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadLifecycleData()
+    {
+        if (string.IsNullOrEmpty(_selectedExperiment)) return;
+
+        _loadingData = true;
+        StateHasChanged();
+
+        try
+        {
+            _currentState = await ExperimentApi.GetLifecycleStateAsync(_selectedExperiment);
+            _transitionHistory = await ExperimentApi.GetStateTransitionHistoryAsync(_selectedExperiment);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading lifecycle data: {ex.Message}");
+            _currentState = null;
+            _transitionHistory = [];
+        }
+        finally
+        {
+            _loadingData = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowTransitionDialog(string targetState)
+    {
+        _selectedTransition = targetState;
+        _showTransitionDialog = true;
+        _transitionActor = "";
+        _transitionReason = "";
+    }
+
+    private void CancelTransition()
+    {
+        _showTransitionDialog = false;
+        _selectedTransition = null;
+    }
+
+    private async Task ConfirmTransition()
+    {
+        if (string.IsNullOrEmpty(_selectedExperiment) || string.IsNullOrEmpty(_selectedTransition))
+            return;
+
+        _transitioning = true;
+        try
+        {
+            var success = await ExperimentApi.TransitionStateAsync(
+                _selectedExperiment,
+                _selectedTransition,
+                string.IsNullOrWhiteSpace(_transitionActor) ? null : _transitionActor,
+                string.IsNullOrWhiteSpace(_transitionReason) ? null : _transitionReason
+            );
+
+            if (success)
+            {
+                await LoadLifecycleData();
+                _showTransitionDialog = false;
+            }
+        }
+        finally
+        {
+            _transitioning = false;
+        }
+    }
+}

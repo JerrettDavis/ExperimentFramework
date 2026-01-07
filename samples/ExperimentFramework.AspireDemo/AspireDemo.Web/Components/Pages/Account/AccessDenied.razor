@@ -1,0 +1,105 @@
+@page "/Account/AccessDenied"
+@layout AspireDemo.Web.Components.Layout.MinimalLayout
+
+<PageTitle>Access Denied - Experiment Demo</PageTitle>
+
+<div class="access-denied-container">
+    <div class="access-denied-card">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+
+        <h1>Access Denied</h1>
+        <p>You don't have permission to access this resource.</p>
+        <p class="hint">Your current role may not have the required permissions. Contact your administrator if you believe this is an error.</p>
+
+        <div class="actions">
+            <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+            <a href="/Account/Logout" class="btn btn-secondary">Sign Out</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .access-denied-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f7fafc;
+        padding: 2rem;
+    }
+
+    .access-denied-card {
+        background: white;
+        border-radius: 16px;
+        padding: 3rem;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    .access-denied-card svg {
+        margin-bottom: 1.5rem;
+    }
+
+    .access-denied-card h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0 0 1rem;
+    }
+
+    .access-denied-card p {
+        color: #4a5568;
+        font-size: 1rem;
+        margin: 0 0 0.75rem;
+    }
+
+    .access-denied-card .hint {
+        color: #718096;
+        font-size: 0.875rem;
+        margin-bottom: 2rem;
+    }
+
+    .actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #667eea;
+        color: white;
+        border: none;
+    }
+
+    .btn-primary:hover {
+        background: #5568d3;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #4a5568;
+        border: 2px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: #f7fafc;
+        border-color: #cbd5e0;
+    }
+</style>

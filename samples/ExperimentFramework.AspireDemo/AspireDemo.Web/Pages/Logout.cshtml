@@ -1,0 +1,47 @@
+@page "/Account/Logout"
+@model AspireDemo.Web.Pages.LogoutModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logging Out - Experiment Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .message {
+            background: white;
+            padding: 3rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #1a202c;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #718096;
+        }
+    </style>
+    <meta http-equiv="refresh" content="2;url=/Account/Login" />
+</head>
+<body>
+    <div class="message">
+        <h1>Signing Out...</h1>
+        <p>You will be redirected to the login page shortly.</p>
+    </div>
+</body>
+</html>

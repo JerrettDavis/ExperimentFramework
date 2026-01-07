@@ -119,11 +119,27 @@ public sealed class RuntimeExperimentManager
                 foreach (var exp in config.Experiments)
                 {
                     var existing = _stateManager.GetExperiment(exp.Name);
+                    string action;
+
+                    if (existing == null)
+                    {
+                        action = "create";
+                    }
+                    else if (HasChanges(existing, exp))
+                    {
+                        action = "update";
+                    }
+                    else
+                    {
+                        // No changes detected - don't show in preview
+                        continue;
+                    }
+
                     parsedExperiments.Add(new ExperimentPreview
                     {
                         Name = exp.Name,
                         TrialCount = exp.Trials?.Count ?? 0,
-                        Action = existing != null ? "update" : "create"
+                        Action = action
                     });
                 }
             }
@@ -227,9 +243,9 @@ public sealed class RuntimeExperimentManager
                     DefaultVariant = variants.FirstOrDefault()?.Name ?? "default",
                     Variants = variants.Any() ? variants : [new VariantInfo { Name = "default", DisplayName = "Default", Description = "Default variant" }],
                     Category = GetMetadataString(expConfig.Metadata, "category") ?? "Uncategorized",
-                    Status = "Active",
-                    Source = ExperimentSource.Dsl
+                    Status = "Active"
                 };
+                experimentInfo.SourceEnum = ExperimentSource.Dsl;
 
                 if (existing != null)
                 {
@@ -382,6 +398,49 @@ public sealed class RuntimeExperimentManager
     {
         if (metadata == null) return null;
         return metadata.TryGetValue(key, out var value) ? value?.ToString() : null;
+    }
+
+    /// <summary>
+    /// Determines if the DSL configuration would result in changes to an existing experiment.
+    /// </summary>
+    private bool HasChanges(ExperimentInfo existing, ExperimentConfig config)
+    {
+        // Compare display name
+        var newDisplayName = GetMetadataString(config.Metadata, "displayName") ?? config.Name;
+        if (existing.DisplayName != newDisplayName)
+            return true;
+
+        // Compare description
+        var newDescription = GetMetadataString(config.Metadata, "description") ?? "";
+        if (existing.Description != newDescription)
+            return true;
+
+        // Compare category
+        var newCategory = GetMetadataString(config.Metadata, "category") ?? "Uncategorized";
+        if (existing.Category != newCategory)
+            return true;
+
+        // Compare variants (build the variant list from config like in Apply)
+        var newVariants = config.Trials?
+            .SelectMany(trial =>
+            {
+                var keys = new List<string>();
+                if (trial.Control?.Key != null)
+                    keys.Add(trial.Control.Key);
+                if (trial.Conditions != null)
+                    keys.AddRange(trial.Conditions.Where(c => c.Key != null).Select(c => c.Key!));
+                return keys;
+            })
+            .ToList() ?? new List<string>();
+
+        var existingVariantNames = existing.Variants.Select(v => v.Name).OrderBy(n => n).ToList();
+        var newVariantNames = newVariants.Distinct().OrderBy(n => n).ToList();
+
+        if (!existingVariantNames.SequenceEqual(newVariantNames))
+            return true;
+
+        // No changes detected
+        return false;
     }
 }
 

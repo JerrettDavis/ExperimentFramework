@@ -12,6 +12,9 @@
     <ProjectReference Include="..\..\..\src\ExperimentFramework.Targeting\ExperimentFramework.Targeting.csproj" />
     <ProjectReference Include="..\..\..\src\ExperimentFramework.Audit\ExperimentFramework.Audit.csproj" />
     <ProjectReference Include="..\..\..\src\ExperimentFramework.Configuration\ExperimentFramework.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
+    <ProjectReference Include="..\..\..\src\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\src\ExperimentFramework.Admin\ExperimentFramework.Admin.csproj" />
   </ItemGroup>
 
   <ItemGroup>

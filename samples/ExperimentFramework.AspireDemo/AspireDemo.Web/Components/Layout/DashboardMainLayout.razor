@@ -1,0 +1,286 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="dashboard-page">
+    <div class="dashboard-sidebar">
+        <div class="dashboard-brand">
+            <h1>Experiment Dashboard</h1>
+        </div>
+        
+        <nav class="dashboard-nav">
+            <NavLink href="/dashboard" Match="NavLinkMatch.All">
+                <span class="nav-icon">🏠</span>
+                <span>Home</span>
+            </NavLink>
+            <NavLink href="/dashboard/experiments">
+                <span class="nav-icon">🧪</span>
+                <span>Experiments</span>
+            </NavLink>
+            <NavLink href="/dashboard/analytics">
+                <span class="nav-icon">📊</span>
+                <span>Analytics</span>
+            </NavLink>
+            <NavLink href="/dashboard/governance/lifecycle">
+                <span class="nav-icon">🔄</span>
+                <span>Governance</span>
+            </NavLink>
+            <NavLink href="/dashboard/targeting">
+                <span class="nav-icon">🎯</span>
+                <span>Targeting</span>
+            </NavLink>
+            <NavLink href="/dashboard/rollout">
+                <span class="nav-icon">📈</span>
+                <span>Rollout</span>
+            </NavLink>
+            <NavLink href="/dashboard/hypothesis">
+                <span class="nav-icon">🔬</span>
+                <span>Hypothesis</span>
+            </NavLink>
+            <NavLink href="/dashboard/plugins">
+                <span class="nav-icon">🔌</span>
+                <span>Plugins</span>
+            </NavLink>
+            <NavLink href="/dashboard/configuration">
+                <span class="nav-icon">⚙️</span>
+                <span>Configuration</span>
+            </NavLink>
+            <NavLink href="/dashboard/dsl">
+                <span class="nav-icon">📝</span>
+                <span>DSL Editor</span>
+            </NavLink>
+        </nav>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="dashboard-user">
+                    <div class="user-avatar">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                        </svg>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">@context.User.Identity?.Name</div>
+                        <div class="user-role">
+                            @if (context.User.IsInRole("Admin"))
+                            {
+                                <span class="role-badge role-admin">Admin</span>
+                            }
+                            else if (context.User.IsInRole("Experimenter"))
+                            {
+                                <span class="role-badge role-experimenter">Experimenter</span>
+                            }
+                            else if (context.User.IsInRole("Analyst"))
+                            {
+                                <span class="role-badge role-analyst">Analyst</span>
+                            }
+                            else if (context.User.IsInRole("Viewer"))
+                            {
+                                <span class="role-badge role-viewer">Viewer</span>
+                            }
+                        </div>
+                    </div>
+                    <a href="/Account/Logout" class="logout-button" title="Sign out">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+                        </svg>
+                    </a>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+
+    <main class="dashboard-main">
+        <div class="dashboard-top-bar">
+            <div class="breadcrumb">
+                @* Add breadcrumb navigation here if needed *@
+            </div>
+        </div>
+
+        <article class="dashboard-content">
+            @Body
+        </article>
+    </main>
+</div>
+
+<style>
+    .dashboard-page {
+        display: flex;
+        height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .dashboard-sidebar {
+        width: 260px;
+        background: #1e293b;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .dashboard-brand {
+        padding: 1.5rem 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dashboard-brand h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: white;
+    }
+
+    .dashboard-nav {
+        flex: 1;
+        padding: 1rem 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .dashboard-nav a {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem 1rem !important;
+        color: #94a3b8 !important;
+        text-decoration: none !important;
+        border-radius: 6px !important;
+        margin: 0 0.5rem !important;
+        transition: all 150ms ease !important;
+        font-size: 0.875rem !important;
+    }
+
+    .dashboard-nav a:hover {
+        background: rgba(99, 102, 241, 0.1) !important;
+        color: #e2e8f0 !important;
+    }
+
+    .dashboard-nav a.active {
+        background: #6366f1 !important;
+        color: white !important;
+        font-weight: 500 !important;
+    }
+
+    .nav-icon {
+        font-size: 1.125rem;
+        line-height: 1;
+    }
+
+    .dashboard-user {
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .user-avatar svg {
+        color: #94a3b8;
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: white;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-role {
+        margin-top: 0.25rem;
+    }
+
+    .role-badge {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        display: inline-block;
+    }
+
+    .role-admin {
+        background: #dc2626;
+        color: white;
+    }
+
+    .role-experimenter {
+        background: #2563eb;
+        color: white;
+    }
+
+    .role-analyst {
+        background: #059669;
+        color: white;
+    }
+
+    .role-viewer {
+        background: #64748b;
+        color: white;
+    }
+
+    .logout-button {
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        transition: all 150ms ease;
+        text-decoration: none;
+    }
+
+    .logout-button:hover {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    .dashboard-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .dashboard-top-bar {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: white;
+    }
+
+    .dashboard-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+        background: #f8fafc;
+    }
+
+    /* Dark mode support */
+    @@media (prefers-color-scheme: dark) {
+        .dashboard-top-bar {
+            background: #1f2937 !important;
+            border-bottom-color: #374151 !important;
+        }
+
+        .dashboard-content {
+            background: #111827 !important;
+        }
+    }
+
+    .theme-dark .dashboard-top-bar,
+    html.theme-dark .dashboard-top-bar {
+        background: #1f2937 !important;
+        border-bottom-color: #374151 !important;
+    }
+
+    .theme-dark .dashboard-content,
+    html.theme-dark .dashboard-content {
+        background: #111827 !important;
+    }
+</style>

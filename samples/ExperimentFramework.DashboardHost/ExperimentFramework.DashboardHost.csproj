@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExperimentFramework.Dashboard\ExperimentFramework.Dashboard.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,5 @@
 @page "/demo"
+@layout AspireDemo.Web.Components.Layout.MainLayout
 @using AspireDemo.Web
 @using AspireDemo.Web.Components.Shared
 @using AspireDemo.Web.Services
@@ -26,23 +27,28 @@
                 <span class="toggle-label">Strategy:</span>
                 <div class="toggle-buttons">
                     @{ var pricingExp = "pricing-strategy"; }
+                    @{ var pricingKilled = DemoState.GetKillSwitch(pricingExp); }
+                    @if (pricingKilled)
+                    {
+                        <span class="killed-badge">KILLED - Using Default</span>
+                    }
                     @foreach (var variant in new[] { ("tiered", "Tiered"), ("flat", "Flat"), ("volume", "Volume") })
                     {
                         var v = variant;
-                        var isActive = DemoState.GetActiveVariant(pricingExp) == v.Item1 && !IsPluginActiveFor("IPricingStrategy");
+                        var isActive = DemoState.GetActiveVariant(pricingExp) == v.Item1 && !IsPluginActiveFor("IPricingStrategy") && !pricingKilled;
                         <button class="toggle-btn @(isActive ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(pricingExp, v.Item1))"
-                                disabled="@(_switching || _initialLoading)">
+                                disabled="@(_switching || _initialLoading || pricingKilled)">
                             @v.Item2
                         </button>
                     }
                     @foreach (var pluginImpl in GetPluginImplementationsFor("IPricingStrategy"))
                     {
                         var impl = pluginImpl;
-                        var isActive = IsPluginImplActive("IPricingStrategy", impl.PluginId, impl.Type);
+                        var isActive = IsPluginImplActive("IPricingStrategy", impl.PluginId, impl.Type) && !pricingKilled;
                         <button class="toggle-btn plugin-toggle @(isActive ? "active" : "")"
                                 @onclick="@(() => ActivatePluginImpl(impl.PluginId, "IPricingStrategy", impl.Alias ?? impl.Type))"
-                                disabled="@(_switching || _initialLoading)"
+                                disabled="@(_switching || _initialLoading || pricingKilled)"
                                 title="Plugin: @impl.PluginName">
                             @(impl.Alias ?? impl.Type.Replace("Pricing", ""))
                         </button>
@@ -98,12 +104,18 @@
                 <span class="toggle-label">Style:</span>
                 <div class="toggle-buttons">
                     @{ var notifExp = "notification-style"; }
+                    @{ var notifKilled = DemoState.GetKillSwitch(notifExp); }
+                    @if (notifKilled)
+                    {
+                        <span class="killed-badge">KILLED - Using Default</span>
+                    }
                     @foreach (var variant in new[] { ("standard", "Standard"), ("personalized", "Personalized") })
                     {
                         var v = variant;
-                        <button class="toggle-btn @(DemoState.GetActiveVariant(notifExp) == v.Item1 ? "active" : "")"
+                        var isActive = DemoState.GetActiveVariant(notifExp) == v.Item1 && !notifKilled;
+                        <button class="toggle-btn @(isActive ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(notifExp, v.Item1))"
-                                disabled="@(_switching || _initialLoading)">
+                                disabled="@(_switching || _initialLoading || notifKilled)">
                             @v.Item2
                         </button>
                     }
@@ -145,23 +157,28 @@
                 <span class="toggle-label">Algorithm:</span>
                 <div class="toggle-buttons">
                     @{ var recsExp = "recommendation-algorithm"; }
+                    @{ var recsKilled = DemoState.GetKillSwitch(recsExp); }
+                    @if (recsKilled)
+                    {
+                        <span class="killed-badge">KILLED - Using Default</span>
+                    }
                     @foreach (var variant in new[] { ("basic", "Basic"), ("ai-powered", "AI"), ("collaborative", "Collab") })
                     {
                         var v = variant;
-                        var isActive = DemoState.GetActiveVariant(recsExp) == v.Item1 && !IsPluginActiveFor("IRecommendationEngine");
+                        var isActive = DemoState.GetActiveVariant(recsExp) == v.Item1 && !IsPluginActiveFor("IRecommendationEngine") && !recsKilled;
                         <button class="toggle-btn @(isActive ? "active" : "")"
                                 @onclick="@(() => SwitchVariant(recsExp, v.Item1))"
-                                disabled="@(_switching || _initialLoading)">
+                                disabled="@(_switching || _initialLoading || recsKilled)">
                             @v.Item2
                         </button>
                     }
                     @foreach (var pluginImpl in GetPluginImplementationsFor("IRecommendationEngine"))
                     {
                         var impl = pluginImpl;
-                        var isActive = IsPluginImplActive("IRecommendationEngine", impl.PluginId, impl.Type);
+                        var isActive = IsPluginImplActive("IRecommendationEngine", impl.PluginId, impl.Type) && !recsKilled;
                         <button class="toggle-btn plugin-toggle @(isActive ? "active" : "")"
                                 @onclick="@(() => ActivatePluginImpl(impl.PluginId, "IRecommendationEngine", impl.Alias ?? impl.Type))"
-                                disabled="@(_switching || _initialLoading)"
+                                disabled="@(_switching || _initialLoading || recsKilled)"
                                 title="Plugin: @impl.PluginName">
                             @(impl.Alias ?? impl.Type.Replace("Recommender", "").Replace("Recommendations", ""))
                         </button>
@@ -530,6 +547,18 @@
         letter-spacing: 0.05em;
     }
 
+    .killed-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: white;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
     .plugin-result {
         border: 2px solid #8b5cf6;
         background: rgba(139, 92, 246, 0.05);
@@ -870,10 +899,16 @@
     private NotificationResponse? _notificationResult;
     private RecommendationResponse? _recommendationResult;
     private ThemeResponse? _themeResult;
+    private System.Timers.Timer? _refreshTimer;
 
     protected override void OnInitialized()
     {
         DemoState.OnStateChanged += HandleStateChanged;
+
+        // Poll for killswitch updates every 3 seconds to sync state across apps
+        _refreshTimer = new System.Timers.Timer(3000);
+        _refreshTimer.Elapsed += async (sender, e) => await RefreshKillSwitches();
+        _refreshTimer.AutoReset = true;
     }
 
     private void HandleStateChanged()
@@ -884,6 +919,12 @@
     public void Dispose()
     {
         DemoState.OnStateChanged -= HandleStateChanged;
+
+        if (_refreshTimer != null)
+        {
+            _refreshTimer.Stop();
+            _refreshTimer.Dispose();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -893,6 +934,24 @@
             _dataLoaded = true;
             await LoadInitialData();
             StateHasChanged();
+
+            // Start polling after initial load
+            _refreshTimer?.Start();
+        }
+    }
+
+    private async Task RefreshKillSwitches()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var killSwitches = await ExperimentApi.GetKillSwitchStatusesAsync().WaitAsync(cts.Token);
+            DemoState.SyncKillSwitchesFromApi(killSwitches);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Silently fail - don't interrupt user experience
         }
     }
 
@@ -906,7 +965,21 @@
             var experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
             DemoState.SyncVariantsFromApi(experiments);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading experiments: {ex.Message}");
+        }
+
+        // Load kill switches
+        try
+        {
+            var killSwitches = await ExperimentApi.GetKillSwitchStatusesAsync().WaitAsync(cts.Token);
+            DemoState.SyncKillSwitchesFromApi(killSwitches);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading kill switches: {ex.Message}");
+        }
 
         // Load plugins and active implementations
         try
@@ -915,7 +988,10 @@
             var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
             DemoState.SyncPluginImplementationsFromApi(activeImpls);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading plugins: {ex.Message}");
+        }
 
         _initialLoading = false;
 
@@ -927,7 +1003,10 @@
             await GetRecommendations().WaitAsync(cts.Token);
             await GetTheme().WaitAsync(cts.Token);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading initial demo data: {ex.Message}");
+        }
     }
 
     private record PluginImplInfo(string PluginId, string PluginName, string Type, string? Alias);
@@ -982,7 +1061,10 @@
                     await GetRecommendations();
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error switching plugin implementation: {ex.Message}");
+        }
         finally
         {
             _switching = false;

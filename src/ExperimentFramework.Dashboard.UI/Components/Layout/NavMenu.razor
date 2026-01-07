@@ -1,0 +1,97 @@
+<nav class="nav-menu">
+    <NavLink href="/dashboard" Match="NavLinkMatch.All">
+        <span class="nav-icon">🏠</span>
+        <span>Home</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/experiments">
+        <span class="nav-icon">🧪</span>
+        <span>Experiments</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/analytics">
+        <span class="nav-icon">📊</span>
+        <span>Analytics</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/governance/lifecycle">
+        <span class="nav-icon">🔄</span>
+        <span>Governance</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/targeting">
+        <span class="nav-icon">🎯</span>
+        <span>Targeting</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/rollout">
+        <span class="nav-icon">📈</span>
+        <span>Rollout</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/hypothesis">
+        <span class="nav-icon">🔬</span>
+        <span>Hypothesis Testing</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/plugins">
+        <span class="nav-icon">🔌</span>
+        <span>Plugins</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/configuration">
+        <span class="nav-icon">⚙️</span>
+        <span>Configuration</span>
+    </NavLink>
+
+    <NavLink href="/dashboard/dsl-editor">
+        <span class="nav-icon">📝</span>
+        <span>DSL Editor</span>
+    </NavLink>
+</nav>
+
+<style>
+    .nav-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 1rem 0;
+    }
+
+    .nav-menu :global(a) {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        color: var(--color-text-secondary, #64748b);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 150ms ease;
+        font-size: 0.875rem;
+    }
+
+    .nav-menu :global(a:hover) {
+        background: var(--color-bg-hover, rgba(99, 102, 241, 0.1));
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .nav-menu :global(a.active) {
+        background: var(--color-primary, #6366f1);
+        color: white;
+        font-weight: 500;
+    }
+
+    .nav-icon {
+        font-size: 1.125rem;
+        line-height: 1;
+    }
+
+    :global(.theme-dark) .nav-menu :global(a) {
+        color: #9ca3af;
+    }
+
+    :global(.theme-dark) .nav-menu :global(a:hover) {
+        background: rgba(99, 102, 241, 0.2);
+        color: #e5e7eb;
+    }
+</style>

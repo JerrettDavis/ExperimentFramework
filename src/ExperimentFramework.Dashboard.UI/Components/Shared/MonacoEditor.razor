@@ -1,0 +1,172 @@
+@using Microsoft.JSInterop
+@using ExperimentFramework.Dashboard.UI.Models
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div id="@_editorId" class="monaco-container" style="height: @Height; width: 100%;"></div>
+
+@code {
+    private string _editorId = $"monaco-editor-{Guid.NewGuid():N}";
+    private DotNetObjectReference<MonacoEditor>? _dotNetRef;
+    private bool _initialized;
+    private string _currentValue = "";
+
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Height { get; set; } = "400px";
+    [Parameter] public string Language { get; set; } = "yaml";
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Minimap { get; set; } = false;
+    [Parameter] public int FontSize { get; set; } = 14;
+    [Parameter] public List<EditorMarker>? Markers { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            _currentValue = Value;
+
+            var options = new
+            {
+                value = Value,
+                language = Language,
+                readOnly = ReadOnly,
+                minimap = Minimap,
+                fontSize = FontSize
+            };
+
+            try
+            {
+                // Ensure Monaco is loaded before initializing
+                await JS.InvokeVoidAsync("monacoEditor.loadMonaco");
+                await JS.InvokeVoidAsync("monacoEditor.initialize", _editorId, options, _dotNetRef);
+                _initialized = true;
+
+                if (Markers != null && Markers.Count > 0)
+                {
+                    await SetMarkersAsync(Markers);
+                }
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected, ignore
+            }
+            catch (TaskCanceledException)
+            {
+                // Operation canceled, ignore
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to initialize Monaco Editor: {ex.Message}");
+            }
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_initialized)
+        {
+            // Update value if changed externally
+            if (Value != _currentValue)
+            {
+                _currentValue = Value;
+                await JS.InvokeVoidAsync("monacoEditor.setValue", _editorId, Value);
+            }
+
+            // Update markers
+            if (Markers != null)
+            {
+                await SetMarkersAsync(Markers);
+            }
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnContentChanged(string newValue)
+    {
+        _currentValue = newValue;
+        await ValueChanged.InvokeAsync(newValue);
+    }
+
+    public async Task SetValueAsync(string value)
+    {
+        _currentValue = value;
+        if (_initialized)
+        {
+            await JS.InvokeVoidAsync("monacoEditor.setValue", _editorId, value);
+        }
+    }
+
+    public async Task<string> GetValueAsync()
+    {
+        if (_initialized)
+        {
+            return await JS.InvokeAsync<string>("monacoEditor.getValue", _editorId);
+        }
+        return _currentValue;
+    }
+
+    public async Task SetMarkersAsync(List<EditorMarker> markers)
+    {
+        if (_initialized)
+        {
+            var jsMarkers = markers.Select(m => new
+            {
+                line = m.Line,
+                column = m.Column,
+                endLine = m.EndLine,
+                endColumn = m.EndColumn,
+                message = m.Message,
+                severity = m.Severity
+            }).ToList();
+
+            await JS.InvokeVoidAsync("monacoEditor.setMarkers", _editorId, jsMarkers);
+        }
+    }
+
+    public async Task ClearMarkersAsync()
+    {
+        if (_initialized)
+        {
+            await JS.InvokeVoidAsync("monacoEditor.clearMarkers", _editorId);
+        }
+    }
+
+    public async Task GoToLineAsync(int line, int column = 1)
+    {
+        if (_initialized)
+        {
+            await JS.InvokeVoidAsync("monacoEditor.goToLine", _editorId, line, column);
+        }
+    }
+
+    public async Task FocusAsync()
+    {
+        if (_initialized)
+        {
+            await JS.InvokeVoidAsync("monacoEditor.focus", _editorId);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_initialized)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("monacoEditor.dispose", _editorId);
+            }
+            catch { /* Ignore disposal errors */ }
+        }
+        _dotNetRef?.Dispose();
+    }
+}
+
+<style>
+    .monaco-container {
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 8px;
+        overflow: hidden;
+    }
+</style>

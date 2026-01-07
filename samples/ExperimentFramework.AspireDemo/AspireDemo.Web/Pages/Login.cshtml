@@ -1,0 +1,314 @@
+@page "/Account/Login"
+@model AspireDemo.Web.Pages.LoginModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Experiment Demo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-card h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin: 0 0 0.5rem;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 0.95rem;
+            margin: 0 0 2rem;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-check {
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-check-label {
+            font-size: 0.875rem;
+            color: #4a5568;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .demo-users {
+            margin-top: 2.5rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .demo-users h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin: 0 0 1rem;
+        }
+
+        .user-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .user-card {
+            padding: 1rem;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .user-card:hover {
+            background: #edf2f7;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .user-card strong {
+            font-size: 0.95rem;
+            color: #2d3748;
+        }
+
+        .user-card span {
+            font-size: 0.8rem;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1>Experiment Dashboard Login</h1>
+            <p class="subtitle">Sign in to access experiments and analytics</p>
+
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert-error">
+                    @Model.ErrorMessage
+                </div>
+            }
+
+            <form method="post" action="/Account/Login" data-enhance="false">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input name="email" id="email" class="form-control" placeholder="admin@experimentdemo.com" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input name="password" id="password" type="password" class="form-control" required />
+                </div>
+
+                <div class="form-check">
+                    <input name="rememberMe" id="rememberMe" type="checkbox" class="form-check-input" value="true" />
+                    <label for="rememberMe" class="form-check-label">Remember me</label>
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    <span>Sign In</span>
+                </button>
+            </form>
+
+            <div class="demo-users">
+                <h3>Demo Users</h3>
+                <div class="user-cards">
+                    <form method="post" action="/Account/Login" style="margin: 0;" data-enhance="false">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="email" value="admin@experimentdemo.com" />
+                        <input type="hidden" name="password" value="Admin123!" />
+                        <input type="hidden" name="rememberMe" value="true" />
+                        <button type="submit" class="user-card">
+                            <strong>Admin</strong>
+                            <span>Full access</span>
+                        </button>
+                    </form>
+
+                    <form method="post" action="/Account/Login" style="margin: 0;" data-enhance="false">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="email" value="experimenter@experimentdemo.com" />
+                        <input type="hidden" name="password" value="Experimenter123!" />
+                        <input type="hidden" name="rememberMe" value="true" />
+                        <button type="submit" class="user-card">
+                            <strong>Experimenter</strong>
+                            <span>Can modify experiments</span>
+                        </button>
+                    </form>
+
+                    <form method="post" action="/Account/Login" style="margin: 0;" data-enhance="false">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="email" value="viewer@experimentdemo.com" />
+                        <input type="hidden" name="password" value="Viewer123!" />
+                        <input type="hidden" name="rememberMe" value="true" />
+                        <button type="submit" class="user-card">
+                            <strong>Viewer</strong>
+                            <span>Read-only access</span>
+                        </button>
+                    </form>
+
+                    <form method="post" action="/Account/Login" style="margin: 0;" data-enhance="false">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="email" value="analyst@experimentdemo.com" />
+                        <input type="hidden" name="password" value="Analyst123!" />
+                        <input type="hidden" name="rememberMe" value="true" />
+                        <button type="submit" class="user-card">
+                            <strong>Analyst</strong>
+                            <span>Analytics focus</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        console.log('[LOGIN] Page loaded at:', new Date().toISOString());
+        console.log('[LOGIN] Current URL:', window.location.href);
+        console.log('[LOGIN] Document ready state:', document.readyState);
+
+        // Log all forms on the page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('[LOGIN] DOMContentLoaded fired');
+            const forms = document.querySelectorAll('form');
+            console.log('[LOGIN] Number of forms found:', forms.length);
+
+            forms.forEach((form, index) => {
+                console.log(`[LOGIN] Form ${index}:`, {
+                    action: form.action,
+                    method: form.method,
+                    'data-enhance': form.getAttribute('data-enhance'),
+                    elements: form.elements.length
+                });
+
+                // Log form submission
+                form.addEventListener('submit', function(e) {
+                    console.log(`[LOGIN] Form ${index} submit event fired`);
+                    console.log(`[LOGIN] Form ${index} action:`, this.action);
+                    console.log(`[LOGIN] Form ${index} method:`, this.method);
+                    console.log(`[LOGIN] Form ${index} data-enhance:`, this.getAttribute('data-enhance'));
+                    console.log(`[LOGIN] Form ${index} preventDefault called:`, e.defaultPrevented);
+                    console.log(`[LOGIN] Form ${index} form data:`, new FormData(this));
+
+                    // Log form fields
+                    const formData = new FormData(this);
+                    for (let [key, value] of formData.entries()) {
+                        if (key.toLowerCase().includes('password')) {
+                            console.log(`[LOGIN] Form ${index} field ${key}: [REDACTED]`);
+                        } else {
+                            console.log(`[LOGIN] Form ${index} field ${key}:`, value);
+                        }
+                    }
+                });
+
+                // Log click on submit buttons
+                const submitButtons = form.querySelectorAll('button[type="submit"]');
+                submitButtons.forEach((button, btnIndex) => {
+                    button.addEventListener('click', function(e) {
+                        console.log(`[LOGIN] Submit button ${btnIndex} in form ${index} clicked`);
+                        console.log(`[LOGIN] Button type:`, this.type);
+                        console.log(`[LOGIN] Button disabled:`, this.disabled);
+                        console.log(`[LOGIN] preventDefault called:`, e.defaultPrevented);
+                    });
+                });
+            });
+
+            // Monitor navigation
+            console.log('[LOGIN] Adding beforeunload listener');
+            window.addEventListener('beforeunload', function(e) {
+                console.log('[LOGIN] beforeunload fired - page is navigating');
+                console.log('[LOGIN] Target URL:', window.location.href);
+            });
+
+            // Monitor page visibility changes
+            document.addEventListener('visibilitychange', function() {
+                console.log('[LOGIN] Visibility changed:', document.visibilityState);
+            });
+        });
+
+        // Log when scripts execute
+        console.log('[LOGIN] Inline script executed');
+    </script>
+</body>
+</html>

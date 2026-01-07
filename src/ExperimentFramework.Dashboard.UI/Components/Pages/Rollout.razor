@@ -1,0 +1,929 @@
+@page "/dashboard/rollout"
+@using ExperimentFramework.Dashboard.UI.Services
+@using ExperimentFramework.Dashboard.Abstractions
+@inject ExperimentApiClient ExperimentApi
+@implements IDisposable
+
+<PageTitle>Rollout Management - Experiment Dashboard</PageTitle>
+
+<div class="rollout-console">
+    <!-- Header -->
+    <header class="console-header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>Rollout Management</h1>
+                <p class="header-subtitle">Gradually roll out experiment variants to minimize risk</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" @onclick="LoadExperiments" disabled="@_loading">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+        </svg>
+        <span>Rollout enables staged release of specific variants. Select an experiment below to configure a gradual rollout plan.</span>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="loading">
+            <div class="loading-spinner"></div>
+        </div>
+    }
+    else
+    {
+        <!-- Experiment Selector -->
+        <div class="experiment-selector">
+            <label>Select Experiment</label>
+            <select @bind="_selectedExperiment" @bind:after="OnExperimentSelected">
+                <option value="">-- Choose an experiment --</option>
+                @foreach (var exp in _experiments)
+                {
+                    <option value="@exp.Name">@exp.DisplayName (@exp.Variants.Count variants)</option>
+                }
+            </select>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_selectedExperiment) && _selectedExperimentInfo != null)
+        {
+            <div class="rollout-manager">
+                <!-- Experiment Info Panel -->
+                <div class="experiment-info-panel">
+                    <h3>@_selectedExperimentInfo.DisplayName</h3>
+                    <p class="description">@_selectedExperimentInfo.Description</p>
+
+                    <div class="variant-selector">
+                        <label>Target Variant to Rollout</label>
+                        <select @bind="_selectedVariant">
+                            <option value="">-- Select variant --</option>
+                            @foreach (var variant in _selectedExperimentInfo.Variants)
+                            {
+                                <option value="@variant.Name">@variant.DisplayName - @variant.Description</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (_rolloutConfig != null && _rolloutConfig.Enabled)
+                    {
+                        <div class="rollout-stats">
+                            <div class="stat">
+                                <span class="label">Total Users</span>
+                                <span class="value">@_rolloutConfig.TotalUsers.ToString("N0")</span>
+                            </div>
+                            <div class="stat">
+                                <span class="label">In Rollout</span>
+                                <span class="value">@_rolloutConfig.UsersInRollout.ToString("N0")</span>
+                            </div>
+                            <div class="stat">
+                                <span class="label">Current %</span>
+                                <span class="value">@_rolloutConfig.Percentage%</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <!-- Rollout Configuration or Status -->
+                @if (_rolloutConfig == null || !_rolloutConfig.Enabled)
+                {
+                    <!-- Create New Rollout Plan -->
+                    <div class="create-rollout">
+                        <h4>Create Rollout Plan</h4>
+                        <p class="hint">Define stages to gradually increase the percentage of users receiving the variant</p>
+
+                        @if (_rolloutStages.Any())
+                        {
+                            <div class="stages-editor">
+                                @foreach (var (stage, index) in _rolloutStages.Select((s, i) => (s, i)))
+                                {
+                                    <div class="stage-editor">
+                                        <div class="stage-number">Stage @(index + 1)</div>
+                                        <input type="text" placeholder="Name" @bind="stage.Name" />
+                                        <input type="number" placeholder="%" min="0" max="100" @bind="stage.Percentage" />
+                                        <input type="number" placeholder="Hours" min="1" @bind="stage.DurationHours" />
+                                        <button class="btn-icon-danger" @onclick="() => RemoveStage(index)">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <div class="rollout-actions">
+                            <button class="btn-secondary" @onclick="AddStage">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14"/>
+                                </svg>
+                                Add Stage
+                            </button>
+                            <button class="btn-primary" @onclick="StartRollout" disabled="@(!_rolloutStages.Any() || string.IsNullOrEmpty(_selectedVariant))">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                                Start Rollout
+                            </button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <!-- Active Rollout Display -->
+                    <div class="rollout-card">
+                        <div class="rollout-header">
+                            <div>
+                                <h4>Rolling out: <strong>@_rolloutConfig.TargetVariant</strong></h4>
+                                <p class="started">Started: @(_rolloutConfig.StartDate?.ToString("MMM d, yyyy h:mm tt") ?? "N/A")</p>
+                            </div>
+                            <div class="rollout-status-badge @_rolloutConfig.Status.ToString().ToLower()">
+                                @_rolloutConfig.Status
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="rollout-progress-section">
+                            <div class="progress-info">
+                                <span class="progress-label">Rollout Progress</span>
+                                <span class="progress-percentage">@_rolloutConfig.Percentage%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: @(_rolloutConfig.Percentage)%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stages Timeline -->
+                        <div class="stages-section">
+                            <h4>Rollout Stages</h4>
+                            <div class="stages-timeline">
+                                @foreach (var (stage, index) in _rolloutConfig.Stages.Select((s, i) => (s, i)))
+                                {
+                                    var isActive = stage.Status == RolloutStageStatus.Active;
+                                    var isCompleted = stage.Status == RolloutStageStatus.Completed;
+
+                                    <div class="stage-item @stage.Status.ToString().ToLower()">
+                                        <div class="stage-marker">
+                                            @if (isCompleted)
+                                            {
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                                                </svg>
+                                            }
+                                            else if (isActive)
+                                            {
+                                                <div class="pulse-dot"></div>
+                                            }
+                                            else
+                                            {
+                                                <div class="pending-dot"></div>
+                                            }
+                                        </div>
+                                        @if (index < _rolloutConfig.Stages.Count - 1)
+                                        {
+                                            <div class="stage-connector @(isCompleted ? "completed" : "")"></div>
+                                        }
+                                        <div class="stage-content">
+                                            <div class="stage-name">@stage.Name</div>
+                                            <div class="stage-details">
+                                                <span class="stage-percentage">@stage.Percentage%</span>
+                                                @if (stage.UsersAffected > 0)
+                                                {
+                                                    <span class="stage-users">~@stage.UsersAffected.ToString("N0") users</span>
+                                                }
+                                                @if (stage.ExecutedDate.HasValue)
+                                                {
+                                                    <span class="stage-date">Executed: @stage.ExecutedDate.Value.ToString("MMM d, h:mm tt")</span>
+                                                }
+                                                else if (stage.DurationHours.HasValue)
+                                                {
+                                                    <span class="stage-duration">Duration: @stage.DurationHours hrs</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Rollout Controls -->
+                        <div class="rollout-actions">
+                            @if (_rolloutConfig.Status == RolloutStatus.InProgress)
+                            {
+                                <button class="btn-secondary btn-sm" @onclick="PauseRollout" disabled="@_actionInProgress">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                                    </svg>
+                                    Pause
+                                </button>
+                                <button class="btn-primary btn-sm" @onclick="AdvanceStage" disabled="@_actionInProgress">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 12h18M15 5l7 7-7 7"/>
+                                    </svg>
+                                    Advance Stage
+                                </button>
+                                <button class="btn-danger btn-sm" @onclick="RollbackRollout" disabled="@_actionInProgress">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 12h18M9 5l-7 7 7 7"/>
+                                    </svg>
+                                    Rollback
+                                </button>
+                            }
+                            else if (_rolloutConfig.Status == RolloutStatus.Paused || _rolloutConfig.Status == RolloutStatus.RolledBack)
+                            {
+                                <button class="btn-primary btn-sm" @onclick="ResumeRollout" disabled="@_actionInProgress">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M8 5v14l11-7z"/>
+                                    </svg>
+                                    @(_rolloutConfig.Status == RolloutStatus.RolledBack ? "Restart" : "Resume")
+                                </button>
+                            }
+                            else if (_rolloutConfig.Status == RolloutStatus.Completed)
+                            {
+                                <div class="completion-message">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                                    </svg>
+                                    <span>Rollout completed successfully!</span>
+                                </div>
+                                <button class="btn-secondary btn-sm" @onclick="RestartRollout" disabled="@_actionInProgress">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                    </svg>
+                                    Restart from Beginning
+                                </button>
+                            }
+                            <button class="btn-secondary btn-sm" @onclick="DeleteRollout" disabled="@_actionInProgress">
+                                Delete Rollout
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .rollout-console {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .console-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .header-title h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .header-subtitle {
+        font-size: 0.9rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0.25rem 0 0;
+    }
+
+    .btn-primary, .btn-secondary, .btn-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 0.875rem;
+        font-size: 0.8rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary, #6366f1);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #4f46e5;
+    }
+
+    .btn-secondary {
+        background: var(--color-bg-secondary, white);
+        color: var(--color-text-primary, #0f172a);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: var(--color-bg-tertiary, #f1f5f9);
+    }
+
+    .btn-danger {
+        background: white;
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.05);
+        border-color: #ef4444;
+    }
+
+    .btn-icon-danger {
+        padding: 0.25rem;
+        background: none;
+        border: none;
+        color: #ef4444;
+        cursor: pointer;
+    }
+
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .info-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 8px;
+        color: #2563eb;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+    }
+
+    .loading {
+        display: flex;
+        justify-content: center;
+        padding: 4rem 2rem;
+    }
+
+    .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-top-color: var(--color-primary, #6366f1);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .experiment-selector {
+        margin-bottom: 2rem;
+    }
+
+    .experiment-selector label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin-bottom: 0.5rem;
+    }
+
+    .experiment-selector select, .variant-selector select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: white;
+    }
+
+    .rollout-manager {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .experiment-info-panel {
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+
+    .experiment-info-panel h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0 0 0.5rem;
+    }
+
+    .experiment-info-panel .description {
+        font-size: 0.875rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0 0 1rem;
+    }
+
+    .variant-selector {
+        margin-bottom: 1rem;
+    }
+
+    .variant-selector label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin-bottom: 0.5rem;
+    }
+
+    .rollout-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+    }
+
+    .rollout-stats .stat {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .rollout-stats .label {
+        font-size: 0.75rem;
+        color: var(--color-text-muted, #94a3b8);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+
+    .rollout-stats .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-primary, #6366f1);
+    }
+
+    .create-rollout, .rollout-card {
+        background: var(--color-bg-secondary, white);
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+
+    .create-rollout h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0 0 0.5rem;
+    }
+
+    .create-rollout .hint {
+        font-size: 0.875rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0 0 1rem;
+    }
+
+    .stages-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .stage-editor {
+        display: grid;
+        grid-template-columns: 60px 1fr 80px 80px auto;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-bg-tertiary, #f9fafb);
+        border-radius: 8px;
+    }
+
+    .stage-number {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-text-muted, #94a3b8);
+    }
+
+    .stage-editor input {
+        padding: 0.5rem;
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .rollout-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .rollout-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-border, rgba(148, 163, 184, 0.15));
+    }
+
+    .rollout-header h4 {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--color-text-primary, #0f172a);
+        margin: 0 0 0.25rem;
+    }
+
+    .rollout-header .started {
+        font-size: 0.8rem;
+        color: var(--color-text-secondary, #64748b);
+        margin: 0;
+    }
+
+    .rollout-status-badge {
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .rollout-status-badge.notstarted { background: rgba(148, 163, 184, 0.1); color: #64748b; }
+    .rollout-status-badge.inprogress { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+    .rollout-status-badge.completed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .rollout-status-badge.paused { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+    .rollout-status-badge.rolledback { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+    .rollout-progress-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-text-muted, #94a3b8);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .progress-percentage {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-primary, #6366f1);
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: var(--color-bg-tertiary, rgba(148, 163, 184, 0.1));
+        border-radius: 9999px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        border-radius: 9999px;
+        transition: width 0.3s ease;
+    }
+
+    .stages-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .stages-section h4 {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-text-muted, #94a3b8);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 1rem;
+    }
+
+    .stages-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .stage-item {
+        display: grid;
+        grid-template-columns: 24px auto 1fr;
+        gap: 0.75rem;
+        align-items: flex-start;
+        position: relative;
+    }
+
+    .stage-marker {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-bg-tertiary, #e5e7eb);
+        border: 2px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        flex-shrink: 0;
+    }
+
+    .stage-item.completed .stage-marker {
+        background: #10b981;
+        border-color: #10b981;
+        color: white;
+    }
+
+    .stage-item.active .stage-marker {
+        background: #3b82f6;
+        border-color: #3b82f6;
+    }
+
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .pending-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--color-border, rgba(148, 163, 184, 0.5));
+        border-radius: 50%;
+    }
+
+    .stage-connector {
+        position: absolute;
+        left: 11px;
+        top: 30px;
+        width: 2px;
+        height: calc(100% + 0.75rem);
+        background: var(--color-border, rgba(148, 163, 184, 0.2));
+    }
+
+    .stage-connector.completed {
+        background: #10b981;
+    }
+
+    .stage-content {
+        flex: 1;
+    }
+
+    .stage-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+        margin-bottom: 0.25rem;
+    }
+
+    .stage-details {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8rem;
+        color: var(--color-text-secondary, #64748b);
+        flex-wrap: wrap;
+    }
+
+    .stage-percentage {
+        font-weight: 500;
+    }
+
+    .completion-message {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #10b981;
+        font-weight: 500;
+    }
+</style>
+
+@code {
+    private List<Services.ExperimentInfo> _experiments = [];
+    private bool _loading = true;
+    private bool _actionInProgress = false;
+    private string _selectedExperiment = "";
+    private string _selectedVariant = "";
+    private Services.ExperimentInfo? _selectedExperimentInfo;
+    private RolloutConfiguration? _rolloutConfig;
+    private List<RolloutStageDto> _rolloutStages = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadExperiments();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadExperiments()
+    {
+        _loading = true;
+        try
+        {
+            _experiments = await ExperimentApi.GetExperimentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load experiments: {ex.Message}");
+            _experiments = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnExperimentSelected()
+    {
+        _selectedExperimentInfo = _experiments.FirstOrDefault(e => e.Name == _selectedExperiment);
+        _rolloutConfig = _selectedExperimentInfo?.Rollout;
+        _selectedVariant = _rolloutConfig?.TargetVariant ?? "";
+
+        // Initialize with default stages if no rollout exists or rollout is not enabled
+        _rolloutStages = (_rolloutConfig == null || !_rolloutConfig.Enabled)
+            ? [
+                new RolloutStageDto { Name = "Initial rollout", Percentage = 10, DurationHours = 24 },
+                new RolloutStageDto { Name = "Expand to half", Percentage = 50, DurationHours = 48 },
+                new RolloutStageDto { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
+            ]
+            : _rolloutConfig.Stages.ToList();
+
+        StateHasChanged();
+    }
+
+    private void AddStage()
+    {
+        _rolloutStages.Add(new RolloutStageDto { Percentage = 10 });
+    }
+
+    private void RemoveStage(int index)
+    {
+        _rolloutStages.RemoveAt(index);
+    }
+
+    private async Task StartRollout()
+    {
+        if (string.IsNullOrEmpty(_selectedExperiment) || string.IsNullOrEmpty(_selectedVariant))
+            return;
+
+        _actionInProgress = true;
+        StateHasChanged();
+
+        try
+        {
+            var config = new RolloutConfiguration
+            {
+                ExperimentName = _selectedExperiment,
+                Enabled = true,
+                TargetVariant = _selectedVariant,
+                Stages = _rolloutStages,
+                Status = RolloutStatus.InProgress
+            };
+
+            var response = await ExperimentApi.HttpClient.PostAsJsonAsync(
+                $"/api/rollout/{_selectedExperiment}/config", config);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
+                await LoadExperiments(); // Refresh
+                StateHasChanged();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to start rollout. Status: {response.StatusCode}, Error: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start rollout: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            _actionInProgress = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AdvanceStage()
+    {
+        await PerformRolloutAction("advance");
+    }
+
+    private async Task PauseRollout()
+    {
+        await PerformRolloutAction("pause");
+    }
+
+    private async Task ResumeRollout()
+    {
+        await PerformRolloutAction("resume");
+    }
+
+    private async Task RollbackRollout()
+    {
+        await PerformRolloutAction("rollback");
+    }
+
+    private async Task RestartRollout()
+    {
+        await PerformRolloutAction("restart");
+    }
+
+    private async Task DeleteRollout()
+    {
+        _actionInProgress = true;
+        try
+        {
+            var response = await ExperimentApi.HttpClient.DeleteAsync($"/api/rollout/{_selectedExperiment}/config");
+            if (response.IsSuccessStatusCode)
+            {
+                _rolloutConfig = null;
+                await LoadExperiments();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to delete rollout: {ex.Message}");
+        }
+        finally
+        {
+            _actionInProgress = false;
+        }
+    }
+
+    private async Task PerformRolloutAction(string action)
+    {
+        if (string.IsNullOrEmpty(_selectedExperiment)) return;
+
+        _actionInProgress = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await ExperimentApi.HttpClient.PostAsync($"/api/rollout/{_selectedExperiment}/{action}", null);
+            if (response.IsSuccessStatusCode)
+            {
+                _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
+                await LoadExperiments();
+                StateHasChanged();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to {action} rollout. Status: {response.StatusCode}, Error: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to {action} rollout: {ex.Message}");
+        }
+        finally
+        {
+            _actionInProgress = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+    }
+}
