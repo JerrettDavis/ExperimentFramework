@@ -421,24 +421,17 @@ public sealed class RuntimeExperimentManager
             return true;
 
         // Compare variants (build the variant list from config like in Apply)
-        var newVariants = new List<string>();
-        if (config.Trials != null)
-        {
-            foreach (var trial in config.Trials)
+        var newVariants = config.Trials?
+            .SelectMany(trial =>
             {
+                var keys = new List<string>();
                 if (trial.Control?.Key != null)
-                    newVariants.Add(trial.Control.Key);
-
+                    keys.Add(trial.Control.Key);
                 if (trial.Conditions != null)
-                {
-                    foreach (var condition in trial.Conditions)
-                    {
-                        if (condition.Key != null)
-                            newVariants.Add(condition.Key);
-                    }
-                }
-            }
-        }
+                    keys.AddRange(trial.Conditions.Where(c => c.Key != null).Select(c => c.Key!));
+                return keys;
+            })
+            .ToList() ?? new List<string>();
 
         var existingVariantNames = existing.Variants.Select(v => v.Name).OrderBy(n => n).ToList();
         var newVariantNames = newVariants.Distinct().OrderBy(n => n).ToList();

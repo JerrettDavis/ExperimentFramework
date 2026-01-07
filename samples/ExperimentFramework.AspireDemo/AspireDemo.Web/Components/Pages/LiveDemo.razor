@@ -965,7 +965,10 @@
             var experiments = await ExperimentApi.GetExperimentsAsync().WaitAsync(cts.Token);
             DemoState.SyncVariantsFromApi(experiments);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading experiments: {ex.Message}");
+        }
 
         // Load kill switches
         try
@@ -973,7 +976,10 @@
             var killSwitches = await ExperimentApi.GetKillSwitchStatusesAsync().WaitAsync(cts.Token);
             DemoState.SyncKillSwitchesFromApi(killSwitches);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading kill switches: {ex.Message}");
+        }
 
         // Load plugins and active implementations
         try
@@ -982,7 +988,10 @@
             var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
             DemoState.SyncPluginImplementationsFromApi(activeImpls);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading plugins: {ex.Message}");
+        }
 
         _initialLoading = false;
 
@@ -994,7 +1003,10 @@
             await GetRecommendations().WaitAsync(cts.Token);
             await GetTheme().WaitAsync(cts.Token);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading initial demo data: {ex.Message}");
+        }
     }
 
     private record PluginImplInfo(string PluginId, string PluginName, string Type, string? Alias);
@@ -1049,7 +1061,10 @@
                     await GetRecommendations();
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error switching plugin implementation: {ex.Message}");
+        }
         finally
         {
             _switching = false;

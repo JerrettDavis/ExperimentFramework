@@ -311,13 +311,10 @@ public static class RolloutEndpoints
         registry.SetRolloutPercentage(experimentName, 0);
 
         // Mark all stages as skipped except completed ones
-        foreach (var stage in config.Stages)
-        {
-            if (stage.Status == RolloutStageStatus.Active || stage.Status == RolloutStageStatus.Pending)
-            {
-                stage.Status = RolloutStageStatus.Skipped;
-            }
-        }
+        config.Stages
+            .Where(stage => stage.Status == RolloutStageStatus.Active || stage.Status == RolloutStageStatus.Pending)
+            .ToList()
+            .ForEach(stage => stage.Status = RolloutStageStatus.Skipped);
 
         config.UsersInRollout = 0;
         await persistence.SaveRolloutConfigAsync(config, tenantId, ct);

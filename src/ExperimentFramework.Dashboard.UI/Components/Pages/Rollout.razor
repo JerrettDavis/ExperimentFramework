@@ -168,7 +168,6 @@
                                 {
                                     var isActive = stage.Status == RolloutStageStatus.Active;
                                     var isCompleted = stage.Status == RolloutStageStatus.Completed;
-                                    var isPending = stage.Status == RolloutStageStatus.Pending;
 
                                     <div class="stage-item @stage.Status.ToString().ToLower()">
                                         <div class="stage-marker">
@@ -777,19 +776,13 @@
         _selectedVariant = _rolloutConfig?.TargetVariant ?? "";
 
         // Initialize with default stages if no rollout exists or rollout is not enabled
-        if (_rolloutConfig == null || !_rolloutConfig.Enabled)
-        {
-            _rolloutStages = [
+        _rolloutStages = (_rolloutConfig == null || !_rolloutConfig.Enabled)
+            ? [
                 new RolloutStageDto { Name = "Initial rollout", Percentage = 10, DurationHours = 24 },
                 new RolloutStageDto { Name = "Expand to half", Percentage = 50, DurationHours = 48 },
                 new RolloutStageDto { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
-            ];
-        }
-        else
-        {
-            // Copy existing stages for editing (if rollout is enabled, it's already in progress)
-            _rolloutStages = _rolloutConfig.Stages.ToList();
-        }
+            ]
+            : _rolloutConfig.Stages.ToList();
 
         StateHasChanged();
     }

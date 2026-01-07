@@ -18,13 +18,13 @@ public static class IdentitySeeder
         // Create roles
         string[] roles = { "Admin", "Experimenter", "Viewer", "Analyst" };
 
-        foreach (var role in roles)
+        await Task.WhenAll(roles.Select(async role =>
         {
             if (!await roleManager.RoleExistsAsync(role))
             {
                 await roleManager.CreateAsync(new IdentityRole(role));
             }
-        }
+        }));
 
         // Create admin user
         if (await userManager.FindByEmailAsync("admin@experimentdemo.com") == null)

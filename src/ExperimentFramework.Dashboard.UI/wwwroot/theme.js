@@ -107,7 +107,7 @@ window.setPageTitle = function(title) {
 
 // Initialize theme immediately on script load
 (function() {
-    var effectiveTheme = window.themeUtils.initializeTheme();
+    window.themeUtils.initializeTheme();
 
     // If body doesn't exist yet, apply theme to it when DOM is ready
     if (!document.body) {

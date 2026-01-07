@@ -38,11 +38,19 @@ public class LoginModel : PageModel
 
     public string? ErrorMessage { get; set; }
 
+    private static string SanitizeForLog(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+
+        return input.Replace("\r", "").Replace("\n", "");
+    }
+
     public void OnGet()
     {
         _logger.LogInformation("========== Login.OnGet START ==========");
-        _logger.LogInformation("Login.OnGet - Request Path: {Path}", HttpContext.Request.Path);
-        _logger.LogInformation("Login.OnGet - Query String: {QueryString}", HttpContext.Request.QueryString);
+        _logger.LogInformation("Login.OnGet - Request Path: {Path}", SanitizeForLog(HttpContext.Request.Path.Value));
+        _logger.LogInformation("Login.OnGet - Query String: {QueryString}", SanitizeForLog(HttpContext.Request.QueryString.Value));
         _logger.LogInformation("Login.OnGet - Error: {Error}, ReturnUrl: {ReturnUrl}", Error, ReturnUrl);
         _logger.LogInformation("Login.OnGet - User authenticated: {IsAuthenticated}", User.Identity?.IsAuthenticated);
         _logger.LogInformation("========== Login.OnGet END ==========");
@@ -61,7 +69,7 @@ public class LoginModel : PageModel
     public async Task<IActionResult> OnPostAsync()
     {
         _logger.LogInformation("========== Login.OnPostAsync START ==========");
-        _logger.LogInformation("OnPostAsync - Request Path: {Path}", HttpContext.Request.Path);
+        _logger.LogInformation("OnPostAsync - Request Path: {Path}", SanitizeForLog(HttpContext.Request.Path.Value));
         _logger.LogInformation("OnPostAsync - Request Method: {Method}", HttpContext.Request.Method);
         _logger.LogInformation("OnPostAsync - Content-Type: {ContentType}", HttpContext.Request.ContentType);
         _logger.LogInformation("OnPostAsync - Has Form: {HasForm}", HttpContext.Request.HasFormContentType);

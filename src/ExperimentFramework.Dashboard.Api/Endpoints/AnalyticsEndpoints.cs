@@ -48,8 +48,6 @@ public static class AnalyticsEndpoints
             });
         }
 
-        var tenantContext = context.Items["TenantContext"] as TenantContext;
-
         // TODO: Implement statistical analysis in Phase 5
         var stats = new
         {
