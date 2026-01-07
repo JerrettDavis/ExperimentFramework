@@ -311,6 +311,7 @@ public class ExperimentInfo
     public string Category { get; set; } = "";
     public string Status { get; set; } = "";
     public DateTime LastModified { get; set; }
+    public string Source { get; set; } = "Code";
     public RolloutConfiguration? Rollout { get; set; }
     public List<TargetingRule> TargetingRules { get; set; } = [];
     public HypothesisInfo? Hypothesis { get; set; }

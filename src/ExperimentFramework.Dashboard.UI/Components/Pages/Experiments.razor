@@ -69,7 +69,7 @@
             <button class="filter-btn @(DashboardState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DashboardState.ExperimentFilterCategory = null">
                 All
             </button>
-            @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog" })
+            @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog", "Plugins" })
             {
                 <button class="filter-btn @(DashboardState.ExperimentFilterCategory == category ? "active" : "")"
                         @onclick="() => DashboardState.ExperimentFilterCategory = category">
@@ -121,12 +121,22 @@
             {
                 var isKilled = DashboardState.GetKillSwitch(experiment.Name);
                 var isExpanded = DashboardState.IsExpanded("experiments", experiment.Name);
+                var isPlugin = experiment.Source == "Plugin";
 
-                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "")">
+                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "") @(isPlugin ? "plugin-source" : "")">
                     <div class="exp-main" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
                         <div class="exp-info">
                             <div class="exp-header">
                                 <span class="exp-name">@experiment.DisplayName</span>
+                                @if (isPlugin)
+                                {
+                                    <span class="source-badge plugin">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                        </svg>
+                                        Plugin
+                                    </span>
+                                }
                                 <span class="category-tag @experiment.Category.ToLower()">@experiment.Category</span>
                             </div>
                             <p class="exp-description">@experiment.Description</p>
@@ -480,6 +490,15 @@
         border-color: var(--color-primary, #6366f1);
     }
 
+    .experiment-row.plugin-source {
+        border: 2px solid #8b5cf6;
+        box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+    }
+
+    .experiment-row.plugin-source:hover {
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+    }
+
     .exp-main {
         display: grid;
         grid-template-columns: 1fr auto auto auto;
@@ -506,6 +525,24 @@
         color: var(--color-text-primary, #0f172a);
     }
 
+    .source-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .source-badge.plugin {
+        background: rgba(139, 92, 246, 0.15);
+        color: #8b5cf6;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
     .category-tag {
         font-size: 0.65rem;
         font-weight: 600;
@@ -519,6 +556,7 @@
     .category-tag.engagement { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     .category-tag.ux { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
     .category-tag.blog { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
+    .category-tag.plugins { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
 
     .exp-description {
         font-size: 0.8rem;

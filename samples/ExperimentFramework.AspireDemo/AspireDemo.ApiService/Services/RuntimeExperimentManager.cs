@@ -243,9 +243,9 @@ public sealed class RuntimeExperimentManager
                     DefaultVariant = variants.FirstOrDefault()?.Name ?? "default",
                     Variants = variants.Any() ? variants : [new VariantInfo { Name = "default", DisplayName = "Default", Description = "Default variant" }],
                     Category = GetMetadataString(expConfig.Metadata, "category") ?? "Uncategorized",
-                    Status = "Active",
-                    Source = ExperimentSource.Dsl
+                    Status = "Active"
                 };
+                experimentInfo.SourceEnum = ExperimentSource.Dsl;
 
                 if (existing != null)
                 {
