@@ -70,7 +70,7 @@ public class LoginModel : PageModel
     {
         _logger.LogInformation("========== Login.OnPostAsync START ==========");
         _logger.LogInformation("OnPostAsync - Request Path: {Path}", SanitizeForLog(HttpContext.Request.Path.Value));
-        _logger.LogInformation("OnPostAsync - Request Method: {Method}", HttpContext.Request.Method);
+        _logger.LogInformation("OnPostAsync - Request Method: {Method}", SanitizeForLog(HttpContext.Request.Method));
         _logger.LogInformation("OnPostAsync - Content-Type: {ContentType}", HttpContext.Request.ContentType);
         _logger.LogInformation("OnPostAsync - Has Form: {HasForm}", HttpContext.Request.HasFormContentType);
         _logger.LogInformation("OnPostAsync - Email: {Email}", Email);
