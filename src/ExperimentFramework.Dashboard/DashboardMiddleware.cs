@@ -64,8 +64,12 @@ public sealed class DashboardMiddleware
             return;
         }
 
+        var sanitizedPath = (context.Request.Path.Value ?? string.Empty)
+            .Replace("\r", string.Empty)
+            .Replace("\n", string.Empty);
+
         _logger.LogInformation("Dashboard middleware invoked for path: {Path}, Method: {Method}, RequireAuthorization: {RequireAuth}",
-            context.Request.Path, context.Request.Method, _options.RequireAuthorization);
+            sanitizedPath, context.Request.Method, _options.RequireAuthorization);
 
         // Resolve tenant context
         var tenantContext = await _options.TenantResolver.ResolveAsync(context);
