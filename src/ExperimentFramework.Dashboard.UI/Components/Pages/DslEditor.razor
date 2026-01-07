@@ -778,9 +778,16 @@ experiments:
           type: fallbackToControl
 ";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _yamlContent = _defaultYaml;
+        // Automatically load current configuration on page load
+        await LoadCurrentConfig();
+
+        // Fall back to default sample if loading fails
+        if (string.IsNullOrWhiteSpace(_yamlContent))
+        {
+            _yamlContent = _defaultYaml;
+        }
     }
 
     private async Task LoadCurrentConfig()
