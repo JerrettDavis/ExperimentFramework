@@ -202,7 +202,7 @@ public class ConfigurationFileWatcherTests : IDisposable
             opts.ScanDefaultPaths = true;
             opts.EnableHotReload = true;
             opts.ThrowOnValidationErrors = false;
-            opts.OnConfigurationChanged = _ => callbackCount++;
+            opts.OnConfigurationChanged = _ => Interlocked.Increment(ref callbackCount);
         });
 
         var provider = services.BuildServiceProvider();
@@ -212,14 +212,18 @@ public class ConfigurationFileWatcherTests : IDisposable
 
         // Act
         await watcher.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
+        await Task.Delay(200); // Give watcher time to fully initialize
 
         await File.WriteAllTextAsync(yamlPath, GetInvalidYaml());
-        await Task.Delay(1000);
+
+        // Wait for potential callback (up to 2 seconds), but expect it NOT to be invoked
+        // Using polling to detect early failure if callback is incorrectly invoked
+        var callbackWasInvoked = await WaitForConditionAsync(() => callbackCount > 0, TimeSpan.FromSeconds(2));
 
         await watcher.StopAsync(CancellationToken.None);
 
         // Assert - callback should not be invoked for invalid config
+        Assert.False(callbackWasInvoked, "Callback was invoked for invalid configuration when it should have been rejected");
         Assert.Equal(0, callbackCount);
     }
 
