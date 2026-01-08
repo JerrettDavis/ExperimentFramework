@@ -507,6 +507,7 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
                         "Configuration reload failed validation with {ErrorCount} error(s). Keeping previous configuration.",
                         validationResult.FatalErrors.Count());
 
+                    // Don't invoke callback for invalid configuration
                     return;
                 }
 
@@ -518,6 +519,7 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to reload configuration");
+                // Don't invoke callback when reload fails due to exception
             }
         }
     }
