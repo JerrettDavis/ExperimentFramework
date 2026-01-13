@@ -29,34 +29,19 @@ jobs:
       - name: Update NuGet packages
         run: |
           echo "Checking for outdated packages..."
-          dotnet list ExperimentFramework.slnx package --outdated
+          dotnet list ExperimentFramework.slnx package --outdated | tee outdated-packages.txt || true
           
-          echo "Updating packages to latest versions..."
-          dotnet list ExperimentFramework.slnx package --outdated --format json | \
-            jq -r '.projects[].frameworks[].topLevelPackages[] | select(.latestVersion != null) | "\(.id)"' | \
-            while read -r package; do
-              echo "Updating $package..."
-              find . -name "*.csproj" -exec dotnet add {} package "$package" \; || true
-            done
+          echo ""
+          echo "Note: This workflow is for manual review of outdated packages."
+          echo "Dependabot (configured in .github/dependabot.yml) will automatically create PRs for updates."
+          echo "The outdated packages report has been saved as an artifact for review."
       
-      - name: Restore and build
-        run: |
-          dotnet restore ExperimentFramework.slnx
-          dotnet build ExperimentFramework.slnx --configuration Release --no-restore
-      
-      - name: Run tests
-        run: dotnet test ExperimentFramework.slnx --configuration Release --no-build
-      
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+      - name: Upload outdated packages report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update NuGet packages"
-          title: "chore: Update NuGet packages"
-          body: |
-            This PR updates NuGet packages to their latest versions.
-            
-            Please review the changes and ensure all tests pass before merging.
-          branch: automated/update-packages
-          delete-branch: true
-          labels: dependencies,automated
+          name: outdated-packages-report
+          path: |
+            outdated-packages.txt
+          retention-days: 7
+          if-no-files-found: ignore
