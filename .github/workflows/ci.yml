@@ -118,7 +118,7 @@ jobs:
         run: git fetch --prune --tags
 
       - name: Clean GitVersion cache
-        run: rm -rf .git/gitversion_cache
+        run: rm -rf .git/gitversion_cache || true
 
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v4
