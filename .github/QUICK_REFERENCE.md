@@ -115,7 +115,7 @@ The repository includes the following GitHub Actions workflows:
   
 - **Stale (`stale.yml`)**: Marks and closes stale issues/PRs
   
-- **Update Packages (`update-packages.yml`)**: Automated dependency updates
+- **Update Packages (`update-packages.yml`)**: Reports outdated packages
 
 ### Dependabot
 
