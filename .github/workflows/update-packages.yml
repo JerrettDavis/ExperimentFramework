@@ -1,0 +1,62 @@
+name: Update Packages
+
+on:
+  workflow_dispatch:  # Manual trigger only
+  schedule:
+    - cron: "0 0 * * 0"  # Run weekly on Sunday at midnight UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+      
+      - name: Update NuGet packages
+        run: |
+          echo "Checking for outdated packages..."
+          dotnet list ExperimentFramework.slnx package --outdated
+          
+          echo "Updating packages to latest versions..."
+          dotnet list ExperimentFramework.slnx package --outdated --format json | \
+            jq -r '.projects[].frameworks[].topLevelPackages[] | select(.latestVersion != null) | "\(.id)"' | \
+            while read -r package; do
+              echo "Updating $package..."
+              find . -name "*.csproj" -exec dotnet add {} package "$package" \; || true
+            done
+      
+      - name: Restore and build
+        run: |
+          dotnet restore ExperimentFramework.slnx
+          dotnet build ExperimentFramework.slnx --configuration Release --no-restore
+      
+      - name: Run tests
+        run: dotnet test ExperimentFramework.slnx --configuration Release --no-build
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update NuGet packages"
+          title: "chore: Update NuGet packages"
+          body: |
+            This PR updates NuGet packages to their latest versions.
+            
+            Please review the changes and ensure all tests pass before merging.
+          branch: automated/update-packages
+          delete-branch: true
+          labels: dependencies,automated

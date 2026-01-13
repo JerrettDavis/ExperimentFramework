@@ -1,0 +1,29 @@
+# Code Owners for ExperimentFramework
+# 
+# This file defines individuals or teams that are responsible for code in this repository.
+# Code owners are automatically requested for review when someone opens a pull request 
+# that modifies code that they own.
+#
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @JerrettDavis
+
+# GitHub Actions workflows and CI/CD configuration
+/.github/ @JerrettDavis
+/.github/workflows/ @JerrettDavis
+
+# Documentation
+/docs/ @JerrettDavis
+*.md @JerrettDavis
+
+# Core framework code
+/src/ @JerrettDavis
+
+# Tests
+/tests/ @JerrettDavis
+
+# Build and tooling
+/tools/ @JerrettDavis
+Directory.Build.props @JerrettDavis
+GitVersion.yml @JerrettDavis
