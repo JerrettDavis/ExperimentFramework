@@ -648,15 +648,15 @@
       },
       "YamlDotNet": {
         "type": "Transitive",
-        "resolved": "16.2.1",
-        "contentHash": "im6zTVgesjcfTRfuMpnx51Rg2svWenp/3q5XBfcIzgj8PNIkkSD2xEl9HWcVi2SaJPP9XcXUdzed9gSDEuf1TA=="
+        "resolved": "16.3.0",
+        "contentHash": "SgMOdxbz8X65z8hraIs6hOEdnkH6hESTAIUa7viEngHOYaH+6q5XJmwr1+yb9vJpNQ19hCQY69xbFsLtXpobQA=="
       },
       "experimentframework": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Extensions.Configuration": "[9.0.11, )",
+          "Microsoft.Extensions.Configuration": "[10.0.1, )",
           "Microsoft.Extensions.Configuration.Abstractions": "[10.0.1, )",
-          "Microsoft.Extensions.DependencyInjection": "[9.0.11, )",
+          "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "Microsoft.FeatureManagement": "[4.4.0, )"
@@ -717,7 +717,7 @@
           "Microsoft.Extensions.Hosting.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Options": "[10.0.1, )",
-          "YamlDotNet": "[16.2.1, )"
+          "YamlDotNet": "[16.3.0, )"
         }
       },
       "experimentframework.data": {
