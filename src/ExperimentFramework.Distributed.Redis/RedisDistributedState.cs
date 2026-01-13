@@ -44,7 +44,7 @@ public sealed class RedisDistributedState : IDistributedExperimentState
     {
         var db = _redis.GetDatabase();
         var json = JsonSerializer.Serialize(value, _jsonOptions);
-        await db.StringSetAsync(_keyPrefix + key, json, expiration);
+        await db.StringSetAsync(_keyPrefix + key, json, expiration, keepTtl: false);
     }
 
     /// <inheritdoc />
