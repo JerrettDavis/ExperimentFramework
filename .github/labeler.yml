@@ -1,0 +1,56 @@
+# Labeler configuration for automatic PR labeling
+# See https://github.com/actions/labeler for more information
+
+# Source code labels
+"area: core":
+  - changed-files:
+    - any-glob-to-any-file: "src/ExperimentFramework/**"
+
+"area: benchmarks":
+  - changed-files:
+    - any-glob-to-any-file: "benchmarks/**"
+
+"area: tests":
+  - changed-files:
+    - any-glob-to-any-file: "tests/**"
+
+"area: samples":
+  - changed-files:
+    - any-glob-to-any-file: "samples/**"
+
+"area: tools":
+  - changed-files:
+    - any-glob-to-any-file: "tools/**"
+
+# Documentation labels
+"documentation":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "docs/**"
+      - "**/*.md"
+      - "README.md"
+
+# CI/CD labels
+"ci/cd":
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+
+# Configuration labels
+"configuration":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/*.yml"
+      - "**/*.yaml"
+      - "**/*.json"
+      - "**/*.config"
+      - "Directory.Build.props"
+      - "GitVersion.yml"
+
+# Dependencies
+"dependencies":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/packages.lock.json"
+      - "**/*.csproj"
