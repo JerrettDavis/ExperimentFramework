@@ -1,7 +1,7 @@
 name: Update Packages
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:  # Manual trigger (workflow also runs on weekly schedule below)
   schedule:
     - cron: "0 0 * * 0"  # Run weekly on Sunday at midnight UTC
 
