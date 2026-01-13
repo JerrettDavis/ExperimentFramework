@@ -1,4 +1,5 @@
-mode: GitHubFlow
+workflow: GitHubFlow/v1
+mode: ContinuousDelivery
 tag-prefix: 'v'
 commit-message-incrementing: Enabled
 
