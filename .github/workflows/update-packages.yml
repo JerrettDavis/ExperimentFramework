@@ -6,9 +6,7 @@ on:
     - cron: "0 0 * * 0"  # Run weekly on Sunday at midnight UTC
 
 permissions:
-  contents: write
-  pull-requests: write
-
+  contents: read
 jobs:
   update-packages:
     runs-on: ubuntu-latest
