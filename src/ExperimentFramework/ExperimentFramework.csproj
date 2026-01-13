@@ -40,6 +40,8 @@
 
   <ItemGroup>
     <!-- Reference to source generator project (runs at compile-time) -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftExtensionsVersion)" />
     <ProjectReference Include="..\ExperimentFramework.Generators\ExperimentFramework.Generators.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"

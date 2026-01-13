@@ -18,9 +18,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
     <PackageReference Include="Microsoft.FeatureManagement" Version="4.4.0" />
     <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="4.4.0" />
-    <PackageReference Include="OpenTelemetry" Version="1.12.0" />
-    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.12.0" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.14.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.14.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.14.0" />
   </ItemGroup>
 
   <ItemGroup>
