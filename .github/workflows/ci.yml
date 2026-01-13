@@ -117,10 +117,16 @@ jobs:
       - name: Fetch tags
         run: git fetch --prune --tags
 
+      - name: Clean GitVersion cache
+        run: rm -rf .git/gitversion_cache
+
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v4
         with:
           versionSpec: '6.x'
+
+      - name: Display GitVersion version
+        run: dotnet-gitversion /version
 
       - name: Run GitVersion
         id: gitversion
