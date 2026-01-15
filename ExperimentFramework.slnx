@@ -41,6 +41,7 @@
     <Project Path="src/ExperimentFramework.Resilience/ExperimentFramework.Resilience.csproj" />
     <Project Path="src/ExperimentFramework.Rollout/ExperimentFramework.Rollout.csproj" />
     <Project Path="src/ExperimentFramework.Science/ExperimentFramework.Science.csproj" />
+    <Project Path="src/ExperimentFramework.Simulation/ExperimentFramework.Simulation.csproj" />
     <Project Path="src/ExperimentFramework.StickyRouting/ExperimentFramework.StickyRouting.csproj" />
     <Project Path="src/ExperimentFramework.Targeting/ExperimentFramework.Targeting.csproj" />
     <Project Path="src/ExperimentFramework/ExperimentFramework.csproj" />
@@ -49,6 +50,7 @@
     <Project Path="tests/ExperimentFramework.Generators.Tests/ExperimentFramework.Generators.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Plugins.Generators.Tests/ExperimentFramework.Plugins.Generators.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Plugins.Tests/ExperimentFramework.Plugins.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Simulation.Tests/ExperimentFramework.Simulation.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Tests/ExperimentFramework.Tests.csproj" />
   </Folder>
 </Solution>
