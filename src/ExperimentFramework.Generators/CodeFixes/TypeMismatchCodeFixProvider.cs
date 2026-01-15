@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Composition;
 using System.Linq;
@@ -46,55 +47,75 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
     /// <returns>A task representing the asynchronous operation.</returns>
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
-        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
-        if (root == null)
-            return;
-
-        var semanticModel = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
-        if (semanticModel == null)
+        var (root, semanticModel) = await GetDocumentContext(context);
+        if (root == null || semanticModel == null)
             return;
 
         var diagnostic = context.Diagnostics.First();
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
+        if (!TryGetGenericNameAndServiceType(root, diagnostic, semanticModel, context.CancellationToken, 
+            out var genericName, out var serviceType))
+            return;
 
-        // Find the invocation expression
-        var invocation = root.FindToken(diagnosticSpan.Start)
+        var candidates = FindImplementingTypes(semanticModel.Compilation, serviceType, context.CancellationToken);
+        RegisterCodeFixesForCandidates(context, diagnostic, genericName, candidates);
+    }
+
+    private static async Task<(SyntaxNode? root, SemanticModel? model)> GetDocumentContext(CodeFixContext context)
+    {
+        var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
+        var model = await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
+        return (root, model);
+    }
+
+    private static bool TryGetGenericNameAndServiceType(
+        SyntaxNode root,
+        Diagnostic diagnostic,
+        SemanticModel semanticModel,
+        CancellationToken cancellationToken,
+        out GenericNameSyntax? genericName,
+        out ITypeSymbol? serviceType)
+    {
+        genericName = null;
+        serviceType = null;
+
+        var invocation = FindInvocationExpression(root, diagnostic);
+        if (invocation?.Expression is not MemberAccessExpressionSyntax memberAccess)
+            return false;
+
+        if (memberAccess.Name is not GenericNameSyntax gn)
+            return false;
+
+        genericName = gn;
+
+        if (semanticModel.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol methodSymbol)
+            return false;
+
+        if (methodSymbol.ContainingType is not INamedTypeSymbol { TypeArguments.Length: 1 } containingType)
+            return false;
+
+        serviceType = containingType.TypeArguments[0];
+        return true;
+    }
+
+    private static InvocationExpressionSyntax? FindInvocationExpression(SyntaxNode root, Diagnostic diagnostic) =>
+        root.FindToken(diagnostic.Location.SourceSpan.Start)
             .Parent?
             .AncestorsAndSelf()
             .OfType<InvocationExpressionSyntax>()
             .FirstOrDefault();
 
-        if (invocation?.Expression is not MemberAccessExpressionSyntax memberAccess)
-            return;
-
-        // Get the generic name (AddControl<T> or AddCondition<T>)
-        if (memberAccess.Name is not GenericNameSyntax genericName)
-            return;
-
-        // Get the service type from the containing ServiceExperimentBuilder<TService>
-        var symbolInfo = semanticModel.GetSymbolInfo(invocation, context.CancellationToken);
-        if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
-            return;
-
-        if (methodSymbol.ContainingType is not INamedTypeSymbol { TypeArguments.Length: 1 } containingType)
-            return;
-
-        var serviceType = containingType.TypeArguments[0];
-
-        // Find candidate types in the compilation that implement the service interface
-        var candidates = FindImplementingTypes(semanticModel.Compilation, serviceType, context.CancellationToken);
-
-        // Offer a code fix for each candidate (limited to avoid overwhelming the user)
+    private static void RegisterCodeFixesForCandidates(
+        CodeFixContext context,
+        Diagnostic diagnostic,
+        GenericNameSyntax genericName,
+        ImmutableArray<INamedTypeSymbol> candidates)
+    {
         foreach (var candidate in candidates.Take(MaxCandidateSuggestions))
         {
             context.RegisterCodeFix(
                 CodeAction.Create(
                     title: $"Change to '{candidate.Name}'",
-                    createChangedDocument: c => ChangeGenericTypeAsync(
-                        context.Document,
-                        genericName,
-                        candidate,
-                        c),
+                    createChangedDocument: c => ChangeGenericTypeAsync(context.Document, genericName, candidate, c),
                     equivalenceKey: $"{nameof(TypeMismatchCodeFixProvider)}_{candidate.ToDisplayString()}"),
                 diagnostic);
         }
@@ -105,46 +126,37 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
         ITypeSymbol serviceType,
         CancellationToken cancellationToken)
     {
-        var candidates = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-
-        // Search through all types in the compilation
-        foreach (var syntaxTree in compilation.SyntaxTrees)
-        {
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
-            var semanticModel = compilation.GetSemanticModel(syntaxTree);
-            var root = syntaxTree.GetRoot(cancellationToken);
-
-            var classDeclarations = root.DescendantNodes()
-                .OfType<ClassDeclarationSyntax>()
-                .Where(c => !c.Modifiers.Any(SyntaxKind.AbstractKeyword));
-
-            foreach (var classDecl in classDeclarations)
-            {
-                var symbol = semanticModel.GetDeclaredSymbol(classDecl, cancellationToken);
-                if (symbol is INamedTypeSymbol namedType && 
-                    !namedType.IsAbstract &&
-                    ImplementsInterface(namedType, serviceType))
-                {
-                    candidates.Add(namedType);
-                }
-            }
-        }
-
-        // Sort by name for consistency
-        return candidates
+        return compilation.SyntaxTrees
+            .Where(tree => !cancellationToken.IsCancellationRequested)
+            .SelectMany(tree => GetCandidateTypesFromTree(tree, compilation, serviceType, cancellationToken))
             .OrderBy(t => t.Name)
             .ToImmutableArray();
     }
 
-    private static bool ImplementsInterface(ITypeSymbol implType, ITypeSymbol serviceType)
+    private static IEnumerable<INamedTypeSymbol> GetCandidateTypesFromTree(
+        SyntaxTree tree,
+        Compilation compilation,
+        ITypeSymbol serviceType,
+        CancellationToken cancellationToken)
     {
-        // Check if implType is the same as serviceType
-        if (SymbolEqualityComparer.Default.Equals(implType, serviceType))
-            return true;
+        var semanticModel = compilation.GetSemanticModel(tree);
+        var root = tree.GetRoot(cancellationToken);
 
-        // Check base types (for class inheritance)
+        return root.DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .Where(c => !c.Modifiers.Any(SyntaxKind.AbstractKeyword))
+            .Select(c => semanticModel.GetDeclaredSymbol(c, cancellationToken))
+            .OfType<INamedTypeSymbol>()
+            .Where(type => !type.IsAbstract && ImplementsInterface(type, serviceType));
+    }
+
+    private static bool ImplementsInterface(ITypeSymbol implType, ITypeSymbol serviceType) =>
+        SymbolEqualityComparer.Default.Equals(implType, serviceType) ||
+        ImplementsViaInheritance(implType, serviceType) ||
+        ImplementsViaInterface(implType, serviceType);
+
+    private static bool ImplementsViaInheritance(ITypeSymbol implType, ITypeSymbol serviceType)
+    {
         var current = implType.BaseType;
         while (current != null)
         {
@@ -152,29 +164,22 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
                 return true;
             current = current.BaseType;
         }
-
-        // Check interfaces
-        foreach (var iface in implType.AllInterfaces)
-        {
-            if (SymbolEqualityComparer.Default.Equals(iface, serviceType))
-                return true;
-
-            // Handle generic interfaces
-            if (serviceType is INamedTypeSymbol serviceNamedType &&
-                iface is INamedTypeSymbol ifaceNamedType &&
-                serviceNamedType.IsGenericType && 
-                ifaceNamedType.IsGenericType)
-            {
-                var unconstructedService = serviceNamedType.ConstructedFrom;
-                var unconstructedIface = ifaceNamedType.ConstructedFrom;
-
-                if (SymbolEqualityComparer.Default.Equals(unconstructedIface, unconstructedService))
-                    return true;
-            }
-        }
-
         return false;
     }
+
+    private static bool ImplementsViaInterface(ITypeSymbol implType, ITypeSymbol serviceType) =>
+        implType.AllInterfaces.Any(iface =>
+            SymbolEqualityComparer.Default.Equals(iface, serviceType) ||
+            IsMatchingGenericInterface(iface, serviceType));
+
+    private static bool IsMatchingGenericInterface(ITypeSymbol iface, ITypeSymbol serviceType) =>
+        serviceType is INamedTypeSymbol serviceNamedType &&
+        iface is INamedTypeSymbol ifaceNamedType &&
+        serviceNamedType.IsGenericType &&
+        ifaceNamedType.IsGenericType &&
+        SymbolEqualityComparer.Default.Equals(
+            ifaceNamedType.ConstructedFrom,
+            serviceNamedType.ConstructedFrom);
 
     private static async Task<Document> ChangeGenericTypeAsync(
         Document document,

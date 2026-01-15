@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -101,59 +102,94 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
         
-        // Check if this is an AddControl, AddCondition, or AddVariant call
-        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+        if (!TryGetExperimentMethodInfo(invocation, context.SemanticModel, out var methodInfo))
             return;
+
+        ValidateTypeImplementation(context, invocation, methodInfo);
+        
+        if (methodInfo.RequiresKeyValidation)
+            AnalyzeDuplicateKeys(context, invocation, methodInfo.MemberAccess);
+    }
+
+    private static bool TryGetExperimentMethodInfo(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel,
+        out ExperimentMethodInfo methodInfo)
+    {
+        methodInfo = default;
+
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
+            return false;
 
         var methodName = memberAccess.Name.Identifier.Text;
         if (methodName is not ("AddControl" or "AddCondition" or "AddVariant" or "AddTrial" or "AddDefaultTrial"))
+            return false;
+
+        if (semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol methodSymbol)
+            return false;
+
+        if (!IsServiceExperimentBuilderMethod(methodSymbol))
+            return false;
+
+        if (methodSymbol.ContainingType is not INamedTypeSymbol { TypeArguments.Length: 1 } containingType ||
+            methodSymbol.TypeArguments.Length != 1)
+            return false;
+
+        methodInfo = new ExperimentMethodInfo(
+            methodName,
+            memberAccess,
+            containingType.TypeArguments[0],
+            methodSymbol.TypeArguments[0]);
+
+        return true;
+    }
+
+    private static bool IsServiceExperimentBuilderMethod(IMethodSymbol methodSymbol) =>
+        methodSymbol.ContainingType.Name == "ServiceExperimentBuilder" &&
+        methodSymbol.ContainingType.ContainingNamespace.ToDisplayString() == "ExperimentFramework";
+
+    private static void ValidateTypeImplementation(
+        SyntaxNodeAnalysisContext context,
+        InvocationExpressionSyntax invocation,
+        ExperimentMethodInfo methodInfo)
+    {
+        if (ImplementsInterface(methodInfo.ImplType, methodInfo.ServiceType, context.Compilation))
             return;
 
-        // Get semantic information
-        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
-        if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
-            return;
+        var descriptor = methodInfo.MethodName == "AddControl"
+            ? ControlTypeDoesNotImplementServiceType
+            : ConditionTypeDoesNotImplementServiceType;
 
-        // Verify this is a ServiceExperimentBuilder method
-        if (methodSymbol.ContainingType.Name != "ServiceExperimentBuilder" ||
-            methodSymbol.ContainingType.ContainingNamespace.ToDisplayString() != "ExperimentFramework")
-            return;
+        var diagnostic = Diagnostic.Create(
+            descriptor,
+            invocation.GetLocation(),
+            methodInfo.ImplType.ToDisplayString(),
+            methodInfo.ServiceType.ToDisplayString());
 
-        // Extract the service type (TService) from ServiceExperimentBuilder<TService>
-        if (methodSymbol.ContainingType is not INamedTypeSymbol { TypeArguments.Length: 1 } containingType)
-            return;
+        context.ReportDiagnostic(diagnostic);
+    }
 
-        var serviceType = containingType.TypeArguments[0];
-
-        // Extract the implementation type (TImpl) from the generic method
-        if (methodSymbol.TypeArguments.Length != 1)
-            return;
-
-        var implType = methodSymbol.TypeArguments[0];
-
-        // Check if implementation type implements service type (EF0001/EF0002)
-        if (!ImplementsInterface(implType, serviceType, context.Compilation))
+    private readonly struct ExperimentMethodInfo
+    {
+        public ExperimentMethodInfo(
+            string methodName,
+            MemberAccessExpressionSyntax memberAccess,
+            ITypeSymbol serviceType,
+            ITypeSymbol implType)
         {
-            var diagnostic = methodName == "AddControl"
-                ? Diagnostic.Create(
-                    ControlTypeDoesNotImplementServiceType,
-                    invocation.GetLocation(),
-                    implType.ToDisplayString(),
-                    serviceType.ToDisplayString())
-                : Diagnostic.Create(
-                    ConditionTypeDoesNotImplementServiceType,
-                    invocation.GetLocation(),
-                    implType.ToDisplayString(),
-                    serviceType.ToDisplayString());
-
-            context.ReportDiagnostic(diagnostic);
+            MethodName = methodName;
+            MemberAccess = memberAccess;
+            ServiceType = serviceType;
+            ImplType = implType;
         }
 
-        // Check for duplicate keys (EF0003)
-        if (methodName is "AddCondition" or "AddVariant" or "AddTrial")
-        {
-            AnalyzeDuplicateKeys(context, invocation, memberAccess);
-        }
+        public string MethodName { get; }
+        public MemberAccessExpressionSyntax MemberAccess { get; }
+        public ITypeSymbol ServiceType { get; }
+        public ITypeSymbol ImplType { get; }
+
+        public bool RequiresKeyValidation =>
+            MethodName is "AddCondition" or "AddVariant" or "AddTrial";
     }
 
     private static void AnalyzeDuplicateKeys(
@@ -161,153 +197,142 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
         InvocationExpressionSyntax currentInvocation,
         MemberAccessExpressionSyntax currentMemberAccess)
     {
-        // Extract the key argument from current invocation
-        if (currentInvocation.ArgumentList.Arguments.Count == 0)
+        if (!TryGetKeyLiteral(currentInvocation, out var currentKey, out var currentKeyArg))
             return;
 
-        var currentKeyArg = currentInvocation.ArgumentList.Arguments[0];
-        if (currentKeyArg.Expression is not LiteralExpressionSyntax currentKeyLiteral)
-            return;
-
-        var currentKey = currentKeyLiteral.Token.ValueText;
-
-        // Walk up the invocation chain to find the beginning of the trial builder
         var trialRoot = FindTrialRoot(currentMemberAccess);
         if (trialRoot == null)
             return;
 
-        // Find all AddCondition/AddVariant/AddTrial calls in THIS specific trial chain only
         var allConditionCalls = FindAllConditionCallsInTrialChain(trialRoot, currentInvocation);
+        var seenKeys = CollectKeysBeforeCurrent(allConditionCalls, currentInvocation, currentKey);
 
-        // Check for duplicates within this single trial - only report on subsequent occurrences
+        if (!seenKeys.Add(currentKey))
+            ReportDuplicateKey(context, currentKeyArg, currentKey);
+    }
+
+    private static bool TryGetKeyLiteral(
+        InvocationExpressionSyntax invocation,
+        out string key,
+        out ArgumentSyntax keyArg)
+    {
+        key = string.Empty;
+        keyArg = null!;
+
+        if (invocation.ArgumentList.Arguments.Count == 0)
+            return false;
+
+        keyArg = invocation.ArgumentList.Arguments[0];
+        if (keyArg.Expression is not LiteralExpressionSyntax keyLiteral)
+            return false;
+
+        key = keyLiteral.Token.ValueText;
+        return true;
+    }
+
+    private static System.Collections.Generic.HashSet<string> CollectKeysBeforeCurrent(
+        ImmutableArray<InvocationExpressionSyntax> allCalls,
+        InvocationExpressionSyntax currentInvocation,
+        string currentKey)
+    {
         var seenKeys = new System.Collections.Generic.HashSet<string>();
-        
-        foreach (var otherCall in allConditionCalls)
+
+        foreach (var call in allCalls)
         {
-            if (otherCall.ArgumentList.Arguments.Count == 0)
-                continue;
+            if (call == currentInvocation)
+                break;
 
-            var otherKeyArg = otherCall.ArgumentList.Arguments[0];
-            if (otherKeyArg.Expression is not LiteralExpressionSyntax otherKeyLiteral)
-                continue;
-
-            var otherKey = otherKeyLiteral.Token.ValueText;
-            
-            if (otherKey == currentKey)
-            {
-                if (otherCall == currentInvocation)
-                {
-                    // This is the current invocation
-                    if (!seenKeys.Add(currentKey))
-                    {
-                        // We've seen this key before in THIS trial, so this is a duplicate
-                        var diagnostic = Diagnostic.Create(
-                            DuplicateConditionKey,
-                            currentKeyArg.GetLocation(),
-                            currentKey);
-
-                        context.ReportDiagnostic(diagnostic);
-                    }
-                    return; // Stop checking after processing current invocation
-                }
-                else
-                {
-                    // Found an earlier occurrence in this trial
-                    seenKeys.Add(otherKey);
-                }
-            }
+            if (TryGetKeyLiteral(call, out var key, out _) && key == currentKey)
+                seenKeys.Add(key);
         }
+
+        return seenKeys;
+    }
+
+    private static void ReportDuplicateKey(
+        SyntaxNodeAnalysisContext context,
+        ArgumentSyntax keyArg,
+        string key)
+    {
+        var diagnostic = Diagnostic.Create(
+            DuplicateConditionKey,
+            keyArg.GetLocation(),
+            key);
+
+        context.ReportDiagnostic(diagnostic);
     }
 
     private static InvocationExpressionSyntax? FindTrialRoot(MemberAccessExpressionSyntax memberAccess)
     {
         var current = memberAccess.Expression;
 
-        // Walk back through the chain until we find the Trial<T> call
-        while (current != null)
+        while (current is InvocationExpressionSyntax invocation)
         {
-            if (current is InvocationExpressionSyntax invocation)
-            {
-                if (invocation.Expression is MemberAccessExpressionSyntax ma &&
-                    ma.Name.Identifier.Text == "Trial")
-                {
-                    return invocation;
-                }
+            if (IsTrialInvocation(invocation))
+                return invocation;
 
-                if (invocation.Expression is MemberAccessExpressionSyntax { Expression: var expr })
-                {
-                    current = expr;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            else
-            {
-                break;
-            }
+            current = invocation.Expression is MemberAccessExpressionSyntax { Expression: var expr }
+                ? expr
+                : null;
         }
 
         return current as InvocationExpressionSyntax;
     }
+
+    private static bool IsTrialInvocation(InvocationExpressionSyntax invocation) =>
+        invocation.Expression is MemberAccessExpressionSyntax ma &&
+        ma.Name.Identifier.Text == "Trial";
 
     private static ImmutableArray<InvocationExpressionSyntax> FindAllConditionCallsInTrialChain(
         InvocationExpressionSyntax trialRoot,
         InvocationExpressionSyntax currentInvocation)
     {
         var calls = ImmutableArray.CreateBuilder<InvocationExpressionSyntax>();
-        
-        // Start from the trial root and walk through the chain following member access expressions
-        // This ensures we only collect calls within THIS specific trial, not other trials in the same statement
         var current = trialRoot;
         
         while (current != null)
         {
-            // Check if this invocation is an AddCondition/AddVariant/AddTrial call
-            if (current.Expression is MemberAccessExpressionSyntax ma)
-            {
-                var methodName = ma.Name.Identifier.Text;
-                if (methodName is "AddCondition" or "AddVariant" or "AddTrial")
-                {
-                    calls.Add(current);
-                }
-            }
+            if (IsConditionInvocation(current))
+                calls.Add(current);
             
-            // Stop if we've reached the current invocation
             if (current == currentInvocation)
                 break;
             
-            // Find the next invocation in the chain
-            // Look for invocations that use this current invocation as their target
-            var parent = current.Parent;
-            InvocationExpressionSyntax? next = null;
-            
-            while (parent != null)
-            {
-                if (parent is MemberAccessExpressionSyntax memberAccess &&
-                    memberAccess.Expression == current &&
-                    memberAccess.Parent is InvocationExpressionSyntax nextInvocation)
-                {
-                    next = nextInvocation;
-                    break;
-                }
-                parent = parent.Parent;
-            }
-            
-            current = next;
+            current = FindNextInvocationInChain(current);
         }
 
         return calls.ToImmutable();
     }
 
-    private static bool ImplementsInterface(ITypeSymbol implType, ITypeSymbol serviceType, Compilation compilation)
-    {
-        // Handle the case where serviceType is the same as implType (class registered as itself)
-        if (SymbolEqualityComparer.Default.Equals(implType, serviceType))
-            return true;
+    private static bool IsConditionInvocation(InvocationExpressionSyntax invocation) =>
+        invocation.Expression is MemberAccessExpressionSyntax ma &&
+        ma.Name.Identifier.Text is "AddCondition" or "AddVariant" or "AddTrial";
 
-        // Check if implType is derived from serviceType (class inheritance)
+    private static InvocationExpressionSyntax? FindNextInvocationInChain(InvocationExpressionSyntax current)
+    {
+        var parent = current.Parent;
+        
+        while (parent != null)
+        {
+            if (parent is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Expression == current &&
+                memberAccess.Parent is InvocationExpressionSyntax nextInvocation)
+            {
+                return nextInvocation;
+            }
+            parent = parent.Parent;
+        }
+        
+        return null;
+    }
+
+    private static bool ImplementsInterface(ITypeSymbol implType, ITypeSymbol serviceType, Compilation compilation) =>
+        SymbolEqualityComparer.Default.Equals(implType, serviceType) ||
+        ImplementsViaInheritance(implType, serviceType) ||
+        ImplementsViaInterface(implType, serviceType);
+
+    private static bool ImplementsViaInheritance(ITypeSymbol implType, ITypeSymbol serviceType)
+    {
         var current = implType.BaseType;
         while (current != null)
         {
@@ -315,28 +340,20 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
                 return true;
             current = current.BaseType;
         }
-
-        // Check interfaces
-        var allInterfaces = implType.AllInterfaces;
-        foreach (var iface in allInterfaces)
-        {
-            if (SymbolEqualityComparer.Default.Equals(iface, serviceType))
-                return true;
-
-            // Handle generic interface matching
-            if (serviceType is INamedTypeSymbol serviceNamedType && 
-                iface is INamedTypeSymbol ifaceNamedType &&
-                serviceNamedType.IsGenericType && 
-                ifaceNamedType.IsGenericType)
-            {
-                var unconstructedService = serviceNamedType.ConstructedFrom;
-                var unconstructedIface = ifaceNamedType.ConstructedFrom;
-                
-                if (SymbolEqualityComparer.Default.Equals(unconstructedIface, unconstructedService))
-                    return true;
-            }
-        }
-
         return false;
     }
+
+    private static bool ImplementsViaInterface(ITypeSymbol implType, ITypeSymbol serviceType) =>
+        implType.AllInterfaces.Any(iface =>
+            SymbolEqualityComparer.Default.Equals(iface, serviceType) ||
+            IsMatchingGenericInterface(iface, serviceType));
+
+    private static bool IsMatchingGenericInterface(ITypeSymbol iface, ITypeSymbol serviceType) =>
+        serviceType is INamedTypeSymbol serviceNamedType &&
+        iface is INamedTypeSymbol ifaceNamedType &&
+        serviceNamedType.IsGenericType &&
+        ifaceNamedType.IsGenericType &&
+        SymbolEqualityComparer.Default.Equals(
+            ifaceNamedType.ConstructedFrom,
+            serviceNamedType.ConstructedFrom);
 }

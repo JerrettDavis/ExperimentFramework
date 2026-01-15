@@ -44,21 +44,12 @@ public sealed class DuplicateKeyCodeFixProvider : CodeFixProvider
             return;
 
         var diagnostic = context.Diagnostics.First();
-        var diagnosticSpan = diagnostic.Location.SourceSpan;
-
-        // Find the argument that contains the duplicate key
-        var argument = root.FindToken(diagnosticSpan.Start)
-            .Parent?
-            .AncestorsAndSelf()
-            .OfType<ArgumentSyntax>()
-            .FirstOrDefault();
-
+        var argument = FindDuplicateKeyArgument(root, diagnostic);
+        
         if (argument?.Expression is not LiteralExpressionSyntax literal)
             return;
 
         var currentKey = literal.Token.ValueText;
-
-        // Offer to rename to a unique key
         var newKey = GenerateUniqueKey(currentKey, root, argument);
 
         context.RegisterCodeFix(
@@ -69,57 +60,65 @@ public sealed class DuplicateKeyCodeFixProvider : CodeFixProvider
             diagnostic);
     }
 
+    private static ArgumentSyntax? FindDuplicateKeyArgument(SyntaxNode root, Diagnostic diagnostic) =>
+        root.FindToken(diagnostic.Location.SourceSpan.Start)
+            .Parent?
+            .AncestorsAndSelf()
+            .OfType<ArgumentSyntax>()
+            .FirstOrDefault();
+
     private static string GenerateUniqueKey(string baseKey, SyntaxNode root, ArgumentSyntax currentArgument)
     {
-        // Find the trial chain this argument belongs to
         var invocation = currentArgument.FirstAncestorOrSelf<InvocationExpressionSyntax>();
-        if (invocation == null)
-            return baseKey + "2";
-
-        // Find the Trial<T> root for this specific trial chain
-        var trialRoot = FindTrialRootForArgument(invocation);
+        var trialRoot = invocation != null ? FindTrialRootForArgument(invocation) : null;
+        
         if (trialRoot == null)
             return baseKey + "2";
 
-        // Find all existing keys only within this specific trial chain
+        var existingKeys = CollectExistingKeysInTrial(trialRoot, currentArgument);
+        return GenerateUniqueKeyFromBase(baseKey, existingKeys);
+    }
+
+    private static System.Collections.Generic.HashSet<string> CollectExistingKeysInTrial(
+        InvocationExpressionSyntax trialRoot,
+        ArgumentSyntax currentArgument)
+    {
         var existingKeys = new System.Collections.Generic.HashSet<string>();
         var current = trialRoot;
         
         while (current != null)
         {
-            if (current.Expression is MemberAccessExpressionSyntax ma &&
-                ma.Name.Identifier.Text is "AddCondition" or "AddVariant" or "AddTrial" &&
-                current.ArgumentList.Arguments.Count > 0)
-            {
-                var arg = current.ArgumentList.Arguments[0];
-                if (arg != currentArgument && arg.Expression is LiteralExpressionSyntax lit)
-                {
-                    existingKeys.Add(lit.Token.ValueText);
-                }
-            }
-            
-            // Find the next invocation in the chain
-            var parent = current.Parent;
-            InvocationExpressionSyntax? next = null;
-            
-            while (parent != null)
-            {
-                if (parent is MemberAccessExpressionSyntax memberAccess &&
-                    memberAccess.Expression == current &&
-                    memberAccess.Parent is InvocationExpressionSyntax nextInvocation)
-                {
-                    next = nextInvocation;
-                    break;
-                }
-                parent = parent.Parent;
-            }
-            
-            current = next;
+            TryAddKeyFromInvocation(current, currentArgument, existingKeys);
+            current = FindNextInvocationInChain(current);
         }
 
-        // Generate a unique key by appending a number
+        return existingKeys;
+    }
+
+    private static void TryAddKeyFromInvocation(
+        InvocationExpressionSyntax invocation,
+        ArgumentSyntax currentArgument,
+        System.Collections.Generic.HashSet<string> existingKeys)
+    {
+        if (invocation.Expression is MemberAccessExpressionSyntax ma &&
+            ma.Name.Identifier.Text is "AddCondition" or "AddVariant" or "AddTrial" &&
+            invocation.ArgumentList.Arguments.Count > 0)
+        {
+            var arg = invocation.ArgumentList.Arguments[0];
+            if (arg != currentArgument && arg.Expression is LiteralExpressionSyntax lit)
+            {
+                existingKeys.Add(lit.Token.ValueText);
+            }
+        }
+    }
+
+    private static string GenerateUniqueKeyFromBase(
+        string baseKey,
+        System.Collections.Generic.HashSet<string> existingKeys)
+    {
         var newKey = baseKey;
         var counter = 2;
+        
         while (existingKeys.Contains(newKey))
         {
             newKey = $"{baseKey}{counter}";
@@ -129,33 +128,34 @@ public sealed class DuplicateKeyCodeFixProvider : CodeFixProvider
         return newKey;
     }
 
+    private static InvocationExpressionSyntax? FindNextInvocationInChain(InvocationExpressionSyntax current)
+    {
+        var parent = current.Parent;
+        
+        while (parent != null)
+        {
+            if (parent is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Expression == current &&
+                memberAccess.Parent is InvocationExpressionSyntax nextInvocation)
+            {
+                return nextInvocation;
+            }
+            parent = parent.Parent;
+        }
+        
+        return null;
+    }
+
     private static InvocationExpressionSyntax? FindTrialRootForArgument(InvocationExpressionSyntax invocation)
     {
         var current = invocation;
         
-        // Walk backwards through member access chains
-        while (current != null)
+        while (current?.Expression is MemberAccessExpressionSyntax ma)
         {
-            if (current.Expression is MemberAccessExpressionSyntax ma)
-            {
-                if (ma.Name.Identifier.Text == "Trial")
-                {
-                    return current;
-                }
+            if (ma.Name.Identifier.Text == "Trial")
+                return current;
                 
-                if (ma.Expression is InvocationExpressionSyntax previousInvocation)
-                {
-                    current = previousInvocation;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            else
-            {
-                break;
-            }
+            current = ma.Expression as InvocationExpressionSyntax;
         }
         
         return null;
