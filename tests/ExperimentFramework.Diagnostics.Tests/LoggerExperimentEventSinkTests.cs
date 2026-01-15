@@ -128,7 +128,7 @@ public class LoggerExperimentEventSinkTests
         var log = logger.Logs[0];
         Assert.NotNull(log.State);
         Assert.IsType<Dictionary<string, object?>>(log.State);
-        var state = (Dictionary<string, object?>)log.State;
+        var state = Assert.IsType<Dictionary<string, object?>>(log.State);
         Assert.Equal("TrialStarted", state["EventKind"]);
         Assert.Equal("my-selector", state["SelectorName"]);
         Assert.Equal("customValue", state["Context.customKey"]);
