@@ -16,11 +16,16 @@
     <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
     <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ExperimentFramework\ExperimentFramework.csproj" />

@@ -40,11 +40,15 @@ internal sealed class TraceCapturingDecorator : IExperimentDecorator
                 ServiceType = context.ServiceType,
                 MethodName = context.MethodName,
                 SelectedTrialKey = context.TrialKey,
-                ProxyMode = "Test", // Could be enhanced to detect actual proxy mode
+                // Note: Proxy mode information is not available in InvocationContext
+                // This could be enhanced in a future version by extending the context
+                ProxyMode = "Unknown",
                 StartTime = startTime,
                 EndTime = endTime,
                 Duration = duration,
-                IsFallback = false, // Could be enhanced to detect fallback
+                // Note: Fallback detection would require additional context from the framework
+                // This could be enhanced by adding fallback metadata to InvocationContext
+                IsFallback = false,
                 Exception = exception
             };
 
