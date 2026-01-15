@@ -70,6 +70,11 @@ All of these are functionally equivalent—use whichever reads most naturally fo
 - Kill switch for disabling experiments at runtime
 
 **Observability**
+- **Diagnostics** (`ExperimentFramework.Diagnostics`)
+  - Event capture for testing, logging, and telemetry
+  - InMemory, Logger, and OpenTelemetry sinks
+  - Bounded/unbounded storage with ring buffers
+  - Structured event model for all lifecycle events
 - OpenTelemetry tracing
 - Metrics collection (Prometheus, OpenTelemetry)
 - Built-in benchmarking and error logging
@@ -518,6 +523,61 @@ Emitted activity tags:
 - `experiment.outcome` - `success` or `failure`
 - `experiment.fallback` - Fallback trial key (if applicable)
 - `experiment.variant` - Variant name (for variant mode)
+
+## Diagnostics & Event Capture
+
+The `ExperimentFramework.Diagnostics` package provides standardized event capture for testing, logging, and telemetry:
+
+### Install Package
+
+```bash
+dotnet add package ExperimentFramework.Diagnostics
+```
+
+### Add Event Sinks
+
+```csharp
+// Add multiple sinks
+services.AddInMemoryExperimentEventSink(maxCapacity: 1000); // For testing
+services.AddLoggerExperimentEventSink();                     // Structured logging
+services.AddOpenTelemetryExperimentEventSink();             // Activities & metrics
+```
+
+### Event Types Captured
+
+- `TrialStarted` / `TrialEnded` - Trial lifecycle events
+- `RouteSelected` - When a trial key is selected
+- `FallbackOccurred` - When error policy triggers fallback
+- `ExceptionThrown` - When an exception occurs
+- `MethodInvoked` / `MethodCompleted` - Fine-grained method tracking
+
+### Testing Example
+
+```csharp
+[Fact]
+public async Task Experiment_RecordsFallback()
+{
+    // Arrange
+    var services = new ServiceCollection();
+    services.AddInMemoryExperimentEventSink();
+    services.AddExperimentFramework(experiments);
+    
+    var provider = services.BuildServiceProvider();
+    var sink = provider.GetRequiredService<InMemoryExperimentEventSink>();
+    var service = provider.GetRequiredService<IMyService>();
+    
+    // Act
+    await service.ExecuteAsync();
+    
+    // Assert
+    var fallbacks = sink.GetEventsByKind(ExperimentEventKind.FallbackOccurred);
+    Assert.Single(fallbacks);
+    Assert.Equal("experimental", fallbacks[0].TrialKey);
+    Assert.Equal("control", fallbacks[0].FallbackKey);
+}
+```
+
+**📖 [Full Diagnostics Guide](docs/user-guide/diagnostics.md)**
 
 ## YAML/JSON Configuration (NEW)
 
