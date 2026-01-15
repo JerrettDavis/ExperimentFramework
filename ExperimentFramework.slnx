@@ -14,6 +14,7 @@
     <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.ServiceDefaults/AspireDemo.ServiceDefaults.csproj" />
     <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.ApiService/AspireDemo.ApiService.csproj" />
     <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Web/AspireDemo.Web.csproj" />
+    <Project Path="samples/ExperimentFramework.SimulationSample/ExperimentFramework.SimulationSample.csproj" />
   </Folder>
   <Folder Name="/samples/ExperimentFramework.AspireDemo/">
     <Project Path="samples/ExperimentFramework.AspireDemo/AspireDemo.Blog.Contracts/AspireDemo.Blog.Contracts.csproj" />

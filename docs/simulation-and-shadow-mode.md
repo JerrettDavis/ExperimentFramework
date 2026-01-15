@@ -264,6 +264,126 @@ Use simulation reports in CI pipelines:
 
 7. **Gradual Rollout**: Use simulations to validate before increasing traffic percentages
 
+## Isolation vs Integration Models
+
+### Understanding Output-Based vs Action-Based Experiments
+
+**Output-Based Experiments** test operations that return data (reads):
+- ✅ Safe to run with real implementations
+- ✅ Compare returned values
+- ✅ No side effects
+- Example: `GetCustomer`, `ListOrders`, `SearchProducts`
+
+**Action-Based Experiments** test operations that modify state (writes):
+- ⚠️ Require careful consideration of side effects
+- ⚠️ May need isolation or cleanup strategies
+- Example: `CreateOrder`, `UpdateInventory`, `DeleteUser`
+
+### Isolation Model - Safe Testing Without Side Effects
+
+Use **mock or simulated implementations** to test write operations without affecting real systems:
+
+```csharp
+// Register MOCK implementations for isolated testing
+services.AddKeyedScoped<IDatabase>("control", (sp, key) => new MockDatabase());
+services.AddKeyedScoped<IDatabase>("new-impl", (sp, key) => new MockNewDatabase());
+
+var sim = SimulationRunner.Create(services)
+    .For<IDatabase>()
+    .WithResultType<int>()
+    .Control("control")
+    .Condition("new-impl")
+    .WithComparator(SimulationComparators.Equality<int>())
+    .ReturnControlResult();
+
+// Safe to test write operations - no real database is affected
+var scenarios = new[]
+{
+    new Scenario<IDatabase, int>(
+        "CreateCustomer",
+        async db => await db.CreateCustomerAsync(customer))
+};
+```
+
+**Benefits of Isolation Model:**
+- ✅ No cleanup required
+- ✅ Safe to run in CI/CD repeatedly
+- ✅ Fast execution
+- ✅ Prevents cascading to dependent systems
+- ✅ Ideal for development and pre-production testing
+
+### Integration Model - Real Shadow Writes
+
+Use **real implementations** to validate behavior with actual systems:
+
+```csharp
+// Register REAL implementations for shadow writes
+services.AddKeyedScoped<IDatabase>("control", (sp, key) => new ProductionDatabase());
+services.AddKeyedScoped<IDatabase>("new-impl", (sp, key) => new NewDatabase());
+
+var sim = SimulationRunner.Create(services)
+    .For<IDatabase>()
+    .WithResultType<int>()
+    .Control("control")
+    .Condition("new-impl")
+    .WithComparator(SimulationComparators.Equality<int>())
+    .ReturnControlResult(); // Returns control result
+
+// Both implementations will write to real databases
+var scenarios = new[]
+{
+    new Scenario<IDatabase, int>(
+        "CreateCustomer",
+        async db => await db.CreateCustomerAsync(customer))
+};
+```
+
+**Use Cases for Integration Model:**
+- Final validation before production deployment
+- Performance testing with real infrastructure
+- Validating integration points
+- Testing with actual data volumes
+
+**Important Considerations:**
+- ⚠️ Both control and condition implementations execute
+- ⚠️ Real side effects occur (database writes, API calls, etc.)
+- ⚠️ Requires cleanup/rollback strategy
+- ⚠️ Consider data volume and performance impact
+- ⚠️ Review compliance and security implications
+
+### Preventing Dependency Cascading
+
+When testing a service with dependencies, control which implementations are used to prevent unwanted cascading:
+
+```csharp
+// Example: Testing OrderService without cascading to payment gateway
+services.AddKeyedScoped<IOrderDatabase>("test", (sp, key) => new MockOrderDatabase());
+services.AddKeyedScoped<IPaymentGateway>("test", (sp, key) => new MockPaymentGateway()); // Mock!
+services.AddKeyedScoped<IInventoryService>("test", (sp, key) => new MockInventoryService()); // Mock!
+services.AddKeyedScoped<IOrderService, OrderService>(); // Real service with mocked dependencies
+
+// Now OrderService uses mocked dependencies
+// Writes to order database occur, but payment and inventory are isolated
+```
+
+**Best Practices for Dependency Control:**
+1. **Mock external services**: APIs, message queues, third-party systems
+2. **Use in-memory alternatives**: For databases, caches, file systems
+3. **Scope your tests**: Test one layer at a time
+4. **Be explicit**: Make it clear which dependencies are real vs mocked
+5. **Document side effects**: Clearly indicate when real systems are affected
+
+### Choosing the Right Model
+
+| Scenario | Recommended Model | Reason |
+|----------|-------------------|--------|
+| Development testing | Isolation | Fast, safe, repeatable |
+| CI/CD pipeline | Isolation | No cleanup, fast feedback |
+| Pre-production validation | Integration | Validates real behavior |
+| Performance testing | Integration | Tests actual system performance |
+| Testing with sensitive data | Isolation | Prevents data exposure |
+| Testing cascading operations | Isolation | Controls scope of impact |
+
 ## Advanced Example
 
 ### Using Keyed Services for Multiple Implementations
@@ -361,7 +481,34 @@ public class CustomerListComparator : ISimulationComparator<List<Customer>>
 - **Production Observability**: Use proper telemetry and monitoring solutions for production.
 - **Real-time Decision Making**: Simulations are for pre-production validation, not runtime routing.
 
+## Comprehensive Sample
+
+A complete working sample demonstrating all simulation patterns is available:
+
+**[ExperimentFramework.SimulationSample](../samples/ExperimentFramework.SimulationSample/)**
+
+The sample includes:
+
+1. **Output-Based Simulation** - Testing read operations safely
+2. **Action-Based Isolation Model** - Testing writes with mocks
+3. **Action-Based Integration Model** - Testing writes with shadow writes
+4. **Dependency Control** - Preventing cascading effects
+
+Run the sample:
+```bash
+cd samples/ExperimentFramework.SimulationSample
+dotnet run
+```
+
+The sample demonstrates:
+- When to use isolation vs integration models
+- How to prevent unintended side effects
+- Controlling dependencies to avoid cascading
+- Safe testing patterns for write operations
+- Real-world simulation scenarios
+
 ## See Also
 
 - [ExperimentFramework README](../README.md)
 - [Service Registration Safety](SERVICE_REGISTRATION_SAFETY.md)
+- [Simulation Sample](../samples/ExperimentFramework.SimulationSample/README.md)
