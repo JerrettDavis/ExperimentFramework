@@ -274,15 +274,12 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
             return true;
 
         // Check if implType is derived from serviceType (class inheritance)
-        if (!serviceType.IsSealed)
+        var current = implType.BaseType;
+        while (current != null)
         {
-            var current = implType.BaseType;
-            while (current != null)
-            {
-                if (SymbolEqualityComparer.Default.Equals(current, serviceType))
-                    return true;
-                current = current.BaseType;
-            }
+            if (SymbolEqualityComparer.Default.Equals(current, serviceType))
+                return true;
+            current = current.BaseType;
         }
 
         // Check interfaces

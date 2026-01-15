@@ -39,6 +39,11 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
     /// </summary>
     /// <param name="context">The code fix context.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Maximum number of candidate type suggestions to offer in code fixes.
+    /// </summary>
+    private const int MaxCandidateSuggestions = 5;
+
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
@@ -79,8 +84,8 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
         // Find candidate types in the compilation that implement the service interface
         var candidates = FindImplementingTypes(semanticModel.Compilation, serviceType, context.CancellationToken);
 
-        // Offer a code fix for each candidate
-        foreach (var candidate in candidates.Take(5)) // Limit to top 5 to avoid overwhelming the user
+        // Offer a code fix for each candidate (limited to avoid overwhelming the user)
+        foreach (var candidate in candidates.Take(MaxCandidateSuggestions))
         {
             context.RegisterCodeFix(
                 CodeAction.Create(
@@ -183,8 +188,9 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
         if (root == null)
             return document;
 
-        // Create new type argument
-        var newTypeName = SyntaxFactory.ParseTypeName(newType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat))
+        // Create new type argument with fully qualified name to ensure it's accessible
+        var fullyQualifiedTypeName = newType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var newTypeName = SyntaxFactory.ParseTypeName(fullyQualifiedTypeName)
             .WithTriviaFrom(genericName.TypeArgumentList.Arguments[0]);
 
         // Create new type argument list

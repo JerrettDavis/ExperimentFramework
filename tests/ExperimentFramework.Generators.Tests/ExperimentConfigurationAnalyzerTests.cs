@@ -235,14 +235,7 @@ public class ExperimentConfigurationAnalyzerTests
 
         var diagnostics = GetDiagnostics(source);
         
-        // Debug output
-        foreach (var diag in diagnostics)
-        {
-            System.Console.WriteLine($"Diagnostic: {diag.Id} - {diag.GetMessage()}");
-        }
-        
-        var ef0003 = diagnostics.FirstOrDefault(d => d.Id == "EF0003");
-        // For now, just check that we don't have EF0001/EF0002
+        // Should not have type errors
         var hasTypeErrors = diagnostics.Any(d => d.Id == "EF0001" || d.Id == "EF0002");
         Assert.False(hasTypeErrors, "Should not have type mismatch errors");
         
