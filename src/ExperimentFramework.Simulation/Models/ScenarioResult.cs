@@ -4,7 +4,7 @@ namespace ExperimentFramework.Simulation.Models;
 /// Represents the execution result for a single implementation in a scenario.
 /// </summary>
 /// <typeparam name="TResult">The result type.</typeparam>
-public sealed class ImplementationResult<TResult>
+public sealed class ImplementationResult<TResult> : IImplementationResult
 {
     /// <summary>
     /// Gets the name of the implementation.
@@ -41,13 +41,16 @@ public sealed class ImplementationResult<TResult>
         Exception = exception;
         Duration = duration;
     }
+
+    /// <inheritdoc/>
+    public string? ResultAsString() => Result?.ToString();
 }
 
 /// <summary>
 /// Represents the result of executing a single scenario across multiple implementations.
 /// </summary>
 /// <typeparam name="TResult">The result type.</typeparam>
-public sealed class ScenarioResult<TResult>
+public sealed class ScenarioResult<TResult> : IScenarioResult
 {
     /// <summary>
     /// Gets the scenario name.
@@ -83,6 +86,10 @@ public sealed class ScenarioResult<TResult>
     /// Gets whether any differences were detected.
     /// </summary>
     public bool HasDifferences => Differences.Count > 0;
+
+    // Explicit interface implementations for non-generic access
+    IImplementationResult IScenarioResult.Control => Control;
+    IReadOnlyList<IImplementationResult> IScenarioResult.Conditions => Conditions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScenarioResult{TResult}"/> class.

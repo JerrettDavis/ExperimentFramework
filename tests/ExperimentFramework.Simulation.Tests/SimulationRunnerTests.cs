@@ -97,11 +97,10 @@ public class SimulationRunnerTests
         Assert.NotNull(report);
         var scenarioResult = report.ScenarioResults.First();
         
-        // Use reflection to check HasDifferences since we can't cast to generic type
-        var hasDifferences = scenarioResult.GetType().GetProperty("HasDifferences")?.GetValue(scenarioResult) as bool?;
-        Assert.NotNull(hasDifferences);
+        // Use interface properties instead of reflection
+        Assert.NotNull(scenarioResult);
         // Since control and variant are the same implementation, no differences expected
-        Assert.False(hasDifferences.Value);
+        Assert.False(scenarioResult.HasDifferences);
     }
 
     [Fact]

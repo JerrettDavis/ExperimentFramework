@@ -117,7 +117,7 @@ public sealed class SimulationRunner<TService, TResult>
             typeof(TService).Name,
             _controlName,
             _conditionNames,
-            scenarioResults.Cast<object>().ToList(),
+            scenarioResults.Cast<IScenarioResult>().ToList(),
             allPassed,
             summary);
     }

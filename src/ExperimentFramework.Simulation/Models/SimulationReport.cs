@@ -26,9 +26,9 @@ public sealed class SimulationReport
     public IReadOnlyList<string> ConditionNames { get; }
 
     /// <summary>
-    /// Gets the scenario results (stored as object to handle different TResult types).
+    /// Gets the scenario results.
     /// </summary>
-    public IReadOnlyList<object> ScenarioResults { get; }
+    public IReadOnlyList<IScenarioResult> ScenarioResults { get; }
 
     /// <summary>
     /// Gets the overall pass/fail status.
@@ -47,7 +47,7 @@ public sealed class SimulationReport
         string serviceType,
         string controlName,
         IReadOnlyList<string> conditionNames,
-        IReadOnlyList<object> scenarioResults,
+        IReadOnlyList<IScenarioResult> scenarioResults,
         bool passed,
         string summary)
     {

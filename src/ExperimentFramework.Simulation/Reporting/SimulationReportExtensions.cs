@@ -66,82 +66,55 @@ public static class SimulationReportExtensions
         File.WriteAllText(path, string.Join(Environment.NewLine, lines));
     }
 
-    private static IEnumerable<string> FormatScenarioResult(object scenarioResult)
+    private static IEnumerable<string> FormatScenarioResult(IScenarioResult scenarioResult)
     {
-        // Use reflection to extract scenario result details
-        var type = scenarioResult.GetType();
-        
-        var scenarioName = type.GetProperty("ScenarioName")?.GetValue(scenarioResult)?.ToString() ?? "Unknown";
-        var allSucceeded = type.GetProperty("AllSucceeded")?.GetValue(scenarioResult) as bool? ?? false;
-        var hasDifferences = type.GetProperty("HasDifferences")?.GetValue(scenarioResult) as bool? ?? false;
-
         var lines = new List<string>
         {
             "",
-            $"Scenario: {scenarioName}",
-            $"  All Succeeded: {allSucceeded}",
-            $"  Has Differences: {hasDifferences}"
+            $"Scenario: {scenarioResult.ScenarioName}",
+            $"  All Succeeded: {scenarioResult.AllSucceeded}",
+            $"  Has Differences: {scenarioResult.HasDifferences}"
         };
 
-        // Get control result
-        var control = type.GetProperty("Control")?.GetValue(scenarioResult);
-        if (control != null)
-        {
-            lines.Add("  Control:");
-            lines.AddRange(FormatImplementationResult(control, "    "));
-        }
+        // Format control result
+        lines.Add("  Control:");
+        lines.AddRange(FormatImplementationResult(scenarioResult.Control, "    "));
 
-        // Get condition results
-        var conditions = type.GetProperty("Conditions")?.GetValue(scenarioResult);
-        if (conditions is System.Collections.IEnumerable enumerable)
+        // Format condition results
+        if (scenarioResult.Conditions.Any())
         {
-            var conditionList = enumerable.Cast<object>().ToList();
-            if (conditionList.Any())
+            lines.Add("  Conditions:");
+            foreach (var condition in scenarioResult.Conditions)
             {
-                lines.Add("  Conditions:");
-                foreach (var condition in conditionList)
-                {
-                    lines.AddRange(FormatImplementationResult(condition, "    "));
-                }
+                lines.AddRange(FormatImplementationResult(condition, "    "));
             }
         }
 
-        // Get differences
-        var differences = type.GetProperty("Differences")?.GetValue(scenarioResult);
-        if (differences is System.Collections.IEnumerable diffEnumerable)
+        // Format differences
+        if (scenarioResult.Differences.Any())
         {
-            var diffList = diffEnumerable.Cast<object>().Select(d => d.ToString()).ToList();
-            if (diffList.Any())
+            lines.Add("  Differences:");
+            foreach (var diff in scenarioResult.Differences)
             {
-                lines.Add("  Differences:");
-                foreach (var diff in diffList)
-                {
-                    lines.Add($"    - {diff}");
-                }
+                lines.Add($"    - {diff}");
             }
         }
 
         return lines;
     }
 
-    private static IEnumerable<string> FormatImplementationResult(object implResult, string indent)
+    private static IEnumerable<string> FormatImplementationResult(IImplementationResult implResult, string indent)
     {
-        var type = implResult.GetType();
-        var name = type.GetProperty("ImplementationName")?.GetValue(implResult)?.ToString() ?? "Unknown";
-        var success = type.GetProperty("Success")?.GetValue(implResult) as bool? ?? false;
-        var duration = type.GetProperty("Duration")?.GetValue(implResult) as TimeSpan?;
-        var exception = type.GetProperty("Exception")?.GetValue(implResult) as Exception;
-
         var lines = new List<string>
         {
-            $"{indent}{name}:",
-            $"{indent}  Success: {success}",
-            $"{indent}  Duration: {duration?.TotalMilliseconds:F2}ms"
+            $"{indent}{implResult.ImplementationName}:",
+            $"{indent}  Success: {implResult.Success}",
+            $"{indent}  Duration: {implResult.Duration.TotalMilliseconds:F2}ms"
         };
 
-        if (exception != null)
+        if (implResult.Exception != null)
         {
-            lines.Add($"{indent}  Exception: {exception.GetType().Name}: {exception.Message}");
+            lines.Add($"{indent}  Exception: {implResult.Exception.GetType().Name}: {implResult.Exception.Message}");
         }
 
         return lines;
