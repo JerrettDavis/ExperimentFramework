@@ -7,6 +7,8 @@
   href: configuration.md
 - name: Core Concepts
   href: core-concepts.md
+- name: CLI Tool
+  href: cli.md
 
 # Traffic Routing
 - name: Selection & Routing
