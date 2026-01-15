@@ -34,7 +34,7 @@ var provider = services.BuildServiceProvider();
 // Create and configure the simulation runner
 var sim = SimulationRunner.Create(provider)
     .For<IMyDatabase>()
-    .AsRunnerFor<string>()
+    .WithResultType<string>()
     .Control()
     .Condition("experimental")
     .WithComparator(SimulationComparators.Equality<string>())
@@ -136,7 +136,7 @@ Test control against multiple experimental implementations:
 ```csharp
 var sim = SimulationRunner.Create(provider)
     .For<IDatabase>()
-    .AsRunnerFor<List<Customer>>()
+    .WithResultType<List<Customer>>()
     .Control("baseline")
     .Condition("variant-a")
     .Condition("variant-b")
@@ -266,6 +266,19 @@ Use simulation reports in CI pipelines:
 
 ## Advanced Example
 
+### Using Keyed Services for Multiple Implementations
+
+To test different implementations, register them as keyed services in your DI container:
+
+```csharp
+// Register different implementations with unique keys
+services.AddKeyedScoped<IDatabase, PostgresV1Database>("postgres-v1");
+services.AddKeyedScoped<IDatabase, PostgresV2Database>("postgres-v2");
+services.AddKeyedScoped<IDatabase, CosmosDatabase>("cosmos-db");
+```
+
+Then reference those keys in your simulation:
+
 ```csharp
 public class DatabaseSimulationRunner
 {
@@ -273,7 +286,7 @@ public class DatabaseSimulationRunner
     {
         var sim = SimulationRunner.Create(services)
             .For<IDatabase>()
-            .AsRunnerFor<List<Customer>>()
+            .WithResultType<List<Customer>>()
             .Control("postgres-v1")
             .Condition("postgres-v2")
             .Condition("cosmos-db")

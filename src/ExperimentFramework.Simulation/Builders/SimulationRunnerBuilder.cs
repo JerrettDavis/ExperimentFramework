@@ -63,15 +63,4 @@ public sealed class SimulationServiceBuilder<TService> where TService : notnull
     {
         return new SimulationRunner<TService, TResult>(_serviceProvider);
     }
-
-    /// <summary>
-    /// Creates a simulation runner (infers result type from scenarios).
-    /// Note: When using this method, you'll need to provide an explicit result type when calling methods.
-    /// </summary>
-    /// <typeparam name="TResult">The result type returned by the service methods.</typeparam>
-    /// <returns>A simulation runner for configuring and executing scenarios.</returns>
-    public SimulationRunner<TService, TResult> AsRunnerFor<TResult>()
-    {
-        return new SimulationRunner<TService, TResult>(_serviceProvider);
-    }
 }

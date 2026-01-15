@@ -27,7 +27,7 @@ public class ReportingTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestService>()
-            .AsRunnerFor<string>()
+            .WithResultType<string>()
             .Control()
             .Condition("variant");
 
@@ -67,7 +67,7 @@ public class ReportingTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestService>()
-            .AsRunnerFor<string>()
+            .WithResultType<string>()
             .Control()
             .Condition("variant");
 
@@ -108,7 +108,7 @@ public class ReportingTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestService>()
-            .AsRunnerFor<string>()
+            .WithResultType<string>()
             .Control();
 
         var scenarios = new[]

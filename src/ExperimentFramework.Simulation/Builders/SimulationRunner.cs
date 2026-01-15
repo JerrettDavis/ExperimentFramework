@@ -15,7 +15,7 @@ public sealed class SimulationRunner<TService, TResult>
     private readonly IServiceProvider _serviceProvider;
     private readonly List<string> _conditionNames = new();
     private ISimulationComparator<TResult> _comparator = new EqualityComparator<TResult>();
-    private ShadowModeOptions _options = new();
+    private readonly ShadowModeOptions _options = new();
     private string _controlName = "control";
 
     internal SimulationRunner(IServiceProvider serviceProvider)
@@ -127,13 +127,13 @@ public sealed class SimulationRunner<TService, TResult>
         using var scope = _serviceProvider.CreateScope();
 
         // Execute control
-        var controlResult = await ExecuteImplementationAsync(scope, scenario, _controlName, isControl: true);
+        var controlResult = await ExecuteImplementationAsync(scope, scenario, _controlName);
 
         // Execute conditions
         var conditionResults = new List<ImplementationResult<TResult>>();
         foreach (var conditionName in _conditionNames)
         {
-            var conditionResult = await ExecuteImplementationAsync(scope, scenario, conditionName, isControl: false);
+            var conditionResult = await ExecuteImplementationAsync(scope, scenario, conditionName);
             conditionResults.Add(conditionResult);
         }
 
@@ -159,8 +159,10 @@ public sealed class SimulationRunner<TService, TResult>
             differences.Add($"Control execution failed - {controlResult.Exception?.Message}");
         }
 
-        // Determine selected implementation (for now, just return the first condition or control)
-        var selectedImplementation = _conditionNames.FirstOrDefault() ?? _controlName;
+        // Determine selected implementation based on ReturnMode
+        var selectedImplementation = _options.ReturnMode == ResultReturnMode.Control 
+            ? _controlName 
+            : (_conditionNames.FirstOrDefault() ?? _controlName);
 
         return new ScenarioResult<TResult>(
             scenario.Name,
@@ -173,8 +175,7 @@ public sealed class SimulationRunner<TService, TResult>
     private async Task<ImplementationResult<TResult>> ExecuteImplementationAsync(
         IServiceScope scope,
         Scenario<TService, TResult> scenario,
-        string implementationName,
-        bool isControl)
+        string implementationName)
     {
         var stopwatch = Stopwatch.StartNew();
         TResult? result = default;
@@ -182,7 +183,18 @@ public sealed class SimulationRunner<TService, TResult>
 
         try
         {
-            var service = scope.ServiceProvider.GetRequiredService<TService>();
+            TService service;
+            try
+            {
+                // Try to resolve a keyed implementation first, using the implementation name as the key.
+                service = scope.ServiceProvider.GetRequiredKeyedService<TService>(implementationName);
+            }
+            catch (InvalidOperationException)
+            {
+                // Fallback to the default implementation if no keyed service is registered.
+                service = scope.ServiceProvider.GetRequiredService<TService>();
+            }
+            
             result = await scenario.Execute(service);
         }
         catch (Exception ex)

@@ -49,7 +49,7 @@ public class SimulationRunnerTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestDatabase>()
-            .AsRunnerFor<string>()
+            .WithResultType<string>()
             .Control()
             .Condition("variant")
             .WithComparator(SimulationComparators.Equality<string>());
@@ -80,7 +80,7 @@ public class SimulationRunnerTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestDatabase>()
-            .AsRunnerFor<string>()
+            .WithResultType<string>()
             .Control()
             .Condition("variant")
             .WithComparator(SimulationComparators.Equality<string>());
@@ -113,7 +113,7 @@ public class SimulationRunnerTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestDatabase>()
-            .AsRunnerFor<int>()
+            .WithResultType<int>()
             .Control()
             .Condition("variant1")
             .Condition("variant2")
@@ -144,7 +144,7 @@ public class SimulationRunnerTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestDatabase>()
-            .AsRunnerFor<string>()
+            .WithResultType<string>()
             .Control()
             .Condition("variant");
 
@@ -171,7 +171,7 @@ public class SimulationRunnerTests
 
         var runner = SimulationRunner.Create(provider)
             .For<ITestDatabase>()
-            .AsRunnerFor<List<string>>()
+            .WithResultType<List<string>>()
             .Control()
             .Condition("variant")
             .WithComparator(SimulationComparators.Json<List<string>>());
@@ -201,6 +201,39 @@ public class SimulationRunnerTests
         Assert.NotNull(scenario);
         Assert.Equal("Test", scenario.Name);
         Assert.NotNull(scenario.Execute);
+    }
+
+    [Fact]
+    public async Task SimulationRunner_DetectsDifferencesBetweenKeyedImplementations()
+    {
+        // Arrange - Register different implementations with keyed services
+        var services = new ServiceCollection();
+        services.AddKeyedScoped<ITestDatabase, ControlDatabase>("control");
+        services.AddKeyedScoped<ITestDatabase, DifferentDatabase>("variant");
+        var provider = services.BuildServiceProvider();
+
+        var runner = SimulationRunner.Create(provider)
+            .For<ITestDatabase>()
+            .WithResultType<string>()
+            .Control("control")
+            .Condition("variant")
+            .WithComparator(SimulationComparators.Equality<string>());
+
+        var scenarios = new[]
+        {
+            new Scenario<ITestDatabase, string>("Ping", async db => await db.PingAsync())
+        };
+
+        // Act
+        var report = await runner.RunAsync(scenarios);
+
+        // Assert
+        Assert.NotNull(report);
+        var scenarioResult = report.ScenarioResults.First();
+        
+        // Different implementations should produce differences
+        Assert.True(scenarioResult.HasDifferences);
+        Assert.Contains("variant", scenarioResult.Differences[0]);
     }
 
     // Helper class for exception testing
