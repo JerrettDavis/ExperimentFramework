@@ -65,6 +65,8 @@ internal static class ConfigCommand
             }
 
             // Validate configuration
+            // NOTE: This uses the default ConfigurationValidator without a ConfigurationExtensionRegistry.
+            // As a result, custom selection modes and decorators from extension packages are not validated here.
             var validator = new ConfigurationValidator();
             var result = validator.Validate(config);
 

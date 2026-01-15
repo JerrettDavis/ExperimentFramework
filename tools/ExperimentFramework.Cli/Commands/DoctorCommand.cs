@@ -72,6 +72,8 @@ internal static class DoctorCommand
                     }
                     else
                     {
+                        // NOTE: This uses the default ConfigurationValidator without a ConfigurationExtensionRegistry.
+                        // As a result, custom selection modes and decorators from extension packages are not validated here.
                         var validator = new ExperimentFramework.Configuration.Validation.ConfigurationValidator();
                         var result = validator.Validate(config);
 
@@ -205,14 +207,11 @@ internal static class DoctorCommand
         // Validate experiments
         if (config.Experiments != null)
         {
-            foreach (var experiment in config.Experiments)
+            foreach (var experiment in config.Experiments.Where(e => e.Trials != null))
             {
-                if (experiment.Trials != null)
+                foreach (var trial in experiment.Trials!)
                 {
-                    foreach (var trial in experiment.Trials)
-                    {
-                        ValidateTrial(trial, errors);
-                    }
+                    ValidateTrial(trial, errors);
                 }
             }
         }
@@ -234,12 +233,13 @@ internal static class DoctorCommand
         
         if (trial.Conditions != null)
         {
-            foreach (var condition in trial.Conditions)
+            var duplicates = trial.Conditions
+                .Where(c => !keys.Add(c.Key))
+                .ToList();
+            
+            foreach (var condition in duplicates)
             {
-                if (!keys.Add(condition.Key))
-                {
-                    errors.Add($"Trial '{trial.ServiceType}': Duplicate condition key '{condition.Key}'");
-                }
+                errors.Add($"Trial '{trial.ServiceType}': Duplicate condition key '{condition.Key}'");
             }
         }
 
@@ -251,12 +251,9 @@ internal static class DoctorCommand
 
         if (trial.Conditions != null)
         {
-            foreach (var condition in trial.Conditions)
+            foreach (var condition in trial.Conditions.Where(c => string.IsNullOrWhiteSpace(c.ImplementationType)))
             {
-                if (string.IsNullOrWhiteSpace(condition.ImplementationType))
-                {
-                    errors.Add($"Trial '{trial.ServiceType}': Condition '{condition.Key}' implementation type is required");
-                }
+                errors.Add($"Trial '{trial.ServiceType}': Condition '{condition.Key}' implementation type is required");
             }
         }
     }
