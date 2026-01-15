@@ -49,11 +49,13 @@ public sealed class CompositeExperimentEventSink : IExperimentEventSink
             {
                 sink.OnEvent(e);
             }
-            catch
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 // Swallow exceptions from individual sinks to prevent one
-                // failing sink from affecting others
-                // In production, consider logging these failures
+                // failing sink from affecting others.
+                // Critical exceptions like OutOfMemoryException are not caught.
+                // TODO: Consider adding a debug trace or event counter for sink failures
+                System.Diagnostics.Debug.WriteLine($"ExperimentEventSink failure: {ex.GetType().Name}: {ex.Message}");
             }
         }
     }
