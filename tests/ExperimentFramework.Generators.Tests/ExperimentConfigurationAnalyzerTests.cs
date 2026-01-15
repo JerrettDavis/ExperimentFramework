@@ -330,10 +330,9 @@ public class ExperimentConfigurationAnalyzerTests
         var analyzer = new ExperimentConfigurationAnalyzer();
         var compilationWithAnalyzers = compilation.WithAnalyzers(
             ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
-            options: null,
-            cancellationToken: CancellationToken.None);
+            options: null);
         
-        var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;
+        var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None).Result;
         
         return diagnostics;
     }

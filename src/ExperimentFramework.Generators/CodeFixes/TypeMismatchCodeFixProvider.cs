@@ -123,12 +123,11 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
             foreach (var classDecl in classDeclarations)
             {
                 var symbol = semanticModel.GetDeclaredSymbol(classDecl, cancellationToken);
-                if (symbol is INamedTypeSymbol namedType && !namedType.IsAbstract)
+                if (symbol is INamedTypeSymbol namedType && 
+                    !namedType.IsAbstract &&
+                    ImplementsInterface(namedType, serviceType))
                 {
-                    if (ImplementsInterface(namedType, serviceType))
-                    {
-                        candidates.Add(namedType);
-                    }
+                    candidates.Add(namedType);
                 }
             }
         }
@@ -162,16 +161,15 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
 
             // Handle generic interfaces
             if (serviceType is INamedTypeSymbol serviceNamedType &&
-                iface is INamedTypeSymbol ifaceNamedType)
+                iface is INamedTypeSymbol ifaceNamedType &&
+                serviceNamedType.IsGenericType && 
+                ifaceNamedType.IsGenericType)
             {
-                if (serviceNamedType.IsGenericType && ifaceNamedType.IsGenericType)
-                {
-                    var unconstructedService = serviceNamedType.ConstructedFrom;
-                    var unconstructedIface = ifaceNamedType.ConstructedFrom;
+                var unconstructedService = serviceNamedType.ConstructedFrom;
+                var unconstructedIface = ifaceNamedType.ConstructedFrom;
 
-                    if (SymbolEqualityComparer.Default.Equals(unconstructedIface, unconstructedService))
-                        return true;
-                }
+                if (SymbolEqualityComparer.Default.Equals(unconstructedIface, unconstructedService))
+                    return true;
             }
         }
 

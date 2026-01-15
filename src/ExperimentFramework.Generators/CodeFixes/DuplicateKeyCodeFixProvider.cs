@@ -71,17 +71,51 @@ public sealed class DuplicateKeyCodeFixProvider : CodeFixProvider
 
     private static string GenerateUniqueKey(string baseKey, SyntaxNode root, ArgumentSyntax currentArgument)
     {
-        // Find all existing keys in the same trial
-        var existingKeys = new System.Collections.Generic.HashSet<string>(
-            root.DescendantNodes()
-                .OfType<InvocationExpressionSyntax>()
-                .Where(inv => inv.Expression is MemberAccessExpressionSyntax ma &&
-                              ma.Name.Identifier.Text is "AddCondition" or "AddVariant" or "AddTrial")
-                .Select(inv => inv.ArgumentList.Arguments.FirstOrDefault())
-                .Where(arg => arg != null && arg != currentArgument)
-                .Select(arg => arg!.Expression)
-                .OfType<LiteralExpressionSyntax>()
-                .Select(lit => lit.Token.ValueText));
+        // Find the trial chain this argument belongs to
+        var invocation = currentArgument.FirstAncestorOrSelf<InvocationExpressionSyntax>();
+        if (invocation == null)
+            return baseKey + "2";
+
+        // Find the Trial<T> root for this specific trial chain
+        var trialRoot = FindTrialRootForArgument(invocation);
+        if (trialRoot == null)
+            return baseKey + "2";
+
+        // Find all existing keys only within this specific trial chain
+        var existingKeys = new System.Collections.Generic.HashSet<string>();
+        var current = trialRoot;
+        
+        while (current != null)
+        {
+            if (current.Expression is MemberAccessExpressionSyntax ma &&
+                ma.Name.Identifier.Text is "AddCondition" or "AddVariant" or "AddTrial" &&
+                current.ArgumentList.Arguments.Count > 0)
+            {
+                var arg = current.ArgumentList.Arguments[0];
+                if (arg != currentArgument && arg.Expression is LiteralExpressionSyntax lit)
+                {
+                    existingKeys.Add(lit.Token.ValueText);
+                }
+            }
+            
+            // Find the next invocation in the chain
+            var parent = current.Parent;
+            InvocationExpressionSyntax? next = null;
+            
+            while (parent != null)
+            {
+                if (parent is MemberAccessExpressionSyntax memberAccess &&
+                    memberAccess.Expression == current &&
+                    memberAccess.Parent is InvocationExpressionSyntax nextInvocation)
+                {
+                    next = nextInvocation;
+                    break;
+                }
+                parent = parent.Parent;
+            }
+            
+            current = next;
+        }
 
         // Generate a unique key by appending a number
         var newKey = baseKey;
@@ -93,6 +127,38 @@ public sealed class DuplicateKeyCodeFixProvider : CodeFixProvider
         }
 
         return newKey;
+    }
+
+    private static InvocationExpressionSyntax? FindTrialRootForArgument(InvocationExpressionSyntax invocation)
+    {
+        var current = invocation;
+        
+        // Walk backwards through member access chains
+        while (current != null)
+        {
+            if (current.Expression is MemberAccessExpressionSyntax ma)
+            {
+                if (ma.Name.Identifier.Text == "Trial")
+                {
+                    return current;
+                }
+                
+                if (ma.Expression is InvocationExpressionSyntax previousInvocation)
+                {
+                    current = previousInvocation;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+        
+        return null;
     }
 
     private static async Task<Document> RenameKeyAsync(

@@ -176,12 +176,11 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
         if (trialRoot == null)
             return;
 
-        // Find all AddCondition/AddVariant/AddTrial calls in this chain
-        var allConditionCalls = FindAllConditionCalls(trialRoot);
+        // Find all AddCondition/AddVariant/AddTrial calls in THIS specific trial chain only
+        var allConditionCalls = FindAllConditionCallsInTrialChain(trialRoot, currentInvocation);
 
-        // Check for duplicates - only report on first occurrence to avoid multiple diagnostics
+        // Check for duplicates within this single trial - only report on subsequent occurrences
         var seenKeys = new System.Collections.Generic.HashSet<string>();
-        var isFirstOccurrence = true;
         
         foreach (var otherCall in allConditionCalls)
         {
@@ -201,7 +200,7 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
                     // This is the current invocation
                     if (!seenKeys.Add(currentKey))
                     {
-                        // We've seen this key before, so this is a duplicate
+                        // We've seen this key before in THIS trial, so this is a duplicate
                         var diagnostic = Diagnostic.Create(
                             DuplicateConditionKey,
                             currentKeyArg.GetLocation(),
@@ -213,9 +212,8 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
                 }
                 else
                 {
-                    // Found an earlier occurrence
+                    // Found an earlier occurrence in this trial
                     seenKeys.Add(otherKey);
-                    isFirstOccurrence = false;
                 }
             }
         }
@@ -254,27 +252,50 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
         return current as InvocationExpressionSyntax;
     }
 
-    private static ImmutableArray<InvocationExpressionSyntax> FindAllConditionCalls(InvocationExpressionSyntax root)
+    private static ImmutableArray<InvocationExpressionSyntax> FindAllConditionCallsInTrialChain(
+        InvocationExpressionSyntax trialRoot,
+        InvocationExpressionSyntax currentInvocation)
     {
         var calls = ImmutableArray.CreateBuilder<InvocationExpressionSyntax>();
         
-        // Find all invocations in the entire statement/expression
-        var statement = root.FirstAncestorOrSelf<StatementSyntax>();
-        if (statement == null)
-            return calls.ToImmutable();
-
-        var allInvocations = statement.DescendantNodes().OfType<InvocationExpressionSyntax>();
+        // Start from the trial root and walk through the chain following member access expressions
+        // This ensures we only collect calls within THIS specific trial, not other trials in the same statement
+        var current = trialRoot;
         
-        foreach (var invocation in allInvocations)
+        while (current != null)
         {
-            if (invocation.Expression is MemberAccessExpressionSyntax ma)
+            // Check if this invocation is an AddCondition/AddVariant/AddTrial call
+            if (current.Expression is MemberAccessExpressionSyntax ma)
             {
                 var methodName = ma.Name.Identifier.Text;
                 if (methodName is "AddCondition" or "AddVariant" or "AddTrial")
                 {
-                    calls.Add(invocation);
+                    calls.Add(current);
                 }
             }
+            
+            // Stop if we've reached the current invocation
+            if (current == currentInvocation)
+                break;
+            
+            // Find the next invocation in the chain
+            // Look for invocations that use this current invocation as their target
+            var parent = current.Parent;
+            InvocationExpressionSyntax? next = null;
+            
+            while (parent != null)
+            {
+                if (parent is MemberAccessExpressionSyntax memberAccess &&
+                    memberAccess.Expression == current &&
+                    memberAccess.Parent is InvocationExpressionSyntax nextInvocation)
+                {
+                    next = nextInvocation;
+                    break;
+                }
+                parent = parent.Parent;
+            }
+            
+            current = next;
         }
 
         return calls.ToImmutable();
@@ -304,16 +325,15 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
 
             // Handle generic interface matching
             if (serviceType is INamedTypeSymbol serviceNamedType && 
-                iface is INamedTypeSymbol ifaceNamedType)
+                iface is INamedTypeSymbol ifaceNamedType &&
+                serviceNamedType.IsGenericType && 
+                ifaceNamedType.IsGenericType)
             {
-                if (serviceNamedType.IsGenericType && ifaceNamedType.IsGenericType)
-                {
-                    var unconstructedService = serviceNamedType.ConstructedFrom;
-                    var unconstructedIface = ifaceNamedType.ConstructedFrom;
-                    
-                    if (SymbolEqualityComparer.Default.Equals(unconstructedIface, unconstructedService))
-                        return true;
-                }
+                var unconstructedService = serviceNamedType.ConstructedFrom;
+                var unconstructedIface = ifaceNamedType.ConstructedFrom;
+                
+                if (SymbolEqualityComparer.Default.Equals(unconstructedIface, unconstructedService))
+                    return true;
             }
         }
 
