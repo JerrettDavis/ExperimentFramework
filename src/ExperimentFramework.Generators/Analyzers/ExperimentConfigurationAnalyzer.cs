@@ -179,12 +179,12 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
         // Find all AddCondition/AddVariant/AddTrial calls in this chain
         var allConditionCalls = FindAllConditionCalls(trialRoot);
 
-        // Check for duplicates
+        // Check for duplicates - only report on first occurrence to avoid multiple diagnostics
+        var seenKeys = new System.Collections.Generic.HashSet<string>();
+        var isFirstOccurrence = true;
+        
         foreach (var otherCall in allConditionCalls)
         {
-            if (otherCall == currentInvocation)
-                continue;
-
             if (otherCall.ArgumentList.Arguments.Count == 0)
                 continue;
 
@@ -193,17 +193,30 @@ public sealed class ExperimentConfigurationAnalyzer : DiagnosticAnalyzer
                 continue;
 
             var otherKey = otherKeyLiteral.Token.ValueText;
-
-            // Check if keys match
-            if (currentKey == otherKey)
+            
+            if (otherKey == currentKey)
             {
-                var diagnostic = Diagnostic.Create(
-                    DuplicateConditionKey,
-                    currentKeyArg.GetLocation(),
-                    currentKey);
+                if (otherCall == currentInvocation)
+                {
+                    // This is the current invocation
+                    if (!seenKeys.Add(currentKey))
+                    {
+                        // We've seen this key before, so this is a duplicate
+                        var diagnostic = Diagnostic.Create(
+                            DuplicateConditionKey,
+                            currentKeyArg.GetLocation(),
+                            currentKey);
 
-                context.ReportDiagnostic(diagnostic);
-                break; // Only report once per duplicate
+                        context.ReportDiagnostic(diagnostic);
+                    }
+                    return; // Stop checking after processing current invocation
+                }
+                else
+                {
+                    // Found an earlier occurrence
+                    seenKeys.Add(otherKey);
+                    isFirstOccurrence = false;
+                }
             }
         }
     }

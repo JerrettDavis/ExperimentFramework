@@ -35,15 +35,15 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
         WellKnownFixAllProviders.BatchFixer;
 
     /// <summary>
-    /// Registers code fixes for the specified diagnostics.
-    /// </summary>
-    /// <param name="context">The code fix context.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    /// <summary>
     /// Maximum number of candidate type suggestions to offer in code fixes.
     /// </summary>
     private const int MaxCandidateSuggestions = 5;
 
+    /// <summary>
+    /// Registers code fixes for the specified diagnostics.
+    /// </summary>
+    /// <param name="context">The code fix context.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public sealed override async Task RegisterCodeFixesAsync(CodeFixContext context)
     {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
