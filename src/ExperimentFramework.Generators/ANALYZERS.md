@@ -17,6 +17,8 @@ The type specified in `AddControl<TImpl>()` must implement the service interface
 
 **Fix**: Change the type argument to a class that implements `IPaymentService`.
 
+**Known Limitations**: The analyzer currently works best when analyzing direct method calls. Detection within complex lambda expressions may have limitations.
+
 ---
 
 ### EF0002: Condition type does not implement service type
@@ -32,6 +34,8 @@ The type specified in `AddCondition<TImpl>()` or `AddVariant<TImpl>()` must impl
 ```
 
 **Fix**: Change the type argument to a class that implements `IPaymentService`.
+
+**Known Limitations**: The analyzer currently works best when analyzing direct method calls. Detection within complex lambda expressions may have limitations.
 
 ---
 
@@ -51,6 +55,8 @@ Each condition key must be unique within a trial. Duplicate keys will result in 
 **Fix**: Rename one of the duplicate keys to make them unique.
 
 **Code Fix Available**: The analyzer provides a code fix to automatically rename the duplicate key.
+
+**Known Limitations**: Duplicate key detection works within the same statement but may not detect duplicates across different code paths.
 
 ---
 
@@ -72,6 +78,8 @@ public void ConfigureServices(IServiceCollection services)
 
 **Fix**: Call `.AddTo(services)` on the builder or use `services.AddExperimentFramework(builder)`.
 
+**Status**: Diagnostic defined but not yet implemented in this release.
+
 ---
 
 ### EF0005: Potential lifetime capture mismatch
@@ -89,17 +97,39 @@ services.AddScoped<StripePayment>(); // Warning: Singleton may capture scoped
 - Register the service as Scoped if any implementations are Scoped
 - Register all implementations as Singleton if the service is Singleton
 
+**Status**: Diagnostic defined but not yet implemented in this release.
+
 ---
 
 ## Code Fixes
 
 The analyzer package includes code fix providers for the following diagnostics:
 
-1. **EF0003 - Duplicate Key**: Automatically renames duplicate condition keys to make them unique
-2. **EF0001/EF0002 - Type Mismatch**: Suggests types in the current project that implement the service interface
+1. **EF0003 - Duplicate Key**: Automatically renames duplicate condition keys to make them unique (experimental)
+2. **EF0001/EF0002 - Type Mismatch**: Suggests types in the current project that implement the service interface (experimental)
+
+---
 
 ## Usage
 
 The analyzer is automatically included when you reference the `ExperimentFramework` or `ExperimentFramework.Generators` package. No additional configuration is required.
 
 To see diagnostics in Visual Studio or Visual Studio Code, simply build your project or save a file containing experiment configuration code.
+
+---
+
+## Current Limitations
+
+1. **Lambda Expression Analysis**: The EF0001 and EF0002 analyzers work best with direct method calls. Analysis of method calls within lambda expressions (e.g., `.Trial<T>(t => t.AddControl<...>())`) is limited in this initial release.
+
+2. **Cross-File Analysis**: The EF0003 analyzer detects duplicates within a single statement but may not detect duplicates across different files or code paths.
+
+3. **EF0004 and EF0005**: These diagnostics are defined but not fully implemented in this release. They will be completed in a future update.
+
+## Future Enhancements
+
+- Improved lambda expression analysis for EF0001 and EF0002
+- Full implementation of EF0004 (trial registration check)
+- Full implementation of EF0005 (lifetime mismatch detection)
+- Additional diagnostics for common configuration errors
+- More sophisticated code fix providers
