@@ -87,12 +87,12 @@ public void Should_MaintainSameSelection_WhenFrozen()
     var db1 = host.Services.GetRequiredService<IMyDatabase>();
     var db2 = host.Services.GetRequiredService<IMyDatabase>();
     
-    var result1 = await db1.QueryAsync();
-    var result2 = await db2.QueryAsync();
+    var result1 = await db1.GetConnectionStringAsync();
+    var result2 = await db2.GetConnectionStringAsync();
     
     // Both should use CloudDatabase
-    Assert.Equal("cloud-result", result1);
-    Assert.Equal("cloud-result", result2);
+    Assert.Equal("cloud.example.com", result1);
+    Assert.Equal("cloud.example.com", result2);
 }
 ```
 
@@ -137,11 +137,11 @@ public async Task Should_CaptureTraceEvents()
     .Build();
 
     var db = host.Services.GetRequiredService<IMyDatabase>();
-    await db.QueryAsync();
+    await db.GetConnectionStringAsync();
 
     // Assert using trace
     Assert.True(host.Trace.ExpectRouted<IMyDatabase>("control"));
-    Assert.True(host.Trace.ExpectCall<IMyDatabase>("QueryAsync"));
+    Assert.True(host.Trace.ExpectCall<IMyDatabase>("GetConnectionStringAsync"));
     
     var events = host.Trace.GetEventsFor<IMyDatabase>();
     Assert.Single(events);

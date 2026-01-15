@@ -13,8 +13,8 @@
     <Description>Testing utilities for ExperimentFramework including deterministic routing, test harnesses, trace capture, and assertions. Enables trivial testing of experiments without mocking.</Description>
     <PackageTags>experiments;testing;ab-testing;harness;deterministic;assertions;beta</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/JerrettDavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JerrettDavis/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

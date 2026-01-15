@@ -150,7 +150,7 @@ public class ExperimentTestHostTests
         Assert.Equal(1, result1); // MyDatabase returns 1
 
         // With scope, should use condition
-        using (var scope = ExperimentTestScope.Begin()
+        using (ExperimentTestScope.Begin()
             .ForceCondition<IMyDatabase>("true"))
         {
             var db2 = host.Services.GetRequiredService<IMyDatabase>();

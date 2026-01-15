@@ -46,9 +46,9 @@ internal sealed class TraceCapturingDecorator : IExperimentDecorator
                 StartTime = startTime,
                 EndTime = endTime,
                 Duration = duration,
-                // Note: Fallback detection would require additional context from the framework
-                // This could be enhanced by adding fallback metadata to InvocationContext
-                IsFallback = false,
+                // Note: Fallback detection would ideally use explicit metadata from the framework.
+                // As a best-effort heuristic, we currently treat faulted invocations as fallbacks.
+                IsFallback = exception is not null,
                 Exception = exception
             };
 

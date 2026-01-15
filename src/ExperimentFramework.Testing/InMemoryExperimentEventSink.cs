@@ -9,11 +9,31 @@ namespace ExperimentFramework.Testing;
 public sealed class InMemoryExperimentEventSink
 {
     private readonly ConcurrentBag<ExperimentTraceEvent> _events = new();
+    private IReadOnlyList<ExperimentTraceEvent>? _cachedSnapshot;
 
     /// <summary>
     /// Gets all recorded events in the order they were added.
     /// </summary>
-    public IReadOnlyList<ExperimentTraceEvent> Events => _events.ToList();
+    /// <remarks>
+    /// The returned list is a snapshot of the recorded events at the time of the
+    /// first access after a modification. Subsequent accesses reuse the same
+    /// snapshot until new events are recorded or the sink is cleared.
+    /// </remarks>
+    public IReadOnlyList<ExperimentTraceEvent> Events
+    {
+        get
+        {
+            var snapshot = _cachedSnapshot;
+            if (snapshot is not null)
+            {
+                return snapshot;
+            }
+
+            snapshot = _events.ToList();
+            _cachedSnapshot = snapshot;
+            return snapshot;
+        }
+    }
 
     /// <summary>
     /// Records a new experiment trace event.
@@ -23,6 +43,7 @@ public sealed class InMemoryExperimentEventSink
     {
         ArgumentNullException.ThrowIfNull(@event);
         _events.Add(@event);
+        _cachedSnapshot = null;
     }
 
     /// <summary>
@@ -31,6 +52,7 @@ public sealed class InMemoryExperimentEventSink
     public void Clear()
     {
         _events.Clear();
+        _cachedSnapshot = null;
     }
 
     /// <summary>

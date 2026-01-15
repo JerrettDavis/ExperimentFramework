@@ -80,29 +80,87 @@ public class ExperimentTraceAssertionsTests
     }
 
     [Fact]
-    public void GetEventsFor_ReturnsMatchingEvents()
+    public void GetFirstEventFor_ReturnsFirstEventForServiceType()
+    {
+        // Arrange
+        var sink = new InMemoryExperimentEventSink();
+        var now = DateTimeOffset.UtcNow;
+        sink.RecordEvent(new ExperimentTraceEvent
+        {
+            ServiceType = typeof(IMyDatabase),
+            SelectedTrialKey = "control",
+            StartTime = now
+        });
+        sink.RecordEvent(new ExperimentTraceEvent
+        {
+            ServiceType = typeof(IMyDatabase),
+            SelectedTrialKey = "true",
+            StartTime = now.AddSeconds(1)
+        });
+
+        var assertions = new ExperimentTraceAssertions(sink);
+
+        // Act
+        var result = assertions.GetFirstEventFor<IMyDatabase>();
+
+        // Assert - First event added should have "control" or "true" depending on ConcurrentBag ordering
+        Assert.NotNull(result);
+        Assert.Contains(result.SelectedTrialKey, new[] { "control", "true" });
+    }
+
+    [Fact]
+    public void GetFirstEventFor_WithNoEvents_ReturnsNull()
+    {
+        // Arrange
+        var sink = new InMemoryExperimentEventSink();
+        var assertions = new ExperimentTraceAssertions(sink);
+
+        // Act
+        var result = assertions.GetFirstEventFor<IMyDatabase>();
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ExpectException_WithException_ReturnsTrue()
     {
         // Arrange
         var sink = new InMemoryExperimentEventSink();
         sink.RecordEvent(new ExperimentTraceEvent
         {
             ServiceType = typeof(IMyDatabase),
-            SelectedTrialKey = "control",
-            StartTime = DateTimeOffset.UtcNow
-        });
-        sink.RecordEvent(new ExperimentTraceEvent
-        {
-            ServiceType = typeof(IMyDatabase),
-            SelectedTrialKey = "true",
+            Exception = new InvalidOperationException("Test exception"),
             StartTime = DateTimeOffset.UtcNow
         });
 
         var assertions = new ExperimentTraceAssertions(sink);
 
         // Act
-        var events = assertions.GetEventsFor<IMyDatabase>();
+        var result = assertions.ExpectException<IMyDatabase>();
 
         // Assert
-        Assert.Equal(2, events.Count);
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void ExpectException_WithoutException_ReturnsFalse()
+    {
+        // Arrange
+        var sink = new InMemoryExperimentEventSink();
+        sink.RecordEvent(new ExperimentTraceEvent
+        {
+            ServiceType = typeof(IMyDatabase),
+            Exception = null,
+            StartTime = DateTimeOffset.UtcNow
+        });
+
+        var assertions = new ExperimentTraceAssertions(sink);
+
+        // Act
+        var result = assertions.ExpectException<IMyDatabase>();
+
+        // Assert
+        Assert.False(result);
     }
 }

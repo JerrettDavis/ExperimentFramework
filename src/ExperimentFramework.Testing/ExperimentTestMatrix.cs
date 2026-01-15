@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace ExperimentFramework.Testing;
 
 /// <summary>
@@ -71,6 +73,26 @@ public static class ExperimentTestMatrix
         Action<IServiceProvider> test,
         ExperimentTestMatrixOptions? options = null)
     {
+        RunInAllProxyModes(services => { }, configure, test, options);
+    }
+
+    /// <summary>
+    /// Runs the same test logic across all configured proxy strategies with custom service configuration.
+    /// </summary>
+    /// <param name="configureServices">Action to configure DI services.</param>
+    /// <param name="configure">Action to configure the experiment framework builder.</param>
+    /// <param name="test">The test action to execute with the service provider.</param>
+    /// <param name="options">Optional matrix test options.</param>
+    /// <exception cref="AggregateException">
+    /// Thrown if any strategy test fails (when StopOnFirstFailure is false).
+    /// </exception>
+    public static void RunInAllProxyModes(
+        Action<IServiceCollection> configureServices,
+        Action<ExperimentFrameworkBuilder> configure,
+        Action<IServiceProvider> test,
+        ExperimentTestMatrixOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(configureServices);
         ArgumentNullException.ThrowIfNull(configure);
         ArgumentNullException.ThrowIfNull(test);
 
@@ -81,7 +103,7 @@ public static class ExperimentTestMatrix
         {
             try
             {
-                RunTestWithStrategy(strategy, configure, test);
+                RunTestWithStrategy(strategy, configureServices, configure, test);
             }
             catch (Exception ex)
             {
@@ -107,10 +129,11 @@ public static class ExperimentTestMatrix
 
     private static void RunTestWithStrategy(
         ProxyStrategy strategy,
+        Action<IServiceCollection> configureServices,
         Action<ExperimentFrameworkBuilder> configure,
         Action<IServiceProvider> test)
     {
-        var host = ExperimentTestHost.Create(services => { })
+        var host = ExperimentTestHost.Create(configureServices)
             .WithExperiments(builder =>
             {
                 // Apply strategy
