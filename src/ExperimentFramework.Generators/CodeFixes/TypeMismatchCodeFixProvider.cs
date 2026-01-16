@@ -56,6 +56,10 @@ public sealed class TypeMismatchCodeFixProvider : CodeFixProvider
             out var genericName, out var serviceType))
             return;
 
+        // After successful Try pattern, both should be non-null
+        if (genericName == null || serviceType == null)
+            return;
+
         var candidates = FindImplementingTypes(semanticModel.Compilation, serviceType, context.CancellationToken);
         RegisterCodeFixesForCandidates(context, diagnostic, genericName, candidates);
     }
