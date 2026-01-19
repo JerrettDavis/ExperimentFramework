@@ -63,7 +63,7 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       - name: Upload coverage HTML report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: coverage-report
@@ -174,7 +174,7 @@ jobs:
           ls -lh ./artifacts/schemas/
 
       - name: Upload packages as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: nuget-packages
           path: |
@@ -182,7 +182,7 @@ jobs:
             ./artifacts/*.snupkg
 
       - name: Upload schema files as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: configuration-schemas
           path: ./artifacts/schemas/*.json
