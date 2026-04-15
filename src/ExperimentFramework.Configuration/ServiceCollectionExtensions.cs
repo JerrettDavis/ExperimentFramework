@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using ExperimentFramework.Configuration.Building;
 using ExperimentFramework.Configuration.Exceptions;
 using ExperimentFramework.Configuration.Extensions;
@@ -371,9 +370,10 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
     private readonly ConfigurationExtensionRegistry? _extensionRegistry;
     private readonly ILogger? _logger;
     private readonly List<FileSystemWatcher> _watchers = [];
-    private readonly ConcurrentDictionary<string, DateTime> _lastChangeTime = new();
     private readonly TimeSpan _debounceInterval = TimeSpan.FromMilliseconds(500);
     private readonly object _reloadLock = new();
+    private readonly object _debounceLock = new();
+    private Timer? _debounceTimer;
     private bool _disposed;
 
     public ConfigurationFileWatcher(
@@ -447,21 +447,26 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
         if (!_filePaths.Contains(e.FullPath, StringComparer.OrdinalIgnoreCase))
             return;
 
-        // Debounce rapid successive changes
-        var now = DateTime.UtcNow;
-        if (_lastChangeTime.TryGetValue(e.FullPath, out var lastChange) &&
-            now - lastChange < _debounceInterval)
-        {
-            return;
-        }
-
-        _lastChangeTime[e.FullPath] = now;
-
         _logger?.LogInformation(
-            "Configuration file changed: {FilePath}, triggering reload",
+            "Configuration file changed: {FilePath}, scheduling reload",
             e.FullPath);
 
-        TriggerReload();
+        ScheduleReload();
+    }
+
+    private void ScheduleReload()
+    {
+        // True debounce: cancel any pending reload and schedule a new one after the interval.
+        // This ensures the file is fully written before we attempt to read it.
+        lock (_debounceLock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = new Timer(
+                _ => TriggerReload(),
+                null,
+                (int)_debounceInterval.TotalMilliseconds,
+                Timeout.Infinite);
+        }
     }
 
     private void OnFileRenamed(object sender, RenamedEventArgs e)
@@ -473,9 +478,15 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
 
     private void TriggerReload()
     {
+        if (_disposed)
+            return;
+
         // Ensure only one reload happens at a time
         lock (_reloadLock)
         {
+            if (_disposed)
+                return;
+
             try
             {
                 var loader = new ExperimentConfigurationLoader();
@@ -530,6 +541,13 @@ internal sealed class ConfigurationFileWatcher : IHostedService, IDisposable
             return;
 
         _disposed = true;
+
+        lock (_debounceLock)
+        {
+            _debounceTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+        }
 
         foreach (var watcher in _watchers)
         {
