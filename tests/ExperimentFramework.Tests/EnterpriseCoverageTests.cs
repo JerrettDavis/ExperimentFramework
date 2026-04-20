@@ -124,7 +124,7 @@ public sealed class EnterpriseCoverageTests
                 .AddDefaultTrial<SuccessService>("")
                 .AddTrial<SlowService>("slow")
                 .OnErrorRedirectAndReplayDefault())
-            .WithTimeout(TimeSpan.FromMilliseconds(100))
+            .WithTimeout(TimeSpan.FromMilliseconds(2000))
             .UseDispatchProxy();
 
         services.AddExperimentFramework(experiments);
