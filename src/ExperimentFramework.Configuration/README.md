@@ -92,7 +92,7 @@ Default scan paths:
 
 ## Documentation
 
-See the [full documentation](../../docs/user-guide/configuration.md) for:
+See the [full documentation](../../docs/reference/configuration.md) for:
 - Complete YAML schema reference
 - Type resolution strategies
 - Named experiments with hypotheses

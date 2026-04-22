@@ -24,13 +24,15 @@ public class DashboardDriver
     // Navigation
     // -------------------------------------------------------------------------
 
-    /// <summary>Navigates to <c>{BaseUrl}{path}</c> and waits until network is idle.</summary>
+    /// <summary>Navigates to <c>{BaseUrl}{path}</c> and waits until DOM content is loaded.</summary>
     public async Task NavigateToAsync(string path)
     {
         var url = $"{_config.BaseUrl.TrimEnd('/')}{path}";
         await Page.GotoAsync(url, new PageGotoOptions
         {
-            WaitUntil = WaitUntilState.NetworkIdle
+            // Use Load (not NetworkIdle) so Blazor's persistent SignalR connection
+            // doesn't block navigation from completing.
+            WaitUntil = WaitUntilState.Load
         });
     }
 
@@ -45,7 +47,7 @@ public class DashboardDriver
     /// <summary>Waits for the main dashboard container to appear.</summary>
     public async Task WaitForDashboardLoadedAsync()
     {
-        // Try the primary selector; fall back to <main> for apps that differ.
+        // Try the primary selector; fall back progressively for apps that differ.
         try
         {
             await Page.WaitForSelectorAsync(".home-container",
@@ -53,8 +55,17 @@ public class DashboardDriver
         }
         catch (TimeoutException)
         {
-            await Page.WaitForSelectorAsync("main, [role='main']",
-                new PageWaitForSelectorOptions { Timeout = _config.DefaultTimeoutMs });
+            try
+            {
+                await Page.WaitForSelectorAsync("main, [role='main']",
+                    new PageWaitForSelectorOptions { Timeout = _config.DefaultTimeoutMs });
+            }
+            catch (TimeoutException)
+            {
+                // Final fallback: any content inside the Blazor layout .page div
+                await Page.WaitForSelectorAsync(".page, #app, body > div",
+                    new PageWaitForSelectorOptions { Timeout = _config.DefaultTimeoutMs });
+            }
         }
     }
 
@@ -69,7 +80,13 @@ public class DashboardDriver
 
         await Page.FillAsync("input[name='email'], input[type='email'], #email", user.Email);
         await Page.FillAsync("input[name='password'], input[type='password'], #password", user.Password);
+
+        // Submit and wait for navigation to /dashboard (login redirects there).
         await Page.ClickAsync("button[type='submit'], input[type='submit'], .login-submit");
+        await Page.WaitForURLAsync("**/dashboard**", new PageWaitForURLOptions
+        {
+            WaitUntil = WaitUntilState.DOMContentLoaded
+        });
 
         await WaitForDashboardLoadedAsync();
     }

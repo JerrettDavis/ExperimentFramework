@@ -71,4 +71,4 @@ Plugins can include a manifest file for metadata and dependency declarations:
 
 ## Documentation
 
-See the [full documentation](../../docs/user-guide/plugins.md) for advanced configuration, security options, and plugin authoring guides.
+See the [full documentation](../../docs/reference/plugins.md) for advanced configuration, security options, and plugin authoring guides.

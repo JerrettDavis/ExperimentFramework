@@ -370,6 +370,6 @@ public async Task Experiment_WithFallback_RecordsFallbackEvent()
 
 ## Next Steps
 
-- Learn about [experiment selection modes](/user-guide/selection-modes.md)
-- Explore [error policies and fallback strategies](/user-guide/error-policies.md)
-- Set up [OpenTelemetry integration](/user-guide/opentelemetry.md)
+- Learn about [experiment selection modes](/reference/selection-modes.md)
+- Explore [error policies and fallback strategies](/reference/error-policies.md)
+- Set up [OpenTelemetry integration](/reference/opentelemetry.md)

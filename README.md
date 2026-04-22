@@ -326,7 +326,7 @@ t.UsingOpenFeature("payment-processor")
  .AddCondition<SquareProcessor>("square")
 ```
 
-See [OpenFeature Integration Guide](docs/user-guide/openfeature.md) for provider setup examples.
+See [OpenFeature Integration Guide](docs/reference/openfeature.md) for provider setup examples.
 
 ### Custom Selection Modes
 
@@ -360,7 +360,7 @@ t.UsingCustomMode("Redis", "cache:provider")
  .AddCondition<RedisCache>("redis")
 ```
 
-No factory classes needed! See [Extensibility Guide](docs/user-guide/extensibility.md) for details.
+No factory classes needed! See [Extensibility Guide](docs/reference/extensibility.md) for details.
 
 ## Error Policies
 
@@ -446,7 +446,7 @@ var experiments = ExperimentFrameworkBuilder.Create()
 - `TimeoutAction.ThrowException` - Throw `TimeoutException` when condition exceeds timeout
 - `TimeoutAction.FallbackToDefault` - Automatically fallback to control on timeout
 
-See [Timeout Enforcement Guide](docs/user-guide/timeout-enforcement.md) for detailed examples.
+See [Timeout Enforcement Guide](docs/reference/timeout-enforcement.md) for detailed examples.
 
 ## Circuit Breaker
 
@@ -474,7 +474,7 @@ var experiments = ExperimentFrameworkBuilder.Create()
     .UseDispatchProxy();
 ```
 
-See [Circuit Breaker Guide](docs/user-guide/circuit-breaker.md) for advanced configuration.
+See [Circuit Breaker Guide](docs/reference/circuit-breaker.md) for advanced configuration.
 
 ## Metrics Collection
 
@@ -498,7 +498,7 @@ app.MapGet("/metrics", () => prometheusMetrics.GeneratePrometheusOutput());
 - `experiment_invocations_total` (counter) - Total invocations per experiment/trial
 - `experiment_duration_seconds` (histogram) - Duration of each invocation
 
-See [Metrics Guide](docs/user-guide/metrics.md) for OpenTelemetry integration and Grafana dashboards.
+See [Metrics Guide](docs/reference/metrics.md) for OpenTelemetry integration and Grafana dashboards.
 
 ## Kill Switch
 
@@ -517,7 +517,7 @@ killSwitch.DisableExperiment(typeof(IMyDatabase));
 killSwitch.DisableCondition(typeof(IMyDatabase), "cloud");
 ```
 
-See [Kill Switch Guide](docs/user-guide/kill-switch.md) for distributed scenarios with Redis.
+See [Kill Switch Guide](docs/reference/kill-switch.md) for distributed scenarios with Redis.
 
 ## Custom Naming Conventions
 
@@ -614,7 +614,7 @@ public async Task Experiment_RecordsFallback()
 }
 ```
 
-**📖 [Full Diagnostics Guide](docs/user-guide/diagnostics.md)**
+**📖 [Full Diagnostics Guide](docs/reference/diagnostics.md)**
 
 ## YAML/JSON Configuration (NEW)
 
@@ -720,7 +720,7 @@ builder.Services.AddExperimentFrameworkFromConfiguration(builder.Configuration, 
 | `openFeature` | `.UsingOpenFeature()` |
 | `custom` | `.UsingCustomMode()` |
 
-See the [Configuration Guide](docs/user-guide/configuration.md) for complete documentation.
+See the [Configuration Guide](docs/reference/configuration.md) for complete documentation.
 
 ## Schema Stamping and Versioning (NEW)
 
@@ -774,7 +774,7 @@ var unifiedDoc = new UnifiedSchemaDocument
 - **Environment Compatibility**: Verify schema compatibility across environments
 - **Audit Compliance**: Maintain complete schema evolution history
 
-See the [Schema Stamping Guide](docs/user-guide/schema-stamping.md) for complete documentation.
+See the [Schema Stamping Guide](docs/reference/schema-stamping.md) for complete documentation.
 
 ## Configuration Example
 
@@ -1240,7 +1240,7 @@ var bh = BenjaminiHochbergCorrection.Instance.AdjustPValues(pValues);
 - Consider rolling out the treatment to all users.
 ```
 
-See the [Scientific Analysis Guide](docs/user-guide/statistical-analysis.md) for detailed documentation.
+See the [Scientific Analysis Guide](docs/reference/statistical-analysis.md) for detailed documentation.
 
 ## Plugin System (NEW)
 
@@ -1324,7 +1324,7 @@ experimentFramework:
 | `Shared` | Shares specified assemblies | Most common, allows DI integration |
 | `None` | Loads into default context | Fully trusted, maximum compatibility |
 
-See the [Plugin System Guide](docs/user-guide/plugins.md) for complete documentation.
+See the [Plugin System Guide](docs/reference/plugins.md) for complete documentation.
 
 ## API Reference
 

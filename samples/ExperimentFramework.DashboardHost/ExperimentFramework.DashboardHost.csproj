@@ -4,6 +4,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Required so the SDK includes Microsoft.AspNetCore.App.Internal.Assets (blazor.web.js)
+         in static web assets. The host has no .razor files of its own (they live in the
+         Dashboard.UI RCL), so the SDK would otherwise default this to false and omit the
+         Blazor framework JS entirely, causing /_framework/blazor.web.js to return 404. -->
+    <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExperimentFramework.Dashboard\ExperimentFramework.Dashboard.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Dashboard.UI\ExperimentFramework.Dashboard.UI.csproj" />
     <ProjectReference Include="..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
     <ProjectReference Include="..\..\src\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
     <ProjectReference Include="..\..\src\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />
