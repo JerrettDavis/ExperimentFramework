@@ -11,6 +11,7 @@ namespace ExperimentFramework.Simulation.Builders;
 /// <typeparam name="TService">The service interface type.</typeparam>
 /// <typeparam name="TResult">The result type.</typeparam>
 public sealed class SimulationRunner<TService, TResult>
+    where TService : notnull
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly List<string> _conditionNames = new();

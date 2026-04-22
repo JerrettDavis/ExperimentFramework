@@ -16,17 +16,16 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
 
     public RedisServiceCollectionExtensionsTests(ITestOutputHelper output) : base(output)
     {
-        _redis = new RedisBuilder()
-            .WithImage("redis:7-alpine")
+        _redis = new RedisBuilder("redis:7-alpine")
             .Build();
     }
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
         await _redis.StartAsync();
     }
 
-    public async Task DisposeAsync()
+    public override async Task DisposeAsync()
     {
         await _redis.DisposeAsync();
     }

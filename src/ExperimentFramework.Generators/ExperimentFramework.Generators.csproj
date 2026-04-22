@@ -26,9 +26,15 @@
     <NoPackageAnalysis>true</NoPackageAnalysis>
 
     <!-- Suppress warnings/errors for source generator packages -->
-    <NoWarn>$(NoWarn);NU5128;NU5017</NoWarn>
+    <!-- RS1038: Workspaces reference is required by code fix providers in this assembly -->
+    <NoWarn>$(NoWarn);NU5128;NU5017;RS1038</NoWarn>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU5017</WarningsNotAsErrors>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
