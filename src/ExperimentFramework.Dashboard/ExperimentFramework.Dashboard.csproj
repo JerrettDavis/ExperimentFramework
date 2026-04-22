@@ -12,8 +12,8 @@
     <Description>Enterprise-grade embeddable dashboard for ExperimentFramework. Provides a Hangfire-style web UI for managing A/B tests, feature flags, and experiments. Features include: experiment management, analytics visualization, governance workflows, rollout management, targeting rules, configuration DSL, and plugin support. Supports multi-tenancy and custom authorization. Embed with app.MapExperimentDashboard("/dashboard").</Description>
     <PackageTags>experiments;ab-testing;dashboard;blazor;governance;analytics;multi-tenancy;aspnetcore;middleware;hangfire-style</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/JerrettDavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JerrettDavis/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>DASHBOARD_README.md</PackageReadmeFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

@@ -12,8 +12,8 @@
     <Description>Abstractions and extensibility interfaces for the ExperimentFramework Dashboard. Provides ITenantResolver, IAuthorizationProvider, IDashboardDataProvider, and other extension points for customizing dashboard behavior in multi-tenant and enterprise scenarios.</Description>
     <PackageTags>experiments;ab-testing;dashboard;multi-tenancy;abstractions;extensibility;aspnetcore</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/JerrettDavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JerrettDavis/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
@@ -23,7 +23,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.9" />
-    <PackageReference Include="System.Security.Claims" Version="4.3.0" />
   </ItemGroup>
 
 </Project>
