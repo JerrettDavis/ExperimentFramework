@@ -63,7 +63,7 @@ jobs:
         run: |
           dotnet test tests/ExperimentFramework.E2E.Tests \
             --configuration Release \
-            --filter "Category=DocsScreenshot" \
+            --filter "Category=docs-screenshot" \
             --logger "trx;LogFileName=docs-screenshots.trx"
 
       - name: Stop DashboardHost
