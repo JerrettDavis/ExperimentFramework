@@ -1,5 +1,6 @@
 using ExperimentFramework.E2E.Tests.Drivers;
 using ExperimentFramework.E2E.Tests.PageObjects;
+using ExperimentFramework.E2E.Tests.Support;
 using Microsoft.Playwright;
 using Reqnroll;
 
@@ -10,13 +11,18 @@ public class GovernanceAuditStepDefinitions
 {
     private readonly BrowserDriver _browser;
     private readonly DashboardDriver _dashboard;
+    private readonly ScenarioContext _scenarioContext;
     private readonly GovernanceAuditPage _page;
 
-    public GovernanceAuditStepDefinitions(BrowserDriver browser, DashboardDriver dashboard)
+    public GovernanceAuditStepDefinitions(
+        BrowserDriver browser,
+        DashboardDriver dashboard,
+        ScenarioContext scenarioContext)
     {
-        _browser   = browser;
-        _dashboard = dashboard;
-        _page      = new GovernanceAuditPage(browser.Page);
+        _browser         = browser;
+        _dashboard       = dashboard;
+        _scenarioContext = scenarioContext;
+        _page            = new GovernanceAuditPage(browser.Page);
     }
 
     private IPage Page => _browser.Page;
@@ -30,6 +36,7 @@ public class GovernanceAuditStepDefinitions
     {
         await _dashboard.NavigateToAsync("/dashboard/governance/audit");
         await _page.WaitForPageLoadAsync();
+        _scenarioContext["ActiveGovernancePage"] = (IGovernanceSelectable)_page;
     }
 
     // -------------------------------------------------------------------------

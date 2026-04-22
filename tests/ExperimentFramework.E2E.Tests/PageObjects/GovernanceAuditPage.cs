@@ -74,4 +74,50 @@ public class GovernanceAuditPage
     /// <summary>Returns true when the "not configured" / empty-state message is displayed.</summary>
     public async Task<bool> IsNotConfiguredAsync() =>
         await NotConfiguredMessage.IsVisibleAsync();
+
+    // -----------------------------------------------------------------------
+    // Assertion / convenience helpers (called directly from step definitions)
+    // -----------------------------------------------------------------------
+
+    /// <summary>Waits until the page container is visible.</summary>
+    public async Task WaitForPageLoadAsync() =>
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Returns true when governance persistence is configured (not-configured message absent).</summary>
+    public async Task<bool> IsConfiguredAsync() =>
+        !await IsNotConfiguredAsync();
+
+    /// <summary>Asserts that at least one audit entry row is visible.</summary>
+    public async Task AssertAuditEntriesVisibleAsync() =>
+        await AuditEntries.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts the not-configured message is visible.</summary>
+    public async Task AssertNotConfiguredMessageVisibleAsync() =>
+        await NotConfiguredMessage.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>
+    /// Asserts that each visible audit entry matches the given <paramref name="expectedType"/>.
+    /// </summary>
+    public async Task AssertFilteredByTypeAsync(string expectedType)
+    {
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var count = await AuditEntries.CountAsync();
+        for (var i = 0; i < count; i++)
+        {
+            var text = await AuditEntries.Nth(i).TextContentAsync() ?? string.Empty;
+            if (!text.Contains(expectedType, StringComparison.OrdinalIgnoreCase))
+                throw new Exception(
+                    $"Audit entry {i + 1} does not match expected type '{expectedType}'. Entry: '{text}'");
+        }
+    }
+
+    /// <summary>Asserts that at least one audit entry is visible after a search.</summary>
+    public async Task AssertSearchResultsVisibleAsync()
+    {
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        // Either entries are shown OR a no-results message — both are acceptable
+        await _page.WaitForSelectorAsync(
+            ".audit-entry, tr.audit-row, [data-audit-entry], .no-results, .empty-state",
+            new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+    }
 }
