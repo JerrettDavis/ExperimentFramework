@@ -115,15 +115,59 @@ public static class ExperimentEndpoints
         IServiceProvider sp,
         ActivateVariantRequest request)
     {
-        // TODO: Implement variant activation logic
-        // This will require integration with selection mode providers
-        return Results.Ok(new
+        var registry = sp.GetService<IExperimentRegistry>();
+        if (registry == null)
         {
-            experimentName = name,
-            variant = request.VariantKey,
-            message = "Variant activation endpoint (implementation pending)"
-        });
+            return Results.NotFound(new { error = "Experiment registry not available" });
+        }
+
+        var experiment = registry.GetExperiment(name);
+        if (experiment == null)
+        {
+            return Results.NotFound(new { error = $"Experiment '{name}' not found" });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.VariantKey))
+        {
+            return Results.BadRequest(new { error = "VariantKey must be provided" });
+        }
+
+        var variantExists = experiment.Trials?.Any(t =>
+            string.Equals(t.Key, request.VariantKey, StringComparison.OrdinalIgnoreCase)) ?? false;
+
+        if (!variantExists)
+        {
+            return Results.NotFound(new { error = $"Variant '{request.VariantKey}' not found in experiment '{name}'" });
+        }
+
+        // Use IDashboardDataProvider to check availability, then activate via mutable registry
+        if (registry is IMutableExperimentRegistry mutableRegistry)
+        {
+            // Ensure the experiment is active
+            if (!experiment.IsActive)
+            {
+                mutableRegistry.SetExperimentActive(name, true);
+            }
+
+            // Check for a variant override service
+            var variantOverride = sp.GetService<IVariantOverrideService>();
+            if (variantOverride != null)
+            {
+                variantOverride.SetActiveVariant(name, request.VariantKey);
+            }
+
+            return Results.Ok(new
+            {
+                experimentName = name,
+                activatedVariant = request.VariantKey,
+                experimentActive = true
+            });
+        }
+
+        return Results.BadRequest(new { error = "Registry does not support modifications" });
     }
 }
 
+/// <summary>Request to activate a specific experiment variant.</summary>
+/// <param name="VariantKey">The key of the variant to activate.</param>
 public record ActivateVariantRequest(string VariantKey);

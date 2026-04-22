@@ -73,12 +73,70 @@ public static class ConfigurationEndpoints
         var registry = sp.GetService<IExperimentRegistry>();
         if (registry == null)
         {
-            return Results.Ok("# No experiments configured");
+            return Results.Text("# No experiments configured\n", "text/yaml");
         }
 
-        // TODO: Implement YAML export from registry
-        var yaml = "# ExperimentFramework Configuration\n# YAML export implementation pending\n";
+        var experiments = registry.GetAllExperiments().ToList();
+        var sb = new System.Text.StringBuilder();
 
-        return Results.Ok(yaml);
+        sb.AppendLine("# ExperimentFramework Configuration Export");
+        sb.AppendLine($"# Generated: {DateTimeOffset.UtcNow:O}");
+        sb.AppendLine();
+
+        if (experiments.Count == 0)
+        {
+            sb.AppendLine("experiments: []");
+            return Results.Text(sb.ToString(), "text/yaml");
+        }
+
+        sb.AppendLine("experiments:");
+
+        foreach (var exp in experiments)
+        {
+            sb.AppendLine($"  - name: {YamlEscape(exp.Name)}");
+            sb.AppendLine($"    active: {(exp.IsActive ? "true" : "false")}");
+
+            if (exp.ServiceType != null)
+            {
+                sb.AppendLine($"    serviceType: {YamlEscape(exp.ServiceType.FullName ?? exp.ServiceType.Name)}");
+            }
+
+            if (exp.Trials != null && exp.Trials.Count > 0)
+            {
+                sb.AppendLine("    trials:");
+                foreach (var trial in exp.Trials)
+                {
+                    sb.AppendLine($"      - key: {YamlEscape(trial.Key)}");
+                    sb.AppendLine($"        isControl: {(trial.IsControl ? "true" : "false")}");
+                    if (trial.ImplementationType != null)
+                    {
+                        sb.AppendLine($"        implementationType: {YamlEscape(trial.ImplementationType.FullName ?? trial.ImplementationType.Name)}");
+                    }
+                }
+            }
+
+            if (exp.Metadata != null && exp.Metadata.Count > 0)
+            {
+                sb.AppendLine("    metadata:");
+                foreach (var kvp in exp.Metadata)
+                {
+                    sb.AppendLine($"      {YamlEscape(kvp.Key)}: {YamlEscape(kvp.Value?.ToString())}");
+                }
+            }
+        }
+
+        return Results.Text(sb.ToString(), "text/yaml");
+    }
+
+    private static string YamlEscape(string? value)
+    {
+        if (value == null) return "~";
+        if (value.Contains(':') || value.Contains('#') || value.Contains('\'') ||
+            value.Contains('"') || value.StartsWith(' ') || value.EndsWith(' ') ||
+            value.Contains('\n') || value.Contains('\r'))
+        {
+            return $"'{value.Replace("'", "''")}'";
+        }
+        return value;
     }
 }
