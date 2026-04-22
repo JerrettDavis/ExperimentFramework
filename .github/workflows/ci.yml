@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   DOTNET_NOLOGO: true
   INCLUDE_SYMBOLS: true
@@ -15,6 +19,7 @@ jobs:
   pr-checks:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
@@ -29,6 +34,8 @@ jobs:
             8.0.x
             9.0.x
             10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore
         run: |
@@ -67,6 +74,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage-report
+          retention-days: 14
 
       - name: Add coverage summary to PR
         uses: marocchino/sticky-pull-request-comment@v3
@@ -89,9 +97,53 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # E2E tests require the AspireDemo app to be running — marked continue-on-error as informational
+  e2e-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: pr-checks
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore --use-lock-file
+
+      - name: Build E2E tests (Release)
+        run: dotnet build tests/ExperimentFramework.E2E.Tests/ --configuration Release --no-restore
+
+      - name: Install Playwright browsers
+        run: |
+          PLAYWRIGHT_PS1=$(find tests/ExperimentFramework.E2E.Tests/bin/Release -name "playwright.ps1" | head -1)
+          if [ -z "$PLAYWRIGHT_PS1" ]; then
+            echo "playwright.ps1 not found, skipping browser install"
+            exit 0
+          fi
+          pwsh "$PLAYWRIGHT_PS1" install --with-deps chromium
+
+      - name: Run E2E tests
+        run: dotnet test tests/ExperimentFramework.E2E.Tests/ --configuration Release --verbosity quiet --filter "Category!=Manual"
+
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: write
       packages: write
@@ -108,6 +160,8 @@ jobs:
             8.0.x
             9.0.x
             10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore
         run: |
@@ -151,7 +205,24 @@ jobs:
           /p:PackageVersion=${{ env.PACKAGE_VERSION }}
 
       - name: Test (Release)
-        run: dotnet test ExperimentFramework.slnx --configuration Release --no-build --verbosity normal
+        run: |
+          dotnet test ExperimentFramework.slnx \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --collect:"XPlat Code Coverage" \
+            --settings tests/ExperimentFramework.Tests/coverage.runsettings
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: |
+            **/TestResults/*/coverage.cobertura.xml
+          flags: unittests
+          fail_ci_if_error: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Pack (all packable projects)
         run: >
@@ -165,7 +236,7 @@ jobs:
           /p:Version=${{ env.PACKAGE_VERSION }}
           /p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }}
           /p:FileVersion=${{ env.FILE_VERSION }}
-          /p:PackageVersion=${{ env.PACKAGE_VERSION }} || true
+          /p:PackageVersion=${{ env.PACKAGE_VERSION }}
 
       - name: Generate configuration schemas
         run: |
@@ -180,12 +251,14 @@ jobs:
           path: |
             ./artifacts/*.nupkg
             ./artifacts/*.snupkg
+          retention-days: 30
 
       - name: Upload schema files as artifact
         uses: actions/upload-artifact@v7
         with:
           name: configuration-schemas
           path: ./artifacts/schemas/*.json
+          retention-days: 30
 
       - name: Create and push git tag
         shell: bash

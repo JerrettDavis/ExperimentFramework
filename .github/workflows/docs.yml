@@ -7,6 +7,7 @@ on:
 
 permissions:
   actions: read
+  contents: read
   pages: write
   id-token: write
 
@@ -20,9 +21,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
       - name: Dotnet Setup
         uses: actions/setup-dotnet@v5
         with:
@@ -35,6 +38,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: 'docs/_site'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

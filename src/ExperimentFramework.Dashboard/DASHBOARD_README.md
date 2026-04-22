@@ -189,6 +189,6 @@ MIT
 
 ## Links
 
-- [GitHub Repository](https://github.com/yourusername/ExperimentFramework)
-- [Documentation](https://github.com/yourusername/ExperimentFramework/wiki)
-- [Sample Application](https://github.com/yourusername/ExperimentFramework/tree/main/samples/ExperimentFramework.DashboardHost)
+- [GitHub Repository](https://github.com/JerrettDavis/ExperimentFramework)
+- [Documentation](https://github.com/JerrettDavis/ExperimentFramework/wiki)
+- [Sample Application](https://github.com/JerrettDavis/ExperimentFramework/tree/main/samples/ExperimentFramework.DashboardHost)

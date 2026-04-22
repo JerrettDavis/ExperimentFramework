@@ -19,7 +19,7 @@ public class ExperimentConfigurationLoaderEdgeCaseTests : TinyBddXunitBase, IDis
         Directory.CreateDirectory(_tempDir);
     }
 
-    public new void Dispose()
+    public void Dispose()
     {
         if (Directory.Exists(_tempDir))
         {

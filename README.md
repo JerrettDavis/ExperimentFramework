@@ -1,6 +1,43 @@
+[![CI](https://github.com/JerrettDavis/ExperimentFramework/actions/workflows/ci.yml/badge.svg)](https://github.com/JerrettDavis/ExperimentFramework/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/JerrettDavis/ExperimentFramework/branch/main/graph/badge.svg)](https://codecov.io/gh/JerrettDavis/ExperimentFramework)
+[![NuGet](https://img.shields.io/nuget/v/ExperimentFramework.svg)](https://www.nuget.org/packages/ExperimentFramework)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/ExperimentFramework.svg)](https://www.nuget.org/packages/ExperimentFramework)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4)](https://dotnet.microsoft.com)
+
 # ExperimentFramework
 
-A .NET library for routing service calls through configurable trials based on feature flags, configuration values, or custom routing logic.
+A .NET library for routing service calls through configurable trials based on feature flags, configuration values, or custom routing logic. Targets .NET 8, .NET 9, and .NET 10.
+
+## Packages
+
+ExperimentFramework is distributed across modular NuGet packages. Install the core package, then add only the extensions you need:
+
+| Package | Description |
+|---------|-------------|
+| `ExperimentFramework` | Core framework — proxy routing, selection modes, DI registration |
+| `ExperimentFramework.Generators` | Roslyn source generator for compile-time proxies |
+| `ExperimentFramework.Configuration` | YAML/JSON experiment definition DSL |
+| `ExperimentFramework.Data` | Outcome recording and aggregation |
+| `ExperimentFramework.Science` | Statistical analysis (t-test, chi-square, Mann-Whitney, ANOVA) |
+| `ExperimentFramework.Resilience` | Polly circuit breaker, timeout, kill switch |
+| `ExperimentFramework.FeatureManagement` | Microsoft.FeatureManagement integration |
+| `ExperimentFramework.OpenFeature` | OpenFeature SDK integration |
+| `ExperimentFramework.StickyRouting` | Deterministic identity-based routing |
+| `ExperimentFramework.Bandit` | Multi-armed bandit algorithms |
+| `ExperimentFramework.Rollout` | Progressive percentage-based rollout |
+| `ExperimentFramework.Targeting` | User/context targeting rules |
+| `ExperimentFramework.AutoStop` | Automatic stopping rules |
+| `ExperimentFramework.Governance` | Lifecycle, approvals, policy-as-code |
+| `ExperimentFramework.Dashboard` | Embeddable Blazor dashboard UI |
+| `ExperimentFramework.Plugins` | Dynamic plugin system |
+| `ExperimentFramework.Distributed` | Distributed state management |
+| `ExperimentFramework.Distributed.Redis` | Redis distributed backend |
+| `ExperimentFramework.Diagnostics` | Event sinks (InMemory, Logger, OpenTelemetry) |
+| `ExperimentFramework.Audit` | Audit logging |
+| `ExperimentFramework.Simulation` | Shadow mode execution |
+| `ExperimentFramework.Testing` | Test utilities and helpers |
+| `ExperimentFramework.Metrics.Exporters` | Prometheus/OTel metrics |
 
 ## ✨ New: Enterprise-Grade DI Mutation Safety
 

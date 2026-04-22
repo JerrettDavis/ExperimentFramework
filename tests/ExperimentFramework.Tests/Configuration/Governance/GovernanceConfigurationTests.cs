@@ -24,7 +24,7 @@ public class GovernanceConfigurationTests : TinyBddXunitBase, IDisposable
         Directory.CreateDirectory(_tempDir);
     }
 
-    public new void Dispose()
+    public void Dispose()
     {
         if (Directory.Exists(_tempDir))
         {

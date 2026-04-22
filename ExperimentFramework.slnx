@@ -48,6 +48,7 @@
     <Project Path="src/ExperimentFramework/ExperimentFramework.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ExperimentFramework.E2E.Tests/ExperimentFramework.E2E.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Generators.Tests/ExperimentFramework.Generators.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Plugins.Generators.Tests/ExperimentFramework.Plugins.Generators.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Plugins.Tests/ExperimentFramework.Plugins.Tests.csproj" />

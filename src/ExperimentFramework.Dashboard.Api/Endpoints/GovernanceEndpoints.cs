@@ -214,26 +214,204 @@ public static class GovernanceEndpoints
         });
     }
 
-    private static IResult ApproveTransition(string id, IServiceProvider sp)
+    private static async Task<IResult> ApproveTransition(
+        string id,
+        IServiceProvider sp,
+        ApproveRequest request,
+        CancellationToken ct)
     {
-        // TODO: Approve transition (Phase 4)
+        var backplane = sp.GetService<IGovernancePersistenceBackplane>();
+        if (backplane == null)
+        {
+            return Results.BadRequest(new { message = "Governance persistence not configured" });
+        }
+
+        // Look up transition records to find the approval target
+        var approvalsByTransition = await backplane.GetApprovalRecordsByTransitionAsync(id, ct);
+        if (!approvalsByTransition.Any())
+        {
+            // No prior records — create a new approval record. The caller provides context.
+            if (string.IsNullOrWhiteSpace(request?.ExperimentName))
+            {
+                return Results.BadRequest(new { message = "experimentName is required when no prior approval records exist for this transition" });
+            }
+        }
+
+        var experimentName = request?.ExperimentName
+            ?? approvalsByTransition.FirstOrDefault()?.ExperimentName;
+
+        if (string.IsNullOrWhiteSpace(experimentName))
+        {
+            return Results.BadRequest(new { message = "Could not determine experiment name for transition" });
+        }
+
+        var currentState = await backplane.GetExperimentStateAsync(experimentName, cancellationToken: ct);
+        if (currentState == null)
+        {
+            return Results.NotFound(new { message = $"No governance state found for experiment '{experimentName}'" });
+        }
+
+        // Record the approval
+        var approvalRecord = new PersistedApprovalRecord
+        {
+            ApprovalId = Guid.NewGuid().ToString(),
+            ExperimentName = experimentName,
+            TransitionId = id,
+            FromState = currentState.CurrentState,
+            ToState = ExperimentLifecycleState.Approved,
+            IsApproved = true,
+            Approver = request?.Actor,
+            Reason = request?.Reason,
+            Timestamp = DateTimeOffset.UtcNow,
+            GateName = "DashboardApproval",
+            TenantId = currentState.TenantId,
+            Environment = currentState.Environment
+        };
+
+        await backplane.AppendApprovalRecordAsync(approvalRecord, ct);
+
+        // If state is PendingApproval, advance to Approved
+        if (currentState.CurrentState == ExperimentLifecycleState.PendingApproval)
+        {
+            var transition = new PersistedStateTransition
+            {
+                TransitionId = id,
+                ExperimentName = experimentName,
+                FromState = currentState.CurrentState,
+                ToState = ExperimentLifecycleState.Approved,
+                Timestamp = DateTimeOffset.UtcNow,
+                Actor = request?.Actor ?? "unknown",
+                Reason = request?.Reason ?? "Approved via dashboard",
+                TenantId = currentState.TenantId,
+                Environment = currentState.Environment
+            };
+
+            await backplane.AppendStateTransitionAsync(transition, ct);
+
+            var newState = new PersistedExperimentState
+            {
+                ExperimentName = experimentName,
+                CurrentState = ExperimentLifecycleState.Approved,
+                ConfigurationVersion = currentState.ConfigurationVersion,
+                LastModified = DateTimeOffset.UtcNow,
+                LastModifiedBy = request?.Actor ?? "unknown",
+                ETag = Guid.NewGuid().ToString(),
+                Metadata = currentState.Metadata,
+                TenantId = currentState.TenantId,
+                Environment = currentState.Environment
+            };
+
+            var result = await backplane.SaveExperimentStateAsync(newState, currentState.ETag, ct);
+            if (!result.Success)
+            {
+                return Results.Conflict(new { message = "State update failed due to concurrency conflict" });
+            }
+        }
+
         return Results.Ok(new
         {
-            id,
+            transitionId = id,
+            experimentName,
             status = "Approved",
-            message = "Approval implementation pending (Phase 4)"
+            approvalId = approvalRecord.ApprovalId,
+            approver = request?.Actor,
+            timestamp = approvalRecord.Timestamp
         });
     }
 
-    private static IResult RejectTransition(string id, IServiceProvider sp, RejectRequest request)
+    private static async Task<IResult> RejectTransition(
+        string id,
+        IServiceProvider sp,
+        RejectRequest request,
+        CancellationToken ct)
     {
-        // TODO: Reject transition (Phase 4)
+        var backplane = sp.GetService<IGovernancePersistenceBackplane>();
+        if (backplane == null)
+        {
+            return Results.BadRequest(new { message = "Governance persistence not configured" });
+        }
+
+        var approvalsByTransition = await backplane.GetApprovalRecordsByTransitionAsync(id, ct);
+        var experimentName = request?.ExperimentName
+            ?? approvalsByTransition.FirstOrDefault()?.ExperimentName;
+
+        if (string.IsNullOrWhiteSpace(experimentName))
+        {
+            return Results.BadRequest(new { message = "Could not determine experiment name for transition. Provide experimentName in the request body." });
+        }
+
+        var currentState = await backplane.GetExperimentStateAsync(experimentName, cancellationToken: ct);
+        if (currentState == null)
+        {
+            return Results.NotFound(new { message = $"No governance state found for experiment '{experimentName}'" });
+        }
+
+        // Record the rejection
+        var rejectionRecord = new PersistedApprovalRecord
+        {
+            ApprovalId = Guid.NewGuid().ToString(),
+            ExperimentName = experimentName,
+            TransitionId = id,
+            FromState = currentState.CurrentState,
+            ToState = ExperimentLifecycleState.Rejected,
+            IsApproved = false,
+            Approver = request?.Actor,
+            Reason = request?.Reason,
+            Timestamp = DateTimeOffset.UtcNow,
+            GateName = "DashboardApproval",
+            TenantId = currentState.TenantId,
+            Environment = currentState.Environment
+        };
+
+        await backplane.AppendApprovalRecordAsync(rejectionRecord, ct);
+
+        // If state is PendingApproval, move to Rejected
+        if (currentState.CurrentState == ExperimentLifecycleState.PendingApproval)
+        {
+            var transition = new PersistedStateTransition
+            {
+                TransitionId = id,
+                ExperimentName = experimentName,
+                FromState = currentState.CurrentState,
+                ToState = ExperimentLifecycleState.Rejected,
+                Timestamp = DateTimeOffset.UtcNow,
+                Actor = request?.Actor ?? "unknown",
+                Reason = request?.Reason ?? "Rejected via dashboard",
+                TenantId = currentState.TenantId,
+                Environment = currentState.Environment
+            };
+
+            await backplane.AppendStateTransitionAsync(transition, ct);
+
+            var newState = new PersistedExperimentState
+            {
+                ExperimentName = experimentName,
+                CurrentState = ExperimentLifecycleState.Rejected,
+                ConfigurationVersion = currentState.ConfigurationVersion,
+                LastModified = DateTimeOffset.UtcNow,
+                LastModifiedBy = request?.Actor ?? "unknown",
+                ETag = Guid.NewGuid().ToString(),
+                Metadata = currentState.Metadata,
+                TenantId = currentState.TenantId,
+                Environment = currentState.Environment
+            };
+
+            var result = await backplane.SaveExperimentStateAsync(newState, currentState.ETag, ct);
+            if (!result.Success)
+            {
+                return Results.Conflict(new { message = "State update failed due to concurrency conflict" });
+            }
+        }
+
         return Results.Ok(new
         {
-            id,
+            transitionId = id,
+            experimentName,
             status = "Rejected",
-            reason = request.Reason,
-            message = "Rejection implementation pending (Phase 4)"
+            rejectionId = rejectionRecord.ApprovalId,
+            rejector = request?.Actor,
+            reason = request?.Reason,
+            timestamp = rejectionRecord.Timestamp
         });
     }
 
@@ -437,5 +615,20 @@ public static class GovernanceEndpoints
 }
 }
 
+/// <summary>Request to transition an experiment to a new governance state.</summary>
+/// <param name="TargetState">The target governance state.</param>
+/// <param name="Actor">The actor performing the transition, if any.</param>
+/// <param name="Reason">The reason for the transition, if any.</param>
 public record TransitionStateRequest(string TargetState, string? Actor = null, string? Reason = null);
-public record RejectRequest(string Reason);
+
+/// <summary>Request to approve an experiment governance action.</summary>
+/// <param name="ExperimentName">The experiment name (required when no prior approval records exist for the transition).</param>
+/// <param name="Actor">The approver identity.</param>
+/// <param name="Reason">The reason for approval.</param>
+public record ApproveRequest(string? ExperimentName = null, string? Actor = null, string? Reason = null);
+
+/// <summary>Request to reject an experiment governance action.</summary>
+/// <param name="Reason">The reason for rejection.</param>
+/// <param name="ExperimentName">The experiment name (required when no prior approval records exist for the transition).</param>
+/// <param name="Actor">The rejector identity.</param>
+public record RejectRequest(string Reason, string? ExperimentName = null, string? Actor = null);

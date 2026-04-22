@@ -12,8 +12,8 @@
     <Description>API endpoints for the ExperimentFramework Dashboard. Provides REST APIs for experiment management, configuration, governance workflows, analytics, rollout, and targeting. Used internally by ExperimentFramework.Dashboard package.</Description>
     <PackageTags>experiments;ab-testing;dashboard;api;rest;aspnetcore</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/JerrettDavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JerrettDavis/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>

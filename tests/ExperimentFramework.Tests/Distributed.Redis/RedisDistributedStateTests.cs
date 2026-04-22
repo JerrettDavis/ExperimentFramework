@@ -16,18 +16,17 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
 
     public RedisDistributedStateTests(ITestOutputHelper output) : base(output)
     {
-        _redis = new RedisBuilder()
-            .WithImage("redis:7-alpine")
+        _redis = new RedisBuilder("redis:7-alpine")
             .Build();
     }
 
-    public async Task InitializeAsync()
+    public override async Task InitializeAsync()
     {
         await _redis.StartAsync();
         _connection = await ConnectionMultiplexer.ConnectAsync(_redis.GetConnectionString());
     }
 
-    public async Task DisposeAsync()
+    public override async Task DisposeAsync()
     {
         if (_connection != null)
         {

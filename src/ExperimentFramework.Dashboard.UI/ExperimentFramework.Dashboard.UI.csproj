@@ -14,8 +14,8 @@
     <Description>Blazor UI components for the ExperimentFramework Dashboard. Provides a rich web interface for managing experiments, viewing analytics, governance workflows, and configuration. Embedded as a Razor Class Library with static web assets.</Description>
     <PackageTags>experiments;ab-testing;dashboard;blazor;ui;aspnetcore;razor</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/ExperimentFramework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/ExperimentFramework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/JerrettDavis/ExperimentFramework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/JerrettDavis/ExperimentFramework</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>

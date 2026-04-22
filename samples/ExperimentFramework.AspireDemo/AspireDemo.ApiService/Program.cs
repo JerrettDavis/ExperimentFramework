@@ -1105,8 +1105,8 @@ app.MapGet("/api/blog/editor/config", (BlogPluginStateManager blogPlugins, IKill
     var config = activeEditor.Alias switch
     {
         "markdown" => new { Type = "markdown", ScriptUrl = (string?)null, StyleUrl = (string?)null },
-        "tinymce" => new { Type = "tinymce", ScriptUrl = "https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js", StyleUrl = (string?)null },
-        "quill" => new { Type = "quill", ScriptUrl = "https://cdn.quilljs.com/1.3.6/quill.min.js", StyleUrl = "https://cdn.quilljs.com/1.3.6/quill.snow.css" },
+        "tinymce" => new { Type = "tinymce", ScriptUrl = (string?)"https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js", StyleUrl = (string?)null },
+        "quill" => new { Type = "quill", ScriptUrl = (string?)"https://cdn.quilljs.com/1.3.6/quill.min.js", StyleUrl = (string?)"https://cdn.quilljs.com/1.3.6/quill.snow.css" },
         _ => new { Type = "markdown", ScriptUrl = (string?)null, StyleUrl = (string?)null }
     };
 

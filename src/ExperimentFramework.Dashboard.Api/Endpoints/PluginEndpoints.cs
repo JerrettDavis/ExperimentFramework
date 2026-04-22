@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using ExperimentFramework.Dashboard.Abstractions;
 
 namespace ExperimentFramework.Dashboard.Api.Endpoints;
 
@@ -32,36 +33,47 @@ public static class PluginEndpoints
         return group;
     }
 
-    private static IResult GetPlugins(IServiceProvider sp)
+    private static async Task<IResult> GetPlugins(IServiceProvider sp, CancellationToken ct)
     {
-        // TODO: Integrate with plugin discovery system
-        var plugins = new[]
+        var pluginService = sp.GetService<IPluginManagementService>();
+        if (pluginService == null)
         {
-            new
-            {
-                id = "example-plugin",
-                name = "Example Plugin",
-                version = "1.0.0",
-                status = "Loaded",
-                implementations = new[]
-                {
-                    new { interfaceName = "IExampleService", typeName = "ExampleImplementation" }
-                }
-            }
-        };
+            return Results.StatusCode(501);
+        }
 
-        return Results.Ok(new { plugins, message = "Plugin integration pending" });
+        var plugins = await pluginService.GetLoadedPluginsAsync(ct);
+        return Results.Ok(new { plugins });
     }
 
-    private static IResult DiscoverPlugins(IServiceProvider sp)
+    private static async Task<IResult> DiscoverPlugins(IServiceProvider sp, CancellationToken ct)
     {
-        // TODO: Trigger plugin discovery
-        return Results.Ok(new { message = "Plugin discovery triggered (implementation pending)" });
+        var pluginService = sp.GetService<IPluginManagementService>();
+        if (pluginService == null)
+        {
+            return Results.StatusCode(501);
+        }
+
+        var discovered = await pluginService.DiscoverPluginsAsync(ct);
+        return Results.Ok(new
+        {
+            discoveredCount = discovered.Count,
+            plugins = discovered
+        });
     }
 
-    private static IResult ReloadPlugins(IServiceProvider sp)
+    private static async Task<IResult> ReloadPlugins(IServiceProvider sp, CancellationToken ct)
     {
-        // TODO: Reload plugin assemblies
-        return Results.Ok(new { message = "Plugin reload triggered (implementation pending)" });
+        var pluginService = sp.GetService<IPluginManagementService>();
+        if (pluginService == null)
+        {
+            return Results.StatusCode(501);
+        }
+
+        var reloaded = await pluginService.ReloadAllPluginsAsync(ct);
+        return Results.Ok(new
+        {
+            reloadedCount = reloaded.Count,
+            plugins = reloaded
+        });
     }
 }

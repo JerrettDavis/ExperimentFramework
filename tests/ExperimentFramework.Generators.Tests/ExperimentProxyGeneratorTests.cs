@@ -438,7 +438,7 @@ public class ExperimentProxyGeneratorTests
         foreach (var tree in generatedTrees)
         {
             var syntaxDiagnostics = tree.GetDiagnostics();
-            Assert.Empty(syntaxDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+            Assert.DoesNotContain(syntaxDiagnostics, d => d.Severity == DiagnosticSeverity.Error);
         }
     }
 

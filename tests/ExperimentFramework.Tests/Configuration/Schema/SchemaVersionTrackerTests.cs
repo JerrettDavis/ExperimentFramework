@@ -23,7 +23,7 @@ public class SchemaVersionTrackerTests : TinyBddXunitBase, IDisposable
         return file;
     }
 
-    public new void Dispose()
+    public void Dispose()
     {
         foreach (var file in _tempFiles)
         {

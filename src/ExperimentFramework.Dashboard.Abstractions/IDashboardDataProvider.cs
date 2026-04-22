@@ -5,7 +5,7 @@ namespace ExperimentFramework.Dashboard.Abstractions;
 /// </summary>
 /// <remarks>
 /// Implementations can add caching, filtering, or other cross-cutting concerns.
-/// The default implementation delegates to <see cref="IExperimentRegistry"/>.
+/// The default implementation delegates to <c>IExperimentRegistry</c>.
 /// </remarks>
 public interface IDashboardDataProvider
 {

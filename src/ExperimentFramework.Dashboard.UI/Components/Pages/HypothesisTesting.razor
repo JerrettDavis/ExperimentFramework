@@ -659,8 +659,8 @@
                     var result = System.Text.Json.JsonSerializer.Deserialize<HypothesisResultResponse>(json);
                     if (result?.Hypothesis?.Results != null)
                     {
-                        experiment.Hypothesis.Results = result.Hypothesis.Results;
-                        experiment.Hypothesis.Status = result.Hypothesis.Status;
+                        experiment.Hypothesis!.Results = result.Hypothesis.Results;
+                        experiment.Hypothesis!.Status = result.Hypothesis.Status;
                     }
                 }
             }
