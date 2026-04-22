@@ -190,395 +190,77 @@
 
 ---
 
-### Task 3: Create `DocsDemoSeeder.cs` skeleton with experiment state scaffolding
+### Task 3: Define 5 demo service interfaces + implementations, and register them via `ExperimentFrameworkBuilder` in `Program.cs`
 
-**Estimated time:** 25–35 minutes
-
-- [ ] **Step 3.1** — Create `samples/ExperimentFramework.DashboardHost/DocsDemoSeeder.cs` with experiment definitions only (analytics, approvals, audit, etc. will be added in Task 4):
-  ```csharp
-  using ExperimentFramework;
-  using ExperimentFramework.Configuration;
-
-  namespace ExperimentFramework.DashboardHost;
-
-  /// <summary>
-  /// Seeds a curated demo dataset for docs screenshot capture.
-  /// Activated via --seed=docs CLI arg or EXPERIMENT_DEMO_SEED=docs env var.
-  /// Idempotent unless --reset is also passed.
-  /// </summary>
-  public class DocsDemoSeeder
-  {
-      private readonly IExperimentRepository _repository;
-      private readonly ILogger<DocsDemoSeeder> _logger;
-
-      private static readonly DateTimeOffset FrozenNow =
-          new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero);
-
-      public DocsDemoSeeder(IExperimentRepository repository, ILogger<DocsDemoSeeder> logger)
-      {
-          _repository = repository;
-          _logger     = logger;
-      }
-
-      /// <summary>Seeds the five canonical demo experiments.</summary>
-      public async Task SeedAsync(bool reset, CancellationToken ct = default)
-      {
-          if (reset)
-          {
-              _logger.LogInformation("[DocsDemoSeeder] --reset: clearing existing state");
-              await _repository.ClearAllAsync(ct);
-          }
-          else if (await _repository.AnyAsync(ct))
-          {
-              _logger.LogInformation("[DocsDemoSeeder] Seed already applied — skipping (use --reset to force)");
-              return;
-          }
-
-          _logger.LogInformation("[DocsDemoSeeder] Seeding experiments...");
-          await SeedExperimentsAsync(ct);
-          _logger.LogInformation("[DocsDemoSeeder] Done seeding experiments");
-      }
-
-      // ------------------------------------------------------------------
-      // Experiments
-      // ------------------------------------------------------------------
-
-      private async Task SeedExperimentsAsync(CancellationToken ct)
-      {
-          // 1. checkout-button-v2  — Running, 50% rollout, stat-sig winner after 14 days
-          await _repository.CreateAsync(new ExperimentDefinition
-          {
-              Id          = "checkout-button-v2",
-              DisplayName = "Checkout Button V2",
-              Description = "Tests a redesigned checkout CTA button against the control.",
-              Category    = "Revenue",
-              Status      = ExperimentStatus.Running,
-              RolloutPct  = 50,
-              Arms        = new[]
-              {
-                  new ExperimentArm { Id = "control",  Label = "Control",  IsDefault = true },
-                  new ExperimentArm { Id = "variant-a", Label = "Variant A" }
-              },
-              CreatedAt   = FrozenNow.AddDays(-21),
-              UpdatedAt   = FrozenNow.AddDays(-14)
-          }, ct);
-
-          // 2. search-ranker-ml  — Running, 10% rollout, three arms, inconclusive
-          await _repository.CreateAsync(new ExperimentDefinition
-          {
-              Id          = "search-ranker-ml",
-              DisplayName = "Search Ranker ML",
-              Description = "Compares three ML-based search ranking models at low traffic.",
-              Category    = "Search",
-              Status      = ExperimentStatus.Running,
-              RolloutPct  = 10,
-              Arms        = new[]
-              {
-                  new ExperimentArm { Id = "baseline",  Label = "Baseline",  IsDefault = true },
-                  new ExperimentArm { Id = "ml-v1",     Label = "ML v1" },
-                  new ExperimentArm { Id = "ml-v2",     Label = "ML v2" }
-              },
-              CreatedAt   = FrozenNow.AddDays(-7),
-              UpdatedAt   = FrozenNow.AddDays(-1)
-          }, ct);
-
-          // 3. homepage-layout-fall2026  — Draft, pending approval
-          await _repository.CreateAsync(new ExperimentDefinition
-          {
-              Id          = "homepage-layout-fall2026",
-              DisplayName = "Homepage Layout Fall 2026",
-              Description = "Revised homepage hero layout for the Fall 2026 campaign.",
-              Category    = "UX",
-              Status      = ExperimentStatus.PendingApproval,
-              RolloutPct  = 0,
-              Arms        = new[]
-              {
-                  new ExperimentArm { Id = "control",   Label = "Current",  IsDefault = true },
-                  new ExperimentArm { Id = "fall-hero", Label = "Fall Hero" }
-              },
-              CreatedAt   = FrozenNow.AddDays(-3),
-              UpdatedAt   = FrozenNow.AddDays(-1)
-          }, ct);
-
-          // 4. pricing-page-copy  — Paused (circuit breaker tripped, policy violation)
-          await _repository.CreateAsync(new ExperimentDefinition
-          {
-              Id          = "pricing-page-copy",
-              DisplayName = "Pricing Page Copy",
-              Description = "A/B test of value-proposition copy on the pricing page.",
-              Category    = "Revenue",
-              Status      = ExperimentStatus.Paused,
-              RolloutPct  = 0,
-              Arms        = new[]
-              {
-                  new ExperimentArm { Id = "control",   Label = "Original",  IsDefault = true },
-                  new ExperimentArm { Id = "benefits",  Label = "Benefits-Led" }
-              },
-              CreatedAt   = FrozenNow.AddDays(-30),
-              UpdatedAt   = FrozenNow.AddDays(-1)
-          }, ct);
-
-          // 5. legacy-api-cutover  — Promoted, archived 30 days ago
-          await _repository.CreateAsync(new ExperimentDefinition
-          {
-              Id          = "legacy-api-cutover",
-              DisplayName = "Legacy API Cutover",
-              Description = "Gradual traffic cutover from v1 to v2 API. Now fully promoted.",
-              Category    = "Infrastructure",
-              Status      = ExperimentStatus.Archived,
-              RolloutPct  = 100,
-              Arms        = new[]
-              {
-                  new ExperimentArm { Id = "v1-api", Label = "V1 API", IsDefault = true },
-                  new ExperimentArm { Id = "v2-api", Label = "V2 API" }
-              },
-              CreatedAt   = FrozenNow.AddDays(-60),
-              UpdatedAt   = FrozenNow.AddDays(-30)
-          }, ct);
-      }
-  }
-  ```
-
-- [ ] **Step 3.2** — Build to verify the skeleton compiles (adjust any namespace/type references to match actual project types; see note below):
-  ```bash
-  dotnet build samples/ExperimentFramework.DashboardHost/ExperimentFramework.DashboardHost.csproj
-  ```
-  > **Note:** `IExperimentRepository`, `ExperimentDefinition`, `ExperimentArm`, `ExperimentStatus` are placeholders. Replace with the actual types from `src/ExperimentFramework.*` once you confirm the public API shape. Use `dotnet build` output to correct names.
-
-- [ ] **Step 3.3** — Commit skeleton:
-  ```bash
-  git add samples/ExperimentFramework.DashboardHost/DocsDemoSeeder.cs
-  git commit -m "feat(seeder): add DocsDemoSeeder skeleton with 5 experiment definitions"
-  ```
-
----
-
-### Task 4: Extend `DocsDemoSeeder` with analytics, approvals, audit, policies, violations, and version snapshots
+> **Amendment note (2026-04-22):** This task was rewritten from scratch. The original plan assumed `IExperimentRepository.CreateAsync` and related write-side APIs that do not exist in the codebase. Experiments are registered exclusively at startup through `ExperimentFrameworkBuilder` — there is no runtime "create experiment" path. The hallucinated types (`IExperimentRepository`, `ExperimentDefinition`, `ExperimentArm`, `ExperimentStatus`) were removed and replaced with the real builder pattern discovered during foundation exploration.
 
 **Estimated time:** 30–40 minutes
 
-- [ ] **Step 4.1** — Open `samples/ExperimentFramework.DashboardHost/DocsDemoSeeder.cs`. After the `SeedExperimentsAsync` call in `SeedAsync`, add calls to four new private methods:
+- [ ] **Step 3.1** — Create the demo service folder `samples/ExperimentFramework.DashboardHost/DemoServices/`. Add the following five interface + implementation files. Each service has a single trivial method (`string Describe()`) — they exist solely to give `ExperimentFrameworkBuilder` concrete types to bind:
+
+  **`ICheckoutButtonService.cs`:**
   ```csharp
-  await SeedExperimentsAsync(ct);
-  await SeedAnalyticsSamplesAsync(ct);
-  await SeedGovernanceAsync(ct);
-  await SeedVersionSnapshotsAsync(ct);
+  namespace ExperimentFramework.DashboardHost.DemoServices;
+  public interface ICheckoutButtonService { string Describe(); }
+  public sealed class CheckoutButtonControl  : ICheckoutButtonService { public string Describe() => "Control"; }
+  public sealed class CheckoutButtonVariantA : ICheckoutButtonService { public string Describe() => "Variant A"; }
   ```
 
-- [ ] **Step 4.2** — Add `SeedAnalyticsSamplesAsync` method. This generates ~10k samples per running experiment with plausible distributions (checkout-button-v2 shows stat-sig winner on variant-a; search-ranker-ml is inconclusive):
+  **`ISearchRankerService.cs`:**
   ```csharp
-  private async Task SeedAnalyticsSamplesAsync(CancellationToken ct)
-  {
-      var rng = new Random(42); // deterministic seed
-
-      // checkout-button-v2: ~5k per arm; variant-a conversion 4.8% vs control 3.1%
-      var checkoutSamples = GenerateBinarySamples(rng,
-          experimentId: "checkout-button-v2",
-          arms: new[] { ("control", 5100, 0.031), ("variant-a", 5200, 0.048) },
-          baseTime: FrozenNow.AddDays(-14));
-
-      // search-ranker-ml: ~3k per arm; no arm clearly wins
-      var searchSamples = GenerateBinarySamples(rng,
-          experimentId: "search-ranker-ml",
-          arms: new[] { ("baseline", 3100, 0.182), ("ml-v1", 3050, 0.185), ("ml-v2", 3020, 0.184) },
-          baseTime: FrozenNow.AddDays(-7));
-
-      await _repository.BulkInsertSamplesAsync(checkoutSamples.Concat(searchSamples).ToList(), ct);
-  }
-
-  private static IEnumerable<AnalyticsSample> GenerateBinarySamples(
-      Random rng, string experimentId,
-      (string armId, int count, double convRate)[] arms,
-      DateTimeOffset baseTime)
-  {
-      foreach (var (armId, count, rate) in arms)
-      {
-          for (var i = 0; i < count; i++)
-          {
-              yield return new AnalyticsSample
-              {
-                  ExperimentId = experimentId,
-                  ArmId        = armId,
-                  Value        = rng.NextDouble() < rate ? 1.0 : 0.0,
-                  RecordedAt   = baseTime.AddSeconds(rng.Next(0, (int)TimeSpan.FromDays(14).TotalSeconds))
-              };
-          }
-      }
-  }
+  namespace ExperimentFramework.DashboardHost.DemoServices;
+  public interface ISearchRankerService { string Describe(); }
+  public sealed class SearchBaseline : ISearchRankerService { public string Describe() => "Baseline"; }
+  public sealed class SearchMlV1     : ISearchRankerService { public string Describe() => "ML v1"; }
+  public sealed class SearchMlV2     : ISearchRankerService { public string Describe() => "ML v2"; }
   ```
 
-- [ ] **Step 4.3** — Add `SeedGovernanceAsync` method covering approval, audit events, policies, and one violation:
+  **`IHomepageLayoutService.cs`:**
   ```csharp
-  private async Task SeedGovernanceAsync(CancellationToken ct)
-  {
-      // --- Pending approval for homepage-layout-fall2026 ---
-      await _repository.CreateApprovalRequestAsync(new ApprovalRequest
-      {
-          Id           = "approval-homepage-fall2026",
-          ExperimentId = "homepage-layout-fall2026",
-          RequestedBy  = "experimenter@experimentdemo.com",
-          RequestedAt  = FrozenNow.AddDays(-1),
-          Status       = ApprovalStatus.Pending,
-          Notes        = "Requesting approval to launch Fall 2026 hero test."
-      }, ct);
-
-      // --- 20 audit events (mixed types) ---
-      var auditEvents = new[]
-      {
-          // checkout-button-v2 lifecycle
-          ("checkout-button-v2", AuditEventType.Created,    "Experiment created",                   FrozenNow.AddDays(-21)),
-          ("checkout-button-v2", AuditEventType.StatusChanged, "Status changed to Running",         FrozenNow.AddDays(-21)),
-          ("checkout-button-v2", AuditEventType.RolloutChanged, "Rollout increased to 50%",         FrozenNow.AddDays(-14)),
-          ("checkout-button-v2", AuditEventType.SnapshotCreated, "Version snapshot created",        FrozenNow.AddDays(-14)),
-          // search-ranker-ml
-          ("search-ranker-ml",   AuditEventType.Created,    "Experiment created",                   FrozenNow.AddDays(-7)),
-          ("search-ranker-ml",   AuditEventType.StatusChanged, "Status changed to Running",         FrozenNow.AddDays(-7)),
-          // homepage-layout-fall2026
-          ("homepage-layout-fall2026", AuditEventType.Created, "Experiment created",                FrozenNow.AddDays(-3)),
-          ("homepage-layout-fall2026", AuditEventType.ApprovalRequested, "Approval requested",      FrozenNow.AddDays(-1)),
-          // pricing-page-copy
-          ("pricing-page-copy",  AuditEventType.Created,    "Experiment created",                   FrozenNow.AddDays(-30)),
-          ("pricing-page-copy",  AuditEventType.StatusChanged, "Status changed to Running",         FrozenNow.AddDays(-30)),
-          ("pricing-page-copy",  AuditEventType.RolloutChanged, "Rollout increased to 25%",         FrozenNow.AddDays(-20)),
-          ("pricing-page-copy",  AuditEventType.PolicyViolation, "Policy violation: min-sample-size-1000", FrozenNow.AddDays(-2)),
-          ("pricing-page-copy",  AuditEventType.CircuitBreakerTripped, "Circuit breaker tripped — paused", FrozenNow.AddDays(-1)),
-          ("pricing-page-copy",  AuditEventType.StatusChanged, "Status changed to Paused",          FrozenNow.AddDays(-1)),
-          // legacy-api-cutover
-          ("legacy-api-cutover", AuditEventType.Created,    "Experiment created",                   FrozenNow.AddDays(-60)),
-          ("legacy-api-cutover", AuditEventType.StatusChanged, "Status changed to Running",         FrozenNow.AddDays(-60)),
-          ("legacy-api-cutover", AuditEventType.RolloutChanged, "Rollout increased to 100%",        FrozenNow.AddDays(-45)),
-          ("legacy-api-cutover", AuditEventType.Promoted,   "Experiment promoted to production",    FrozenNow.AddDays(-30)),
-          ("legacy-api-cutover", AuditEventType.SnapshotCreated, "Final version snapshot created",  FrozenNow.AddDays(-30)),
-          ("legacy-api-cutover", AuditEventType.StatusChanged, "Status changed to Archived",        FrozenNow.AddDays(-30)),
-      };
-
-      foreach (var (expId, type, message, timestamp) in auditEvents)
-      {
-          await _repository.CreateAuditEventAsync(new AuditEvent
-          {
-              ExperimentId = expId,
-              EventType    = type,
-              Message      = message,
-              PerformedBy  = "admin@experimentdemo.com",
-              OccurredAt   = timestamp
-          }, ct);
-      }
-
-      // --- Governance policies ---
-      await _repository.CreatePolicyAsync(new GovernancePolicy
-      {
-          Id          = "require-two-approvers",
-          Name        = "Require Two Approvers",
-          Description = "All experiments with >25% rollout must have two sign-offs.",
-          IsActive    = true,
-          CreatedAt   = FrozenNow.AddDays(-90)
-      }, ct);
-
-      await _repository.CreatePolicyAsync(new GovernancePolicy
-      {
-          Id          = "no-friday-deploys",
-          Name        = "No Friday Deploys",
-          Description = "Experiments may not be launched on Fridays (UTC).",
-          IsActive    = true,
-          CreatedAt   = FrozenNow.AddDays(-90)
-      }, ct);
-
-      await _repository.CreatePolicyAsync(new GovernancePolicy
-      {
-          Id          = "min-sample-size-1000",
-          Name        = "Minimum Sample Size 1000",
-          Description = "Each arm must reach 1,000 samples before decisions are surfaced.",
-          IsActive    = true,
-          CreatedAt   = FrozenNow.AddDays(-90)
-      }, ct);
-
-      // --- Policy violation ---
-      await _repository.CreatePolicyViolationAsync(new PolicyViolation
-      {
-          Id           = "violation-pricing-page-sample-size",
-          PolicyId     = "min-sample-size-1000",
-          ExperimentId = "pricing-page-copy",
-          Description  = "Control arm had only 712 samples when decision was surfaced.",
-          OccurredAt   = FrozenNow.AddDays(-2),
-          IsResolved   = false
-      }, ct);
-  }
+  namespace ExperimentFramework.DashboardHost.DemoServices;
+  public interface IHomepageLayoutService { string Describe(); }
+  public sealed class HomepageLayoutControl  : IHomepageLayoutService { public string Describe() => "Current"; }
+  public sealed class HomepageLayoutFallHero : IHomepageLayoutService { public string Describe() => "Fall Hero"; }
   ```
 
-- [ ] **Step 4.4** — Add `SeedVersionSnapshotsAsync` method (2 snapshots per non-draft experiment):
+  **`IPricingCopyService.cs`:**
   ```csharp
-  private async Task SeedVersionSnapshotsAsync(CancellationToken ct)
-  {
-      var snapshots = new[]
-      {
-          ("checkout-button-v2",  1, "Initial launch at 10% rollout", FrozenNow.AddDays(-21)),
-          ("checkout-button-v2",  2, "Scaled to 50% after first-week data", FrozenNow.AddDays(-14)),
-          ("search-ranker-ml",    1, "Initial launch at 10% rollout", FrozenNow.AddDays(-7)),
-          ("search-ranker-ml",    2, "Extended run — no changes", FrozenNow.AddDays(-1)),
-          ("pricing-page-copy",   1, "Initial launch at 10% rollout", FrozenNow.AddDays(-30)),
-          ("pricing-page-copy",   2, "Scaled to 25%; subsequently paused", FrozenNow.AddDays(-2)),
-          ("legacy-api-cutover",  1, "Initial launch at 10% rollout", FrozenNow.AddDays(-60)),
-          ("legacy-api-cutover",  2, "Full rollout and promotion snapshot", FrozenNow.AddDays(-30)),
-      };
-
-      foreach (var (expId, version, notes, snapshotTime) in snapshots)
-      {
-          await _repository.CreateVersionSnapshotAsync(new VersionSnapshot
-          {
-              ExperimentId = expId,
-              Version      = version,
-              Notes        = notes,
-              CreatedAt    = snapshotTime,
-              CreatedBy    = "admin@experimentdemo.com"
-          }, ct);
-      }
-  }
+  namespace ExperimentFramework.DashboardHost.DemoServices;
+  public interface IPricingCopyService { string Describe(); }
+  public sealed class PricingCopyOriginal     : IPricingCopyService { public string Describe() => "Original"; }
+  public sealed class PricingCopyBenefitsLed  : IPricingCopyService { public string Describe() => "Benefits-Led"; }
   ```
 
-- [ ] **Step 4.5** — Build and fix any API mismatches:
-  ```bash
-  dotnet build samples/ExperimentFramework.DashboardHost/ExperimentFramework.DashboardHost.csproj
-  ```
-  Expected: `Build succeeded. 0 Error(s)`.
-
-- [ ] **Step 4.6** — Commit:
-  ```bash
-  git add samples/ExperimentFramework.DashboardHost/DocsDemoSeeder.cs
-  git commit -m "feat(seeder): extend DocsDemoSeeder with analytics, governance, audit, and snapshots"
+  **`ILegacyApiService.cs`:**
+  ```csharp
+  namespace ExperimentFramework.DashboardHost.DemoServices;
+  public interface ILegacyApiService { string Describe(); }
+  public sealed class LegacyApiV1 : ILegacyApiService { public string Describe() => "V1 API"; }
+  public sealed class LegacyApiV2 : ILegacyApiService { public string Describe() => "V2 API"; }
   ```
 
----
-
-### Task 5: Wire `--seed=docs`, `--reset`, `--freeze-date` CLI args in DashboardHost `Program.cs`
-
-**Estimated time:** 20–25 minutes
-
-- [ ] **Step 5.1** — Open `samples/ExperimentFramework.DashboardHost/Program.cs`. Before `var builder = WebApplication.CreateBuilder(args);`, add simple arg parsing (no external package needed — args is already in scope from `CreateBuilder(args)`):
+- [ ] **Step 3.2** — Open `samples/ExperimentFramework.DashboardHost/Program.cs`. Before `var builder = WebApplication.CreateBuilder(args);`, add simple arg parsing:
   ```csharp
   // Parse docs-specific CLI args before builder construction.
-  // Example: dotnet run -- --seed=docs --reset --freeze-date 2026-04-01T12:00:00Z
+  // Example: dotnet run -- --seed=docs --freeze-date 2026-04-01T12:00:00Z
   var cliArgs = ParseDocsArgs(args);
   ```
-  
-  Then at the **bottom of the file** (after the `public partial class Program { }` line), add the helper types:
+
+  Then at the **bottom of the file** (after the `public partial class Program { }` line if present), add:
   ```csharp
   // ============================================
   // Docs Demo CLI Arg Parsing
   // ============================================
 
-  file record DocsCliArgs(bool SeedDocs, bool Reset, DateTimeOffset? FreezeDate);
+  file record DocsCliArgs(bool SeedDocs, DateTimeOffset? FreezeDate);
 
   file static DocsCliArgs ParseDocsArgs(string[] args)
   {
-      var seedDocs   = false;
-      var reset      = false;
+      var seedDocs = false;
       DateTimeOffset? freezeDate = null;
 
       for (var i = 0; i < args.Length; i++)
       {
-          if (args[i].Equals("--reset", StringComparison.OrdinalIgnoreCase))
-              reset = true;
-
           if (args[i].StartsWith("--seed=", StringComparison.OrdinalIgnoreCase) &&
               args[i]["--seed=".Length..].Equals("docs", StringComparison.OrdinalIgnoreCase))
               seedDocs = true;
@@ -592,36 +274,350 @@
           }
       }
 
-      // Also check env var EXPERIMENT_DEMO_SEED=docs
+      // Also support env var EXPERIMENT_DEMO_SEED=docs
       if (!seedDocs &&
           Environment.GetEnvironmentVariable("EXPERIMENT_DEMO_SEED")
               ?.Equals("docs", StringComparison.OrdinalIgnoreCase) == true)
           seedDocs = true;
 
-      return new DocsCliArgs(seedDocs, reset, freezeDate);
+      return new DocsCliArgs(seedDocs, freezeDate);
   }
   ```
+  > **Note:** `--reset` is dropped. Since analytics and governance state are fully in-memory, every process restart is a clean slate — `--reset` is a no-op and adds complexity for no benefit.
 
-- [ ] **Step 5.2** — Register `DocsDemoSeeder` with DI and run it after `app.Build()`. Locate the line `var app = builder.Build();` and insert below it:
+- [ ] **Step 3.3** — In `Program.cs`, wrap the existing experiment registration in an `if/else` on `cliArgs.SeedDocs`. When seeding, replace the existing registration block with the five demo experiments inside a `#region Docs Demo` block:
   ```csharp
-  // Register the seeder and run it if --seed=docs was passed
   if (cliArgs.SeedDocs)
   {
-      builder.Services.AddScoped<DocsDemoSeeder>();
+      #region Docs Demo — five experiments for screenshot capture
+      builder.Services.AddExperimentFramework(fw => fw
+          .Define<ICheckoutButtonService>(e => e
+              .UsingFeatureFlag("checkout-button-v2")
+              .AddDefaultTrial<CheckoutButtonControl>("control")
+              .AddTrial<CheckoutButtonVariantA>("variant-a"))
+          .Define<ISearchRankerService>(e => e
+              .UsingFeatureFlag("search-ranker-ml")
+              .AddDefaultTrial<SearchBaseline>("baseline")
+              .AddTrial<SearchMlV1>("ml-v1")
+              .AddTrial<SearchMlV2>("ml-v2"))
+          .Define<IHomepageLayoutService>(e => e
+              .UsingFeatureFlag("homepage-layout-fall2026")
+              .AddDefaultTrial<HomepageLayoutControl>("control")
+              .AddTrial<HomepageLayoutFallHero>("fall-hero"))
+          .Define<IPricingCopyService>(e => e
+              .UsingFeatureFlag("pricing-page-copy")
+              .AddDefaultTrial<PricingCopyOriginal>("control")
+              .AddTrial<PricingCopyBenefitsLed>("benefits"))
+          .Define<ILegacyApiService>(e => e
+              .UsingFeatureFlag("legacy-api-cutover")
+              .AddDefaultTrial<LegacyApiV1>("v1-api")
+              .AddTrial<LegacyApiV2>("v2-api"))
+          .UseDispatchProxy());
+      #endregion
   }
-
-  var app = builder.Build();
-
-  if (cliArgs.SeedDocs)
+  else
   {
-      using var scope = app.Services.CreateScope();
-      var seeder = scope.ServiceProvider.GetRequiredService<DocsDemoSeeder>();
-      await seeder.SeedAsync(cliArgs.Reset);
+      // existing non-demo experiment registration stays here unchanged
   }
   ```
-  > **Note:** Move the `AddScoped<DocsDemoSeeder>()` call **before** `builder.Build()`, not after. The DI registration must happen in the builder phase.
+  > **Implementer note:** The exact fluent method names (`Define<T>`, `UsingFeatureFlag`, `AddDefaultTrial<T>`, `AddTrial<T>`, `UseDispatchProxy`) come from `src/ExperimentFramework/ServiceCollectionExtensions.cs`. Open that file and confirm the chain shape before writing the code — if any method name differs from the sketch above, follow reality. The sketch is based on the pattern observed in the existing `Program.cs` for the two existing demo experiments.
 
-- [ ] **Step 5.3** — Wire the `ISystemClock` stub when `--freeze-date` is specified. If `ExperimentFramework` exposes `ISystemClock`, register a stub:
+- [ ] **Step 3.4** — Build to verify:
+  ```bash
+  dotnet build samples/ExperimentFramework.DashboardHost/ExperimentFramework.DashboardHost.csproj
+  ```
+  Expected: `Build succeeded. 0 Error(s)`.
+
+- [ ] **Step 3.5** — Commit:
+  ```bash
+  git add samples/ExperimentFramework.DashboardHost/DemoServices/ \
+          samples/ExperimentFramework.DashboardHost/Program.cs
+  git commit -m "feat(seeder): register five demo experiments for docs screenshots"
+  ```
+
+---
+
+### Task 4: Add `DemoAnalyticsProvider` and `GovernanceDemoSeeder` for in-memory demo data
+
+> **Amendment note (2026-04-22):** This task was rewritten. The original plan used `_repository.BulkInsertSamplesAsync`, `CreateApprovalRequestAsync`, `CreateAuditEventAsync`, `CreatePolicyAsync`, `CreatePolicyViolationAsync`, and `CreateVersionSnapshotAsync` — none of which exist. The real analytics surface is `IAnalyticsProvider` (read-only interface returning in-memory event collections). The real governance write surface is `IGovernancePersistenceBackplane` with `SaveExperimentStateAsync`, `AppendStateTransitionAsync`, `AppendApprovalRecordAsync`, `AppendConfigurationVersionAsync`, and `AppendPolicyEvaluationAsync`. Both are now used correctly.
+
+**Estimated time:** 45–60 minutes
+
+**Part A — `DemoAnalyticsProvider`**
+
+- [ ] **Step 4.1** — Create `samples/ExperimentFramework.DashboardHost/Demo/DemoAnalyticsProvider.cs`:
+  ```csharp
+  using ExperimentFramework.Dashboard.Abstractions;
+  using ExperimentFramework.DataPlane.Abstractions.Events;
+
+  namespace ExperimentFramework.DashboardHost.Demo;
+
+  /// <summary>
+  /// In-memory IAnalyticsProvider with curated demo data.
+  /// checkout-button-v2 shows a stat-sig winner on variant-a (4.8% vs 3.1% conversion).
+  /// search-ranker-ml is inconclusive across three arms.
+  /// </summary>
+  public sealed class DemoAnalyticsProvider : IAnalyticsProvider
+  {
+      private readonly IReadOnlyList<AssignmentEvent>    _assignments;
+      private readonly IReadOnlyList<ExposureEvent>       _exposures;
+      private readonly IReadOnlyList<AnalysisSignalEvent> _signals;
+
+      public DemoAnalyticsProvider(DateTimeOffset frozenNow)
+      {
+          _assignments = BuildAssignments(frozenNow);
+          _exposures   = BuildExposures(frozenNow);
+          _signals     = BuildSignals(frozenNow);
+      }
+
+      public Task<IReadOnlyList<AssignmentEvent>> GetAssignmentsAsync(
+          string experimentName, CancellationToken ct) =>
+          Task.FromResult<IReadOnlyList<AssignmentEvent>>(
+              _assignments.Where(a => a.ExperimentName == experimentName).ToList());
+
+      public Task<IReadOnlyList<ExposureEvent>> GetExposuresAsync(
+          string experimentName, CancellationToken ct) =>
+          Task.FromResult<IReadOnlyList<ExposureEvent>>(
+              _exposures.Where(e => e.ExperimentName == experimentName).ToList());
+
+      public Task<IReadOnlyList<AnalysisSignalEvent>> GetAnalysisSignalsAsync(
+          string experimentName, CancellationToken ct) =>
+          Task.FromResult<IReadOnlyList<AnalysisSignalEvent>>(
+              _signals.Where(s => s.ExperimentName == experimentName).ToList());
+
+      private static IReadOnlyList<AssignmentEvent> BuildAssignments(DateTimeOffset now)
+      {
+          var rng   = new Random(42);
+          var list  = new List<AssignmentEvent>();
+          var span  = (int)TimeSpan.FromDays(14).TotalSeconds;
+
+          // checkout-button-v2: ~5k per arm over 14-day window
+          foreach (var (arm, count) in new[] { ("control", 5100), ("variant-a", 5200) })
+              for (var i = 0; i < count; i++)
+                  list.Add(new AssignmentEvent
+                  {
+                      ExperimentName = "checkout-button-v2",
+                      ArmName        = arm,
+                      AssignedAt     = now.AddDays(-14).AddSeconds(rng.Next(0, span))
+                      // Confirm exact property names from
+                      // src/ExperimentFramework.DataPlane.Abstractions/Events/AssignmentEvent.cs
+                  });
+
+          // search-ranker-ml: ~3k per arm over 7-day window
+          foreach (var (arm, count) in new[] { ("baseline", 3100), ("ml-v1", 3050), ("ml-v2", 3020) })
+              for (var i = 0; i < count; i++)
+                  list.Add(new AssignmentEvent
+                  {
+                      ExperimentName = "search-ranker-ml",
+                      ArmName        = arm,
+                      AssignedAt     = now.AddDays(-7).AddSeconds(rng.Next(0, span / 2))
+                  });
+
+          return list;
+      }
+
+      private static IReadOnlyList<ExposureEvent> BuildExposures(DateTimeOffset now)
+      {
+          // Exposures mirror assignments (every assigned user was exposed)
+          // Construct similarly to BuildAssignments but using ExposureEvent type.
+          // Confirm exact property names from
+          // src/ExperimentFramework.DataPlane.Abstractions/Events/ExposureEvent.cs
+          return Array.Empty<ExposureEvent>(); // placeholder — implementer fills in
+      }
+
+      private static IReadOnlyList<AnalysisSignalEvent> BuildSignals(DateTimeOffset now)
+      {
+          // checkout-button-v2: variant-a conversion 4.8% vs control 3.1%
+          // search-ranker-ml: baseline 18.2%, ml-v1 18.5%, ml-v2 18.4% (inconclusive)
+          // Use seeded Random(42) for determinism.
+          // Confirm exact property names from
+          // src/ExperimentFramework.DataPlane.Abstractions/Events/AnalysisSignalEvent.cs
+          return Array.Empty<AnalysisSignalEvent>(); // placeholder — implementer fills in
+      }
+  }
+  ```
+  > **Implementer note:** Before writing the property initializers, read `src/ExperimentFramework.DataPlane.Abstractions/Events/AssignmentEvent.cs`, `ExposureEvent.cs`, and `AnalysisSignalEvent.cs` to get the exact constructor signatures or `init` property names. Use `new Random(42)` everywhere for determinism. Target the conversion rates from the comment above — checkout variant-a at 4.8% vs control at 3.1% (clearly stat-sig at these sample sizes); search arms all within 0.3pp of each other (inconclusive).
+
+**Part B — `GovernanceDemoSeeder`**
+
+- [ ] **Step 4.2** — Add `builder.Services.AddInMemoryGovernancePersistence();` to the `if (cliArgs.SeedDocs)` block in `Program.cs` (before `builder.Build()`). This extension method lives in `src/ExperimentFramework.Governance.Persistence/ServiceCollectionExtensions.cs` and is not wired by `AddExperimentDashboard` by default.
+
+- [ ] **Step 4.3** — Create `samples/ExperimentFramework.DashboardHost/Demo/GovernanceDemoSeeder.cs`:
+  ```csharp
+  using ExperimentFramework.Governance.Persistence;
+  using ExperimentFramework.Governance.Persistence.Models;
+
+  namespace ExperimentFramework.DashboardHost.Demo;
+
+  /// <summary>
+  /// Seeds governance demo data: per-experiment state, ~20 state transitions,
+  /// 1 pending approval, 8 configuration versions, and policy evaluations
+  /// (including 1 fail on pricing-page-copy).
+  /// Reference pattern: samples/ExperimentFramework.GovernanceSample/Program.cs
+  /// </summary>
+  public static class GovernanceDemoSeeder
+  {
+      public static async Task SeedAsync(
+          IGovernancePersistenceBackplane backplane,
+          DateTimeOffset frozenNow,
+          CancellationToken ct = default)
+      {
+          // --- Experiment state records ---
+          // checkout-button-v2: Running, 50%
+          await backplane.SaveExperimentStateAsync(
+              new PersistedExperimentState
+              {
+                  ExperimentName = "checkout-button-v2",
+                  // fill remaining fields per Models/PersistedExperimentState.cs
+              },
+              expectedETag: null, ct);
+
+          // search-ranker-ml: Running, 10%
+          await backplane.SaveExperimentStateAsync(
+              new PersistedExperimentState { ExperimentName = "search-ranker-ml" },
+              null, ct);
+
+          // homepage-layout-fall2026: Draft / PendingApproval
+          await backplane.SaveExperimentStateAsync(
+              new PersistedExperimentState { ExperimentName = "homepage-layout-fall2026" },
+              null, ct);
+
+          // pricing-page-copy: Paused
+          await backplane.SaveExperimentStateAsync(
+              new PersistedExperimentState { ExperimentName = "pricing-page-copy" },
+              null, ct);
+
+          // legacy-api-cutover: Archived
+          await backplane.SaveExperimentStateAsync(
+              new PersistedExperimentState { ExperimentName = "legacy-api-cutover" },
+              null, ct);
+
+          // --- State transitions (~20 audit events across experiments) ---
+          // checkout-button-v2 lifecycle
+          await backplane.AppendStateTransitionAsync(new PersistedStateTransition
+          {
+              ExperimentName = "checkout-button-v2",
+              // FromState, ToState, OccurredAt = frozenNow.AddDays(-21), Actor, etc.
+              // Confirm field names from Models/PersistedStateTransition.cs
+          }, ct);
+          // ... add ~19 more transitions covering the same lifecycle events documented
+          // in the original Task 4.3 audit event table (Created, StatusChanged,
+          // RolloutChanged, ApprovalRequested, PolicyViolation, Promoted, Archived).
+
+          // --- Pending approval: homepage-layout-fall2026 ---
+          await backplane.AppendApprovalRecordAsync(new PersistedApprovalRecord
+          {
+              ExperimentName = "homepage-layout-fall2026",
+              // RequestedBy = "experimenter@experimentdemo.com",
+              // RequestedAt = frozenNow.AddDays(-1),
+              // Status = pending equivalent,
+              // Notes = "Requesting approval to launch Fall 2026 hero test."
+              // Confirm field names from Models/PersistedApprovalRecord.cs
+          }, ct);
+
+          // --- Configuration versions (2 per non-draft experiment = 8 total) ---
+          foreach (var (name, version, notes, when) in new[]
+          {
+              ("checkout-button-v2",  1, "Initial launch at 10% rollout",            frozenNow.AddDays(-21)),
+              ("checkout-button-v2",  2, "Scaled to 50% after first-week data",      frozenNow.AddDays(-14)),
+              ("search-ranker-ml",    1, "Initial launch at 10% rollout",            frozenNow.AddDays(-7)),
+              ("search-ranker-ml",    2, "Extended run — no changes",                frozenNow.AddDays(-1)),
+              ("pricing-page-copy",   1, "Initial launch at 10% rollout",            frozenNow.AddDays(-30)),
+              ("pricing-page-copy",   2, "Scaled to 25%; subsequently paused",       frozenNow.AddDays(-2)),
+              ("legacy-api-cutover",  1, "Initial launch at 10% rollout",            frozenNow.AddDays(-60)),
+              ("legacy-api-cutover",  2, "Full rollout and promotion snapshot",       frozenNow.AddDays(-30)),
+          })
+          {
+              await backplane.AppendConfigurationVersionAsync(new PersistedConfigurationVersion
+              {
+                  ExperimentName = name,
+                  // Version = version, Notes = notes, CreatedAt = when, CreatedBy = "admin@..."
+                  // Confirm field names from Models/PersistedConfigurationVersion.cs
+              }, ct);
+          }
+
+          // --- Policy evaluations ---
+          // Three policies evaluated; pricing-page-copy fails min-sample-size-1000.
+          // Pass evaluations for the other experiments/policies.
+          await backplane.AppendPolicyEvaluationAsync(new PersistedPolicyEvaluation
+          {
+              ExperimentName = "pricing-page-copy",
+              PolicyName     = "min-sample-size-1000",
+              // Passed = false,
+              // Detail = "Control arm had only 712 samples when decision was surfaced.",
+              // EvaluatedAt = frozenNow.AddDays(-2)
+              // Confirm field names from Models/PersistedPolicyEvaluation.cs
+          }, ct);
+          // Add passing evaluations for require-two-approvers and no-friday-deploys
+          // on the running experiments.
+      }
+  }
+  ```
+  > **Implementer note:** All field names in `PersistedExperimentState`, `PersistedStateTransition`, `PersistedApprovalRecord`, `PersistedConfigurationVersion`, and `PersistedPolicyEvaluation` must be verified by reading the files under `src/ExperimentFramework.Governance.Persistence/Models/`. Study `samples/ExperimentFramework.GovernanceSample/Program.cs` as the primary working reference — it already demonstrates writing to `IGovernancePersistenceBackplane` after `AddInMemoryGovernancePersistence()`. Copy its patterns directly.
+  >
+  > **Policy registration:** The three named policies ("require-two-approvers", "no-friday-deploys", "min-sample-size-1000") referenced in the policy evaluations need to exist as policy definitions. Investigate whether policies can be registered via a `ExperimentFrameworkBuilder` API or are code-defined only (check `src/ExperimentFramework.Governance/Policies/`). If there is a registration API, use it in the `SeedDocs` block in `Program.cs`. If policies are code-defined only with no way to inject demo policies, create a minimal `DemoPolicyDefinitions` static class in the Demo folder. If neither approach is feasible, document this in the commit and omit the policy evaluation seeding. Report findings in the commit message.
+
+- [ ] **Step 4.4** — Build:
+  ```bash
+  dotnet build samples/ExperimentFramework.DashboardHost/ExperimentFramework.DashboardHost.csproj
+  ```
+  Expected: `Build succeeded. 0 Error(s)`.
+
+- [ ] **Step 4.5** — Commit:
+  ```bash
+  git add samples/ExperimentFramework.DashboardHost/Demo/
+  git commit -m "feat(seeder): add DemoAnalyticsProvider and governance seed data"
+  ```
+
+---
+
+### Task 5: Wire `--seed=docs` and `--freeze-date` in `Program.cs` to compose T3/T4 registrations
+
+> **Amendment note (2026-04-22):** This task was rewritten. `--reset` is dropped — in-memory state is always fresh on restart, so it adds no value. The `DocsDemoSeeder` class from the original plan is replaced by the `DemoAnalyticsProvider` and `GovernanceDemoSeeder` composition introduced in T3/T4. The CLI arg parsing record now carries only `SeedDocs` and `FreezeDate`.
+
+**Estimated time:** 20–25 minutes
+
+- [ ] **Step 5.1** — Verify that the `ParseDocsArgs` helper added in Step 3.2 is in place and builds. Confirm the `DocsCliArgs` record contains `SeedDocs` and `FreezeDate` (no `Reset` field).
+
+- [ ] **Step 5.2** — Confirm the full `if (cliArgs.SeedDocs)` registration block in `Program.cs` (before `builder.Build()`) reads:
+  ```csharp
+  if (cliArgs.SeedDocs)
+  {
+      var frozenNow = cliArgs.FreezeDate
+          ?? new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero);
+
+      // T3: five demo experiments registered via ExperimentFrameworkBuilder
+      builder.Services.AddExperimentFramework(/* five .Define<T>() calls from T3 */);
+
+      // T4-A: custom analytics provider
+      builder.Services.AddSingleton<IAnalyticsProvider>(
+          new DemoAnalyticsProvider(frozenNow));
+
+      // T4-B: in-memory governance persistence
+      builder.Services.AddInMemoryGovernancePersistence();
+  }
+  else
+  {
+      // existing non-demo registrations unchanged
+  }
+  ```
+
+- [ ] **Step 5.3** — Confirm the post-build governance seeding block (after `var app = builder.Build();`) reads:
+  ```csharp
+  if (cliArgs.SeedDocs)
+  {
+      var frozenNow = cliArgs.FreezeDate
+          ?? new DateTimeOffset(2026, 4, 1, 12, 0, 0, TimeSpan.Zero);
+
+      using var scope = app.Services.CreateScope();
+      var backplane = scope.ServiceProvider
+          .GetRequiredService<IGovernancePersistenceBackplane>();
+      await GovernanceDemoSeeder.SeedAsync(backplane, frozenNow);
+  }
+  ```
+  > **Note:** `DemoAnalyticsProvider` is constructed and registered directly in the builder phase (Step 5.2) — no post-build call needed for analytics. Only governance seeding requires the built service provider.
+
+- [ ] **Step 5.4** — Wire the `ISystemClock` stub when `--freeze-date` is specified. If `ExperimentFramework` exposes `ISystemClock`, register a stub:
   ```csharp
   if (cliArgs.FreezeDate.HasValue)
   {
@@ -640,23 +636,31 @@
   ```
   If `ISystemClock` is not part of the public API, skip this step and note it in the commit message.
 
-- [ ] **Step 5.4** — Build:
+- [ ] **Step 5.5** — Build:
   ```bash
   dotnet build samples/ExperimentFramework.DashboardHost/ExperimentFramework.DashboardHost.csproj
   ```
   Expected: `Build succeeded. 0 Error(s)`.
 
-- [ ] **Step 5.5** — Smoke-run without seed (should behave exactly as before):
+- [ ] **Step 5.6** — Smoke-run with `--seed=docs`:
+  ```bash
+  dotnet run --project samples/ExperimentFramework.DashboardHost -- --seed=docs &
+  sleep 4 && curl -s http://localhost:5000/health || curl -s https://localhost:7201/health
+  kill %1 2>/dev/null || true
+  ```
+  Expected: process starts, health endpoint responds, no unhandled exceptions in stderr.
+
+- [ ] **Step 5.7** — Smoke-run without seed (should behave exactly as before):
   ```bash
   dotnet run --project samples/ExperimentFramework.DashboardHost -- &
   sleep 3 && curl -s http://localhost:5000/health || curl -s https://localhost:7201/health
   kill %1 2>/dev/null || true
   ```
 
-- [ ] **Step 5.6** — Commit:
+- [ ] **Step 5.8** — Commit:
   ```bash
   git add samples/ExperimentFramework.DashboardHost/Program.cs
-  git commit -m "feat(seeder): wire --seed=docs, --reset, --freeze-date CLI args in DashboardHost Program.cs"
+  git commit -m "feat(seeder): wire --seed=docs and --freeze-date CLI switches"
   ```
 
 ---
