@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExperimentFramework.Dashboard\ExperimentFramework.Dashboard.csproj" />
+    <ProjectReference Include="..\..\src\ExperimentFramework.Dashboard.UI\ExperimentFramework.Dashboard.UI.csproj" />
     <ProjectReference Include="..\..\src\ExperimentFramework\ExperimentFramework.csproj" />
     <ProjectReference Include="..\..\src\ExperimentFramework.Governance\ExperimentFramework.Governance.csproj" />
     <ProjectReference Include="..\..\src\ExperimentFramework.Governance.Persistence\ExperimentFramework.Governance.Persistence.csproj" />

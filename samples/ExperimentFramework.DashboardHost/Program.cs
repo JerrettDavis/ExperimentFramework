@@ -1,10 +1,13 @@
 using ExperimentFramework;
 using ExperimentFramework.Dashboard;
 using ExperimentFramework.Dashboard.Abstractions;
+using ExperimentFramework.Dashboard.UI.Components;
+using ExperimentFramework.Dashboard.UI.Services;
 using ExperimentFramework.DashboardHost.Demo;
 using ExperimentFramework.DashboardHost.DemoServices;
 using ExperimentFramework.Governance;
 using ExperimentFramework.Governance.Persistence;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.FeatureManagement;
 
 var cliArgs = DocsCliArgs.Parse(args);
@@ -12,8 +15,44 @@ var frozenNow = cliArgs.FreezeDate ?? new DateTimeOffset(2026, 4, 1, 12, 0, 0, T
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Enable static web assets from Razor Class Libraries in all environments
+// (by default they are only enabled in Development)
+builder.WebHost.UseStaticWebAssets();
+
 // Add feature management for feature flags
 builder.Services.AddFeatureManagement();
+
+// Add authorization with an open-access policy so the Dashboard.UI Blazor components
+// (which require the "CanAccessExperiments" policy) work without login in docs-demo mode.
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization(options =>
+{
+    // Open policy — allows all requests (docs demo runs without auth)
+    options.AddPolicy("CanAccessExperiments", policy => policy.RequireAssertion(_ => true));
+    options.AddPolicy("CanModifyExperiments", policy => policy.RequireAssertion(_ => true));
+    options.AddPolicy("CanManageRollouts",    policy => policy.RequireAssertion(_ => true));
+    options.AddPolicy("AdminOnly",            policy => policy.RequireAssertion(_ => true));
+});
+
+// Add Razor Pages for the stub login page
+builder.Services.AddRazorPages();
+
+// Add Blazor server-side rendering support for Dashboard UI
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+// Register Dashboard UI services
+builder.Services.AddScoped<DashboardStateService>();
+builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<ExperimentCodeGenerator>();
+
+// Register API client — the Dashboard.UI ExperimentApiClient calls paths like /api/experiments.
+// The REST API is mounted at /dashboard/api/... so set base address to /dashboard/.
+builder.Services.AddHttpClient<ExperimentApiClient>(client =>
+{
+    // Client calls relative paths like "api/experiments"; prepend "/dashboard/" to route correctly
+    client.BaseAddress = new Uri("http://localhost:5195/dashboard/");
+});
 
 if (cliArgs.SeedDocs)
 {
@@ -131,14 +170,51 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseRouting();
+// Do NOT use HTTPS redirect — we run HTTP only in docs-demo mode
+// app.UseHttpsRedirection();
+app.UseAntiforgery();
+app.UseAuthentication();
+app.UseAuthorization();
 
-// Map the experiment dashboard at /dashboard
+// Serve static assets from the Dashboard.UI RCL's wwwroot under /_content/ExperimentFramework.Dashboard.UI/
+// AppContext.BaseDirectory = bin/Debug/net10.0 → go 5 levels up to reach repo root
+// bin/Debug/net10.0 → bin/Debug → bin → DashboardHost → samples → repo-root
+var repoRoot = Path.GetFullPath(
+    Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+var dashboardUiWwwroot = Path.Combine(repoRoot, "src", "ExperimentFramework.Dashboard.UI", "wwwroot");
+
+app.Logger.LogInformation("RCL wwwroot path: {Path}, exists: {Exists}", dashboardUiWwwroot, Directory.Exists(dashboardUiWwwroot));
+
+if (Directory.Exists(dashboardUiWwwroot))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(dashboardUiWwwroot),
+        RequestPath  = "/_content/ExperimentFramework.Dashboard.UI"
+    });
+}
+else
+{
+    app.UseStaticFiles();  // serves wwwroot if present
+}
+
+// MapStaticAssets handles /_content/... RCL static assets (CSS, JS, images)
+app.MapStaticAssets();
+
+// Map dashboard REST API at /dashboard/api
 app.MapExperimentDashboard("/dashboard");
 
-// Add a simple home page that redirects to the dashboard
+// Map Razor Pages (login stub)
+app.MapRazorPages();
+
+// Map Blazor Hub (required for Interactive Server components and blazor.web.js)
+app.MapBlazorHub();
+
+// Map Blazor SSR components (serves /dashboard, /dashboard/experiments, etc.)
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+// Home redirect
 app.MapGet("/", () => Results.Redirect("/dashboard"));
 
 app.Run();

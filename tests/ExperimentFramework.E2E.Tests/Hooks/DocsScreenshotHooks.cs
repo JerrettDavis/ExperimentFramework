@@ -47,8 +47,9 @@ public class DocsScreenshotHooks
             Content = DeterminismCss
         });
 
-        // Read area tag. Reverse so scenario-level tags override feature-level.
-        var areaTag = _scenarioContext.ScenarioInfo.Tags
+        // Read area tag from combined tags (scenario + feature). Reverse so scenario-level
+        // tags override feature-level tags that appear earlier.
+        var areaTag = _scenarioContext.ScenarioInfo.CombinedTags
             .Reverse()
             .FirstOrDefault(t => t.StartsWith("screenshot-area:", StringComparison.OrdinalIgnoreCase));
 

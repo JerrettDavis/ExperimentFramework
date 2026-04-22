@@ -1,0 +1,31 @@
+@page "/login"
+@model ExperimentFramework.DashboardHost.Pages.LoginModel
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — Experiment Dashboard</title>
+    <style>
+        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+        .login-card { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); min-width: 320px; }
+        h1 { margin: 0 0 1.5rem; font-size: 1.5rem; color: #333; }
+        label { display: block; margin-bottom: .25rem; font-size: .875rem; color: #555; }
+        input { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 1rem; box-sizing: border-box; }
+        button { width: 100%; padding: .6rem; background: #0066cc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        button:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>Experiment Dashboard</h1>
+        <form method="post">
+            <label for="email">Email</label>
+            <input id="email" type="email" name="email" autocomplete="username" />
+            <label for="password">Password</label>
+            <input id="password" type="password" name="password" autocomplete="current-password" />
+            <button type="submit" class="login-submit">Sign in</button>
+        </form>
+    </div>
+</body>
+</html>
