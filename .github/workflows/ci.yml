@@ -49,6 +49,7 @@ jobs:
         run: |
           dotnet test ExperimentFramework.slnx \
             --configuration Release \
+            -p:ExcludeE2ETests=true \
             --collect:"XPlat Code Coverage" \
             --settings tests/ExperimentFramework.Tests/coverage.runsettings
 
@@ -210,6 +211,7 @@ jobs:
             --configuration Release \
             --no-build \
             --verbosity normal \
+            -p:ExcludeE2ETests=true \
             --collect:"XPlat Code Coverage" \
             --settings tests/ExperimentFramework.Tests/coverage.runsettings
 
