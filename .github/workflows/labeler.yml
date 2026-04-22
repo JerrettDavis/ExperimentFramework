@@ -14,10 +14,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run Labeler
-        uses: actions/labeler@v5
+        uses: actions/labeler@v6
         with:
           configuration-path: .github/labeler.yml
           repo-token: ${{ secrets.GITHUB_TOKEN }}
