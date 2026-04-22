@@ -1,6 +1,5 @@
 using ExperimentFramework.E2E.Tests.Drivers;
 using ExperimentFramework.E2E.Tests.PageObjects;
-using ExperimentFramework.E2E.Tests.Support;
 using Microsoft.Playwright;
 using Reqnroll;
 
@@ -39,8 +38,9 @@ public class GovernanceLifecycleStepDefinitions
     {
         await _dashboard.NavigateToAsync("/dashboard/governance/lifecycle");
         await _page.WaitForPageLoadAsync();
-        // Register so GovernanceSharedStepDefinitions can dispatch the dropdown step.
-        _scenarioContext["ActiveGovernancePage"] = (IGovernanceSelectable)_page;
+        // Register delegate so GovernanceSharedStepDefinitions can dispatch
+        // "I select the first experiment from the dropdown" to this page.
+        _scenarioContext["SelectFirstExperiment"] = (Func<Task>)_page.SelectFirstExperimentAsync;
     }
 
     // -------------------------------------------------------------------------

@@ -44,8 +44,8 @@ public class HypothesisTestingStepDefinitions
         // Wait for the demo-data seed to complete so cards are present.
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-        var count = await HypothesisPage.GetHypothesisCardCountAsync();
-        if (count == 0)
+        var cards = await HypothesisPage.GetHypothesisCardsAsync();
+        if (cards.Count == 0)
             throw new Exception(
                 "No hypothesis cards found — this scenario requires seeded demo data. " +
                 "Ensure the application seeds demo data on first render.");
@@ -100,22 +100,24 @@ public class HypothesisTestingStepDefinitions
             ".status-badge, [data-status-badge], .badge",
             new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
 
-        var statuses = await HypothesisPage.GetStatusBadgeTextsAsync();
-        if (statuses.Count == 0)
+        var badgeCount = await Page.Locator(".status-badge, [data-status-badge], .badge").CountAsync();
+        if (badgeCount == 0)
             throw new Exception("No status badges found on hypothesis cards.");
     }
 
     [Then(@"the status should be one of {string}, {string}, or {string}")]
     public async Task ThenTheStatusShouldBeOneOf(string status1, string status2, string status3)
     {
-        var allowed  = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { status1, status2, status3 };
-        var statuses = await HypothesisPage.GetStatusBadgeTextsAsync();
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { status1, status2, status3 };
+        var badges  = Page.Locator(".status-badge, [data-status-badge], .badge");
+        var count   = await badges.CountAsync();
 
-        foreach (var status in statuses)
+        for (var i = 0; i < count; i++)
         {
-            if (!allowed.Contains(status))
+            var text = (await badges.Nth(i).TextContentAsync() ?? string.Empty).Trim().ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(text) && !allowed.Contains(text))
                 throw new Exception(
-                    $"Unexpected hypothesis status '{status}'. " +
+                    $"Unexpected hypothesis status '{text}'. " +
                     $"Allowed values: {string.Join(", ", allowed)}.");
         }
     }
@@ -197,7 +199,7 @@ public class HypothesisTestingStepDefinitions
     public async Task ThenIShouldSeeThePValue()
     {
         await Page.WaitForSelectorAsync(
-            ".p-value, [data-p-value], text=/p[\-\s]?value|p\s*=/i",
+            @".p-value, [data-p-value], text=/p[\-\s]?value|p\s*=/i",
             new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
     }
 

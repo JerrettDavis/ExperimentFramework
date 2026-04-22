@@ -5,7 +5,7 @@ namespace ExperimentFramework.E2E.Tests.PageObjects;
 /// <summary>
 /// Page Object Model for the governance versions page at <c>/dashboard/governance/versions</c>.
 /// </summary>
-public class GovernanceVersionsPage
+public class GovernanceVersionsPage : IGovernanceSelectable
 {
     private readonly IPage _page;
 
@@ -81,5 +81,56 @@ public class GovernanceVersionsPage
     {
         await CloseViewerButton.ClickAsync();
         await VersionViewer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden });
+    }
+
+    // -----------------------------------------------------------------------
+    // Assertion / convenience helpers (called directly from step definitions)
+    // -----------------------------------------------------------------------
+
+    /// <summary>Waits until the page container is visible.</summary>
+    public async Task WaitForPageLoadAsync() =>
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Selects the first available experiment in the dropdown (IGovernanceSelectable).</summary>
+    public async Task SelectFirstExperimentAsync()
+    {
+        var options = ExperimentSelect.Locator("option");
+        var count = await options.CountAsync();
+        var idx = count > 1 ? 1 : 0;
+        var value = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
+    }
+
+    /// <summary>Clicks the View button on the first version in the list.</summary>
+    public async Task ClickViewFirstVersionAsync()
+    {
+        var viewBtn = VersionList.First.Locator("button:has-text('View'), button[data-action='view']");
+        await viewBtn.ClickAsync();
+        await VersionViewer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+    }
+
+    /// <summary>Closes the version viewer (alias for CloseViewerAsync for step compatibility).</summary>
+    public Task CloseVersionViewerAsync() => CloseViewerAsync();
+
+    /// <summary>Asserts the version history list has at least one entry.</summary>
+    public async Task AssertVersionHistoryVisibleAsync() =>
+        await VersionList.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts the version detail modal / panel is visible and contains JSON-like content.</summary>
+    public async Task AssertVersionDetailModalVisibleAsync()
+    {
+        await VersionViewer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        var content = await VersionViewer.TextContentAsync() ?? string.Empty;
+        if (!content.Contains("{") && !content.Contains("version", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Version detail modal is visible but does not appear to contain JSON content.");
+    }
+
+    /// <summary>Asserts the version viewer panel is hidden.</summary>
+    public async Task AssertVersionViewerHiddenAsync()
+    {
+        var count = await VersionViewer.CountAsync();
+        if (count > 0)
+            await VersionViewer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden });
     }
 }

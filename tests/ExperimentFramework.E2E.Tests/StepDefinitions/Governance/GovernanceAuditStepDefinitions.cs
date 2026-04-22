@@ -1,6 +1,5 @@
 using ExperimentFramework.E2E.Tests.Drivers;
 using ExperimentFramework.E2E.Tests.PageObjects;
-using ExperimentFramework.E2E.Tests.Support;
 using Microsoft.Playwright;
 using Reqnroll;
 
@@ -36,7 +35,8 @@ public class GovernanceAuditStepDefinitions
     {
         await _dashboard.NavigateToAsync("/dashboard/governance/audit");
         await _page.WaitForPageLoadAsync();
-        _scenarioContext["ActiveGovernancePage"] = (IGovernanceSelectable)_page;
+        // Register the delegate consumed by GovernanceSharedStepDefinitions.
+        _scenarioContext["SelectFirstExperiment"] = (Func<Task>)SelectFirstExperimentAsync;
     }
 
     // -------------------------------------------------------------------------
@@ -85,5 +85,26 @@ public class GovernanceAuditStepDefinitions
     public async Task ThenTheAuditEntriesShouldBeFilteredBySearchText()
     {
         await _page.AssertSearchResultsVisibleAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Selects the first non-placeholder option from the experiment dropdown.
+    /// Registered as a <c>Func&lt;Task&gt;</c> in ScenarioContext so the shared
+    /// "I select the first experiment from the dropdown" step can call it.
+    /// </summary>
+    private async Task SelectFirstExperimentAsync()
+    {
+        var select = Page.Locator(
+            "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
+        var options = select.Locator("option");
+        var count   = await options.CountAsync();
+        var idx     = count > 1 ? 1 : 0;
+        var value   = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await select.SelectOptionAsync(new SelectOptionValue { Value = value });
     }
 }

@@ -64,4 +64,25 @@ public class GovernanceApprovalsPage
 
         return cards;
     }
+
+    // -----------------------------------------------------------------------
+    // Assertion helpers (called directly from step definitions)
+    // -----------------------------------------------------------------------
+
+    /// <summary>Asserts at least one workflow step element is visible.</summary>
+    public async Task AssertWorkflowStepsVisibleAsync() =>
+        await WorkflowSteps.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts at least one feature card element is visible.</summary>
+    public async Task AssertFeatureCardsVisibleAsync() =>
+        await FeatureCards.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts that navigation links to other governance pages are visible.</summary>
+    public async Task AssertGovernanceNavigationLinksVisibleAsync()
+    {
+        // Governance pages are linked either in nav or in the page body
+        var governanceLinks = _page.Locator(
+            "a[href*='governance'], [data-governance-link], .governance-nav-link");
+        await governanceLinks.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+    }
 }

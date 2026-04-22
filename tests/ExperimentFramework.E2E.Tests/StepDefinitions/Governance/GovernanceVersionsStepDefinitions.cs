@@ -10,13 +10,18 @@ public class GovernanceVersionsStepDefinitions
 {
     private readonly BrowserDriver _browser;
     private readonly DashboardDriver _dashboard;
+    private readonly ScenarioContext _scenarioContext;
     private readonly GovernanceVersionsPage _page;
 
-    public GovernanceVersionsStepDefinitions(BrowserDriver browser, DashboardDriver dashboard)
+    public GovernanceVersionsStepDefinitions(
+        BrowserDriver browser,
+        DashboardDriver dashboard,
+        ScenarioContext scenarioContext)
     {
-        _browser   = browser;
-        _dashboard = dashboard;
-        _page      = new GovernanceVersionsPage(browser.Page);
+        _browser         = browser;
+        _dashboard       = dashboard;
+        _scenarioContext = scenarioContext;
+        _page            = new GovernanceVersionsPage(browser.Page);
     }
 
     private IPage Page => _browser.Page;
@@ -30,6 +35,7 @@ public class GovernanceVersionsStepDefinitions
     {
         await _dashboard.NavigateToAsync("/dashboard/governance/versions");
         await _page.WaitForPageLoadAsync();
+        _scenarioContext["SelectFirstExperiment"] = (Func<Task>)SelectFirstExperimentAsync;
     }
 
     // -------------------------------------------------------------------------
@@ -68,5 +74,21 @@ public class GovernanceVersionsStepDefinitions
     public async Task ThenTheVersionViewerShouldBeHidden()
     {
         await _page.AssertVersionViewerHiddenAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private async Task SelectFirstExperimentAsync()
+    {
+        var select = Page.Locator(
+            "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
+        var options = select.Locator("option");
+        var count   = await options.CountAsync();
+        var idx     = count > 1 ? 1 : 0;
+        var value   = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await select.SelectOptionAsync(new SelectOptionValue { Value = value });
     }
 }

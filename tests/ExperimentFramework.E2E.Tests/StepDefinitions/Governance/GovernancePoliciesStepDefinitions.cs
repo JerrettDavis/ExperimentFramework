@@ -10,13 +10,18 @@ public class GovernancePoliciesStepDefinitions
 {
     private readonly BrowserDriver _browser;
     private readonly DashboardDriver _dashboard;
+    private readonly ScenarioContext _scenarioContext;
     private readonly GovernancePoliciesPage _page;
 
-    public GovernancePoliciesStepDefinitions(BrowserDriver browser, DashboardDriver dashboard)
+    public GovernancePoliciesStepDefinitions(
+        BrowserDriver browser,
+        DashboardDriver dashboard,
+        ScenarioContext scenarioContext)
     {
-        _browser   = browser;
-        _dashboard = dashboard;
-        _page      = new GovernancePoliciesPage(browser.Page);
+        _browser         = browser;
+        _dashboard       = dashboard;
+        _scenarioContext = scenarioContext;
+        _page            = new GovernancePoliciesPage(browser.Page);
     }
 
     private IPage Page => _browser.Page;
@@ -30,6 +35,7 @@ public class GovernancePoliciesStepDefinitions
     {
         await _dashboard.NavigateToAsync("/dashboard/governance/policies");
         await _page.WaitForPageLoadAsync();
+        _scenarioContext["SelectFirstExperiment"] = (Func<Task>)SelectFirstExperimentAsync;
     }
 
     // -------------------------------------------------------------------------
@@ -61,5 +67,21 @@ public class GovernancePoliciesStepDefinitions
             await _page.AssertPolicyCardsHaveStatusAsync();
         }
         // If not configured there are no policy cards to assert against — pass gracefully.
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private async Task SelectFirstExperimentAsync()
+    {
+        var select = Page.Locator(
+            "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
+        var options = select.Locator("option");
+        var count   = await options.CountAsync();
+        var idx     = count > 1 ? 1 : 0;
+        var value   = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await select.SelectOptionAsync(new SelectOptionValue { Value = value });
     }
 }

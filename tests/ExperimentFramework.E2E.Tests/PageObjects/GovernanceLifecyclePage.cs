@@ -5,7 +5,7 @@ namespace ExperimentFramework.E2E.Tests.PageObjects;
 /// <summary>
 /// Page Object Model for the governance lifecycle page at <c>/dashboard/governance/lifecycle</c>.
 /// </summary>
-public class GovernanceLifecyclePage
+public class GovernanceLifecyclePage : IGovernanceSelectable
 {
     private readonly IPage _page;
 

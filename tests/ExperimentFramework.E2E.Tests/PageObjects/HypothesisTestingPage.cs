@@ -65,4 +65,23 @@ public class HypothesisTestingPage
         await RefreshButton.ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
+
+    /// <summary>
+    /// Returns the text content of every status badge element found inside hypothesis cards.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetStatusBadgeTextsAsync()
+    {
+        var badges = HypothesisCards.Locator(".status, .badge, [data-status], .hypothesis-status, .status-badge");
+        var count = await badges.CountAsync();
+        var texts = new List<string>(count);
+
+        for (var i = 0; i < count; i++)
+        {
+            var text = await badges.Nth(i).TextContentAsync();
+            if (!string.IsNullOrWhiteSpace(text))
+                texts.Add(text.Trim());
+        }
+
+        return texts;
+    }
 }

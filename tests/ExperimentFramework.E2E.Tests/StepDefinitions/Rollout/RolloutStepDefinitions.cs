@@ -10,19 +10,22 @@ public class RolloutStepDefinitions
 {
     private readonly BrowserDriver _browser;
     private readonly DashboardDriver _dashboard;
+    private readonly ScenarioContext _scenarioContext;
     private readonly RolloutPage _page;
 
     // Track stage count across steps within a scenario
     private int _stageCountBeforeRemove;
 
-    public RolloutStepDefinitions(BrowserDriver browser, DashboardDriver dashboard)
+    public RolloutStepDefinitions(
+        BrowserDriver browser,
+        DashboardDriver dashboard,
+        ScenarioContext scenarioContext)
     {
-        _browser   = browser;
-        _dashboard = dashboard;
-        _page      = new RolloutPage(browser.Page);
+        _browser         = browser;
+        _dashboard       = dashboard;
+        _scenarioContext = scenarioContext;
+        _page            = new RolloutPage(browser.Page);
     }
-
-    private IPage Page => _browser.Page;
 
     // -------------------------------------------------------------------------
     // Given
@@ -33,6 +36,9 @@ public class RolloutStepDefinitions
     {
         await _dashboard.NavigateToAsync("/dashboard/rollout");
         await _page.WaitForPageLoadAsync();
+        // Register the select-first-experiment delegate consumed by
+        // GovernanceSharedStepDefinitions (shared across governance + rollout).
+        _scenarioContext["SelectFirstExperiment"] = (Func<Task>)SelectFirstExperimentAsync;
     }
 
     // -------------------------------------------------------------------------
@@ -113,5 +119,21 @@ public class RolloutStepDefinitions
     public async Task ThenIShouldSeeTheProgressBar()
     {
         await _page.AssertProgressBarVisibleAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    private async Task SelectFirstExperimentAsync()
+    {
+        var select = _browser.Page.Locator(
+            "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
+        var options = select.Locator("option");
+        var count   = await options.CountAsync();
+        var idx     = count > 1 ? 1 : 0;
+        var value   = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await select.SelectOptionAsync(new SelectOptionValue { Value = value });
     }
 }

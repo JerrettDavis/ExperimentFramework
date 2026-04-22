@@ -1,62 +1,41 @@
 using ExperimentFramework.E2E.Tests.Drivers;
-using ExperimentFramework.E2E.Tests.PageObjects;
-using Microsoft.Playwright;
 using Reqnroll;
 
 namespace ExperimentFramework.E2E.Tests.StepDefinitions.Governance;
 
 /// <summary>
-/// Shared step definitions used across multiple governance feature files.
-/// Stores the active governance page object in <see cref="ScenarioContext"/>
-/// so that individual step definition classes can retrieve it via the
-/// <c>IGovernanceSelectable</c> interface.
+/// Shared step definitions used across all governance and rollout feature files.
+/// Each page-specific Given step registers a <c>Func&lt;Task&gt;</c> delegate in
+/// <see cref="ScenarioContext"/> under the key <c>"SelectFirstExperiment"</c> so
+/// this single binding can dispatch correctly.
 /// </summary>
 [Binding]
 public class GovernanceSharedStepDefinitions
 {
-    private readonly BrowserDriver _browser;
-    private readonly DashboardDriver _dashboard;
     private readonly ScenarioContext _scenarioContext;
 
-    public GovernanceSharedStepDefinitions(
-        BrowserDriver browser,
-        DashboardDriver dashboard,
-        ScenarioContext scenarioContext)
+    public GovernanceSharedStepDefinitions(ScenarioContext scenarioContext)
     {
-        _browser         = browser;
-        _dashboard       = dashboard;
         _scenarioContext = scenarioContext;
     }
 
-    private IPage Page => _browser.Page;
-
     // -------------------------------------------------------------------------
-    // When — shared across all governance feature files
+    // When — single canonical binding for all governance / rollout features
     // -------------------------------------------------------------------------
 
     [When(@"I select the first experiment from the dropdown")]
     public async Task WhenISelectTheFirstExperimentFromTheDropdown()
     {
-        // Dispatch to whichever page the scenario navigated to, identified by
-        // the IGovernanceSelectable stored in ScenarioContext during the Given.
-        if (_scenarioContext.TryGetValue<IGovernanceSelectable>("ActiveGovernancePage", out var activePage))
+        if (_scenarioContext.TryGetValue<Func<Task>>("SelectFirstExperiment", out var selectAction))
         {
-            await activePage.SelectFirstExperimentAsync();
+            await selectAction();
         }
         else
         {
-            // Fallback: use a generic selector that works across all governance pages.
-            var selector = _browser.Page.Locator(
-                "select[data-testid*='experiment'], " +
-                "select.experiment-select, " +
-                "select#experimentId, " +
-                "select");
-            var firstOption = await selector.First.InputValueAsync();
-            if (string.IsNullOrWhiteSpace(firstOption))
-            {
-                // Select the second option (index 1) since index 0 is often a placeholder.
-                await selector.First.SelectOptionAsync(new SelectOptionValue { Index = 1 });
-            }
+            throw new InvalidOperationException(
+                "No 'SelectFirstExperiment' action was registered in ScenarioContext. " +
+                "Ensure the Given step for the current page sets this before calling " +
+                "'I select the first experiment from the dropdown'.");
         }
     }
 }

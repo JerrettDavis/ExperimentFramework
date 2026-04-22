@@ -5,7 +5,7 @@ namespace ExperimentFramework.E2E.Tests.PageObjects;
 /// <summary>
 /// Page Object Model for the governance audit page at <c>/dashboard/governance/audit</c>.
 /// </summary>
-public class GovernanceAuditPage
+public class GovernanceAuditPage : IGovernanceSelectable
 {
     private readonly IPage _page;
 
@@ -86,6 +86,17 @@ public class GovernanceAuditPage
     /// <summary>Returns true when governance persistence is configured (not-configured message absent).</summary>
     public async Task<bool> IsConfiguredAsync() =>
         !await IsNotConfiguredAsync();
+
+    /// <summary>Selects the first available experiment in the dropdown (IGovernanceSelectable).</summary>
+    public async Task SelectFirstExperimentAsync()
+    {
+        var options = ExperimentSelect.Locator("option");
+        var count = await options.CountAsync();
+        var idx = count > 1 ? 1 : 0;
+        var value = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
+    }
 
     /// <summary>Asserts that at least one audit entry row is visible.</summary>
     public async Task AssertAuditEntriesVisibleAsync() =>

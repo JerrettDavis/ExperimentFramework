@@ -118,4 +118,64 @@ public class RolloutPage
     /// <summary>Returns the text of the current status badge.</summary>
     public async Task<string> GetCurrentStatusAsync() =>
         (await StatusBadge.First.TextContentAsync() ?? string.Empty).Trim();
+
+    // -----------------------------------------------------------------------
+    // Assertion / convenience helpers (called directly from step definitions)
+    // -----------------------------------------------------------------------
+
+    /// <summary>Waits until the page container is visible.</summary>
+    public async Task WaitForPageLoadAsync() =>
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Returns the number of stage items in the rollout plan.</summary>
+    public Task<int> GetStageCountAsync() =>
+        StageList.CountAsync();
+
+    /// <summary>Removes the last stage in the list.</summary>
+    public async Task RemoveLastStageAsync()
+    {
+        var count = await StageList.CountAsync();
+        if (count == 0) return;
+        var removeBtn = StageList.Nth(count - 1)
+            .Locator("button:has-text('Remove'), button[data-action='remove-stage']");
+        await removeBtn.ClickAsync();
+    }
+
+    /// <summary>Selects the first non-placeholder option from the variant dropdown.</summary>
+    public async Task SelectFirstVariantAsync()
+    {
+        var options = VariantSelect.Locator("option");
+        var optCount = await options.CountAsync();
+        if (optCount > 1)
+        {
+            var value = await options.Nth(1).GetAttributeAsync("value");
+            if (value is not null)
+                await VariantSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
+        }
+    }
+
+    /// <summary>Asserts the experiment selector dropdown is visible.</summary>
+    public async Task AssertExperimentSelectorVisibleAsync() =>
+        await ExperimentSelect.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts the rollout configuration panel is visible.</summary>
+    public async Task AssertConfigurationPanelVisibleAsync() =>
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts the rollout is currently in progress (status badge contains "progress" or "active").</summary>
+    public async Task AssertRolloutInProgressAsync()
+    {
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var status = await GetCurrentStatusAsync();
+        if (!status.Contains("Progress", StringComparison.OrdinalIgnoreCase)
+            && !status.Contains("Active", StringComparison.OrdinalIgnoreCase)
+            && !status.Contains("Running", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new Exception($"Expected rollout to be in progress but status was '{status}'.");
+        }
+    }
+
+    /// <summary>Asserts the progress bar is visible.</summary>
+    public async Task AssertProgressBarVisibleAsync() =>
+        await ProgressBar.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 }

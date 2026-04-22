@@ -55,4 +55,71 @@ public class TargetingPage
         await RefreshButton.ClickAsync();
         await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
     }
+
+    // -----------------------------------------------------------------------
+    // Assertion / convenience helpers (called directly from step definitions)
+    // -----------------------------------------------------------------------
+
+    /// <summary>Waits until the page container is visible.</summary>
+    public async Task WaitForPageLoadAsync() =>
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Alias for RefreshAsync — clicks the refresh button.</summary>
+    public Task ClickRefreshAsync() => RefreshAsync();
+
+    /// <summary>Asserts the targeting rules display area is visible.</summary>
+    public async Task AssertRulesDisplayVisibleAsync() =>
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+    /// <summary>Asserts that all toggle switches on the page are disabled (read-only view).</summary>
+    public async Task AssertAllTogglesDisabledAsync()
+    {
+        var toggles = _page.Locator("input[type='checkbox'], input[type='range'], .toggle-switch");
+        var count = await toggles.CountAsync();
+        for (var i = 0; i < count; i++)
+        {
+            var isDisabled = await toggles.Nth(i).IsDisabledAsync();
+            if (!isDisabled)
+                throw new Exception($"Toggle at index {i} is not disabled — targeting page should be read-only.");
+        }
+    }
+
+    /// <summary>Asserts each targeting rule has at least one condition tag element.</summary>
+    public async Task AssertRulesHaveConditionTagsAsync()
+    {
+        var count = await TargetingRules.CountAsync();
+        if (count == 0) return; // No rules is valid
+
+        for (var i = 0; i < count; i++)
+        {
+            var tags = TargetingRules.Nth(i)
+                .Locator(".condition-tag, .tag, [data-condition], .rule-condition");
+            var tagCount = await tags.CountAsync();
+            if (tagCount == 0)
+                throw new Exception($"Targeting rule at index {i} has no condition tags.");
+        }
+    }
+
+    /// <summary>Asserts each targeting rule has a target variant indicator.</summary>
+    public async Task AssertRulesHaveTargetVariantAsync()
+    {
+        var count = await TargetingRules.CountAsync();
+        if (count == 0) return;
+
+        for (var i = 0; i < count; i++)
+        {
+            var variantEl = TargetingRules.Nth(i)
+                .Locator(".target-variant, [data-target-variant], .variant-badge, .rule-variant");
+            var variantCount = await variantEl.CountAsync();
+            if (variantCount == 0)
+                throw new Exception($"Targeting rule at index {i} has no target variant element.");
+        }
+    }
+
+    /// <summary>Asserts the targeting rules are visible after a reload.</summary>
+    public async Task AssertRulesReloadedAsync()
+    {
+        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await PageContainer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+    }
 }

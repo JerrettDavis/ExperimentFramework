@@ -5,7 +5,7 @@ namespace ExperimentFramework.E2E.Tests.PageObjects;
 /// <summary>
 /// Page Object Model for the governance policies page at <c>/dashboard/governance/policies</c>.
 /// </summary>
-public class GovernancePoliciesPage
+public class GovernancePoliciesPage : IGovernanceSelectable
 {
     private readonly IPage _page;
 
@@ -76,6 +76,17 @@ public class GovernancePoliciesPage
     /// </summary>
     public async Task<bool> IsConfiguredAsync() =>
         !await IsNotConfiguredAsync();
+
+    /// <summary>Selects the first available experiment in the dropdown (IGovernanceSelectable).</summary>
+    public async Task SelectFirstExperimentAsync()
+    {
+        var options = ExperimentSelect.Locator("option");
+        var count = await options.CountAsync();
+        var idx = count > 1 ? 1 : 0;
+        var value = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is not null)
+            await ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
+    }
 
     /// <summary>Asserts the compliance summary section is visible.</summary>
     public async Task AssertComplianceSummaryVisibleAsync() =>
