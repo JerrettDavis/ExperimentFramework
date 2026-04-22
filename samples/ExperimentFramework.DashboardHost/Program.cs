@@ -157,3 +157,59 @@ public class VariantCalculatorService : ICalculatorService
 
 // Make Program class accessible for integration tests (if needed)
 public partial class Program { }
+
+// ============================================
+// TODO(T5): gate on --seed=docs
+// When T5 lands, wrap the existing experiment registration in an if/else on cliArgs.SeedDocs.
+// The demo registration block below (currently commented out) should replace the existing
+// two-experiment block when --seed=docs is passed.
+//
+// using ExperimentFramework.DashboardHost.DemoServices;
+//
+// if (cliArgs.SeedDocs)
+// {
+//     #region Docs Demo — five experiments for screenshot capture
+//     builder.Services.AddScoped<CheckoutButtonControl>();
+//     builder.Services.AddScoped<CheckoutButtonVariantA>();
+//     builder.Services.AddScoped<SearchBaseline>();
+//     builder.Services.AddScoped<SearchMlV1>();
+//     builder.Services.AddScoped<SearchMlV2>();
+//     builder.Services.AddScoped<HomepageLayoutControl>();
+//     builder.Services.AddScoped<HomepageLayoutFallHero>();
+//     builder.Services.AddScoped<PricingCopyOriginal>();
+//     builder.Services.AddScoped<PricingCopyBenefitsLed>();
+//     builder.Services.AddScoped<LegacyApiV1>();
+//     builder.Services.AddScoped<LegacyApiV2>();
+//
+//     var demoConfig = ExperimentFrameworkBuilder.Create()
+//         .Define<ICheckoutButtonService>(e => e
+//             .UsingFeatureFlag("checkout-button-v2")
+//             .AddDefaultTrial<CheckoutButtonControl>("control")
+//             .AddTrial<CheckoutButtonVariantA>("variant-a"))
+//         .Define<ISearchRankerService>(e => e
+//             .UsingFeatureFlag("search-ranker-ml")
+//             .AddDefaultTrial<SearchBaseline>("baseline")
+//             .AddTrial<SearchMlV1>("ml-v1")
+//             .AddTrial<SearchMlV2>("ml-v2"))
+//         .Define<IHomepageLayoutService>(e => e
+//             .UsingFeatureFlag("homepage-layout-fall2026")
+//             .AddDefaultTrial<HomepageLayoutControl>("control")
+//             .AddTrial<HomepageLayoutFallHero>("fall-hero"))
+//         .Define<IPricingCopyService>(e => e
+//             .UsingFeatureFlag("pricing-page-copy")
+//             .AddDefaultTrial<PricingCopyOriginal>("control")
+//             .AddTrial<PricingCopyBenefitsLed>("benefits"))
+//         .Define<ILegacyApiService>(e => e
+//             .UsingFeatureFlag("legacy-api-cutover")
+//             .AddDefaultTrial<LegacyApiV1>("v1-api")
+//             .AddTrial<LegacyApiV2>("v2-api"))
+//         .UseDispatchProxy();
+//
+//     builder.Services.AddExperimentFramework(demoConfig);
+//     #endregion
+// }
+// else
+// {
+//     // existing non-demo experiment registration (see top of file)
+// }
+// ============================================
