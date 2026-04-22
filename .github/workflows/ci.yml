@@ -151,7 +151,24 @@ jobs:
           /p:PackageVersion=${{ env.PACKAGE_VERSION }}
 
       - name: Test (Release)
-        run: dotnet test ExperimentFramework.slnx --configuration Release --no-build --verbosity normal
+        run: |
+          dotnet test ExperimentFramework.slnx \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --collect:"XPlat Code Coverage" \
+            --settings tests/ExperimentFramework.Tests/coverage.runsettings
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: |
+            **/TestResults/*/coverage.cobertura.xml
+          flags: unittests
+          fail_ci_if_error: true
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Pack (all packable projects)
         run: >
@@ -165,7 +182,7 @@ jobs:
           /p:Version=${{ env.PACKAGE_VERSION }}
           /p:AssemblyVersion=${{ env.ASSEMBLY_VERSION }}
           /p:FileVersion=${{ env.FILE_VERSION }}
-          /p:PackageVersion=${{ env.PACKAGE_VERSION }} || true
+          /p:PackageVersion=${{ env.PACKAGE_VERSION }}
 
       - name: Generate configuration schemas
         run: |
