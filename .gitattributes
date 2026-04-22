@@ -1,0 +1,4 @@
+# Treat PNG screenshots as binary to avoid line-ending corruption
+docs/images/screenshots/**/*.png binary
+docs/images/screenshots/**/*.png -diff
+docs/images/screenshots/**/*.png linguist-generated=true
