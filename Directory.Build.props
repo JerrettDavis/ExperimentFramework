@@ -4,6 +4,12 @@
     <UseSharedCompilation>false</UseSharedCompilation>
   </PropertyGroup>
 
+  <!-- Symbol packages for all non-analyzer projects -->
+  <PropertyGroup Condition="'$(PackageType)' != 'Analyzer'">
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
   <!-- Package version management for multi-targeting -->
   <PropertyGroup>
     <!-- Microsoft.Extensions.* versions that support .NET Standard 2.0 and .NET 8+ -->
