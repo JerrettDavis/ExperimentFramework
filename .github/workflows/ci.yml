@@ -89,6 +89,38 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # E2E tests require the AspireDemo app to be running — marked continue-on-error as informational
+  e2e-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: pr-checks
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore --use-lock-file
+
+      - name: Build E2E tests (Release)
+        run: dotnet build tests/ExperimentFramework.E2E.Tests/ --configuration Release --no-restore
+
+      - name: Install Playwright browsers
+        run: pwsh tests/ExperimentFramework.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run E2E tests
+        run: dotnet test tests/ExperimentFramework.E2E.Tests/ --configuration Release --verbosity quiet --filter "Category!=Manual"
+
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
