@@ -7,34 +7,36 @@ on:
 
 permissions:
   contents: read
+
 jobs:
   update-packages:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
-      
+        uses: actions/checkout@v4
+
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
             10.0.x
-      
+
       - name: Update NuGet packages
         run: |
           echo "Checking for outdated packages..."
           dotnet list ExperimentFramework.slnx package --outdated | tee outdated-packages.txt || true
-          
+
           echo ""
           echo "Note: This workflow is for manual review of outdated packages."
           echo "Dependabot (configured in .github/dependabot.yml) will automatically create PRs for updates."
           echo "The outdated packages report has been saved as an artifact for review."
-      
+
       - name: Upload outdated packages report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: outdated-packages-report
           path: |

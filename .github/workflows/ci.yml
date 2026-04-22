@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   DOTNET_NOLOGO: true
   INCLUDE_SYMBOLS: true
@@ -15,20 +19,23 @@ jobs:
   pr-checks:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
             10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore
         run: |
@@ -63,13 +70,14 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       - name: Upload coverage HTML report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage-report
+          retention-days: 14
 
       - name: Add coverage summary to PR
-        uses: marocchino/sticky-pull-request-comment@v3
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: true
           message: |
@@ -79,7 +87,7 @@ jobs:
             ```
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v4
         with:
           files: |
             **/TestResults/*/coverage.cobertura.xml
@@ -93,19 +101,24 @@ jobs:
   e2e-tests:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: pr-checks
     continue-on-error: true
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
             10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore
         run: |
@@ -116,7 +129,13 @@ jobs:
         run: dotnet build tests/ExperimentFramework.E2E.Tests/ --configuration Release --no-restore
 
       - name: Install Playwright browsers
-        run: pwsh tests/ExperimentFramework.E2E.Tests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+        run: |
+          PLAYWRIGHT_PS1=$(find tests/ExperimentFramework.E2E.Tests/bin/Release -name "playwright.ps1" | head -1)
+          if [ -z "$PLAYWRIGHT_PS1" ]; then
+            echo "playwright.ps1 not found, skipping browser install"
+            exit 0
+          fi
+          pwsh "$PLAYWRIGHT_PS1" install --with-deps chromium
 
       - name: Run E2E tests
         run: dotnet test tests/ExperimentFramework.E2E.Tests/ --configuration Release --verbosity quiet --filter "Category!=Manual"
@@ -124,22 +143,25 @@ jobs:
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: write
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             9.0.x
             10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore
         run: |
@@ -153,7 +175,7 @@ jobs:
         run: rm -rf .git/gitversion_cache || true
 
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v4
+        uses: gittools/actions/gitversion/setup@v3
         with:
           versionSpec: '6.x'
 
@@ -162,7 +184,7 @@ jobs:
 
       - name: Run GitVersion
         id: gitversion
-        uses: gittools/actions/gitversion/execute@v4
+        uses: gittools/actions/gitversion/execute@v3
 
       - name: Set version env vars
         run: |
@@ -192,7 +214,7 @@ jobs:
             --settings tests/ExperimentFramework.Tests/coverage.runsettings
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v4
         with:
           files: |
             **/TestResults/*/coverage.cobertura.xml
@@ -223,18 +245,20 @@ jobs:
           ls -lh ./artifacts/schemas/
 
       - name: Upload packages as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
           path: |
             ./artifacts/*.nupkg
             ./artifacts/*.snupkg
+          retention-days: 30
 
       - name: Upload schema files as artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: configuration-schemas
           path: ./artifacts/schemas/*.json
+          retention-days: 30
 
       - name: Create and push git tag
         shell: bash
@@ -250,7 +274,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.PACKAGE_VERSION }}
           name: Release v${{ env.PACKAGE_VERSION }}
