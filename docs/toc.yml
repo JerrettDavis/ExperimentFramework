@@ -1,8 +1,8 @@
 - name: Home
   href: index.md
 
-- name: User Guide
-  href: user-guide/
+- name: Reference
+  href: reference/
   items:
 
 

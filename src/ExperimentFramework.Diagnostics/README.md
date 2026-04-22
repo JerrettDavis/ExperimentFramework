@@ -71,7 +71,7 @@ public async Task Experiment_RecordsFallback()
 
 ## Documentation
 
-See [Diagnostics & Tracing Guide](../../docs/user-guide/diagnostics.md) for detailed documentation.
+See [Diagnostics & Tracing Guide](../../docs/reference/diagnostics.md) for detailed documentation.
 
 ## License
 

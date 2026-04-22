@@ -48,4 +48,4 @@ builder.Services.AddExperimentFrameworkFromConfiguration(builder.Configuration);
 
 ## Documentation
 
-See the [Configuration Guide](../../docs/user-guide/configuration.md) for complete documentation.
+See the [Configuration Guide](../../docs/reference/configuration.md) for complete documentation.
