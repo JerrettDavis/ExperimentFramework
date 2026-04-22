@@ -13,15 +13,32 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<List<ExperimentInfo>> GetExperimentsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<List<ExperimentInfo>>("/api/experiments", cancellationToken);
-        return result ?? [];
+        // The REST API returns {"experiments": [...]} with DashboardExperimentInfo objects.
+        // Unwrap the envelope and map to ExperimentInfo for the UI.
+        var envelope = await httpClient.GetFromJsonAsync<ExperimentsEnvelope>($"api/experiments", cancellationToken);
+        if (envelope?.Experiments == null) return [];
+        return envelope.Experiments.Select(e => new ExperimentInfo
+        {
+            Name        = e.Name ?? "",
+            DisplayName = e.DisplayName ?? e.Name ?? "",
+            Description = e.Description ?? "",
+            Status      = e.IsActive ? "Active" : "Inactive",
+            ActiveVariant = e.ActiveVariant ?? "",
+            Variants    = e.Trials?.Select(t => new VariantInfo
+            {
+                Name        = t.Key ?? "",
+                DisplayName = t.Key ?? "",
+            }).ToList() ?? [],
+            Category    = e.Category ?? "General",
+            LastModified = e.LastModified,
+        }).ToList();
     }
 
     public async Task<ExperimentInfo?> GetExperimentAsync(string name, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await httpClient.GetFromJsonAsync<ExperimentInfo>($"/api/experiments/{name}", cancellationToken);
+            return await httpClient.GetFromJsonAsync<ExperimentInfo>($"api/experiments/{name}", cancellationToken);
         }
         catch (HttpRequestException)
         {
@@ -31,7 +48,7 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<ExperimentInfo?> ActivateVariantAsync(string experimentName, string variant, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsync($"/api/experiments/{experimentName}/activate/{variant}", null, cancellationToken);
+        var response = await httpClient.PostAsync($"api/experiments/{experimentName}/activate/{variant}", null, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadFromJsonAsync<ExperimentInfo>(cancellationToken);
@@ -45,28 +62,28 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<PricingResponse?> CalculatePricingAsync(int units, CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<PricingResponse>($"/api/pricing/calculate?units={units}", cancellationToken);
+        return await httpClient.GetFromJsonAsync<PricingResponse>($"api/pricing/calculate?units={units}", cancellationToken);
     }
 
     public async Task<NotificationResponse?> GetNotificationPreviewAsync(string? userId = null, CancellationToken cancellationToken = default)
     {
         var url = string.IsNullOrEmpty(userId)
-            ? "/api/notifications/preview"
-            : $"/api/notifications/preview?userId={Uri.EscapeDataString(userId)}";
+            ? $"api/notifications/preview"
+            : $"api/notifications/preview?userId={Uri.EscapeDataString(userId)}";
         return await httpClient.GetFromJsonAsync<NotificationResponse>(url, cancellationToken);
     }
 
     public async Task<RecommendationResponse?> GetRecommendationsAsync(string? userId = null, CancellationToken cancellationToken = default)
     {
         var url = string.IsNullOrEmpty(userId)
-            ? "/api/recommendations"
-            : $"/api/recommendations?userId={Uri.EscapeDataString(userId)}";
+            ? $"api/recommendations"
+            : $"api/recommendations?userId={Uri.EscapeDataString(userId)}";
         return await httpClient.GetFromJsonAsync<RecommendationResponse>(url, cancellationToken);
     }
 
     public async Task<ThemeResponse?> GetThemeAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<ThemeResponse>("/api/theme", cancellationToken);
+        return await httpClient.GetFromJsonAsync<ThemeResponse>($"api/theme", cancellationToken);
     }
 
     // ============================================================================
@@ -75,13 +92,13 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<List<AuditLogEntry>> GetAuditLogAsync(int limit = 50, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<List<AuditLogEntry>>($"/api/audit?limit={limit}", cancellationToken);
+        var result = await httpClient.GetFromJsonAsync<List<AuditLogEntry>>($"api/audit?limit={limit}", cancellationToken);
         return result ?? [];
     }
 
     public async Task<Dictionary<string, Dictionary<string, int>>> GetUsageStatsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<Dictionary<string, Dictionary<string, int>>>("/api/analytics/usage", cancellationToken);
+        var result = await httpClient.GetFromJsonAsync<Dictionary<string, Dictionary<string, int>>>($"api/analytics/usage", cancellationToken);
         return result ?? [];
     }
 
@@ -91,23 +108,31 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<string> GetConfigYamlAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetStringAsync("/api/config/yaml", cancellationToken);
+        return await httpClient.GetStringAsync($"api/config/yaml", cancellationToken);
     }
 
     public async Task<FrameworkInfo?> GetConfigInfoAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<FrameworkInfo>("/api/config/info", cancellationToken);
+        return await httpClient.GetFromJsonAsync<FrameworkInfo>($"api/config/info", cancellationToken);
     }
 
     public async Task<List<KillSwitchStatus>> GetKillSwitchStatusesAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<List<KillSwitchStatus>>("/api/config/kill-switch", cancellationToken);
-        return result ?? [];
+        try
+        {
+            var result = await httpClient.GetFromJsonAsync<List<KillSwitchStatus>>($"api/config/kill-switch", cancellationToken);
+            return result ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            // Kill-switch endpoint is optional; return empty if not implemented or unavailable.
+            return [];
+        }
     }
 
     public async Task<KillSwitchStatus?> UpdateKillSwitchAsync(KillSwitchUpdate request, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsJsonAsync("/api/config/kill-switch", request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"api/config/kill-switch", request, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadFromJsonAsync<KillSwitchStatus>(cancellationToken);
@@ -122,7 +147,7 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<DslValidationResponse?> ValidateDslAsync(string yaml, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsJsonAsync("/api/dsl/validate", new { yaml }, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"api/dsl/validate", new { yaml }, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadFromJsonAsync<DslValidationResponse>(cancellationToken);
@@ -132,7 +157,7 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<DslApplyResponse?> ApplyDslAsync(string yaml, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsJsonAsync("/api/dsl/apply", new { yaml }, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"api/dsl/apply", new { yaml }, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadFromJsonAsync<DslApplyResponse>(cancellationToken);
@@ -142,12 +167,12 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<DslCurrentResponse?> GetCurrentDslAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<DslCurrentResponse>("/api/dsl/current", cancellationToken);
+        return await httpClient.GetFromJsonAsync<DslCurrentResponse>($"api/dsl/current", cancellationToken);
     }
 
     public async Task<object?> GetDslSchemaAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<object>("/api/dsl/schema", cancellationToken);
+        return await httpClient.GetFromJsonAsync<object>($"api/dsl/schema", cancellationToken);
     }
 
     // ============================================================================
@@ -156,13 +181,13 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<List<PluginInfo>> GetPluginsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<List<PluginInfo>>("/api/plugins", cancellationToken);
+        var result = await httpClient.GetFromJsonAsync<List<PluginInfo>>($"api/plugins", cancellationToken);
         return result ?? [];
     }
 
     public async Task<int> DiscoverPluginsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsync("/api/plugins/discover", null, cancellationToken);
+        var response = await httpClient.PostAsync($"api/plugins/discover", null, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             var result = await response.Content.ReadFromJsonAsync<DiscoverResult>(cancellationToken);
@@ -173,17 +198,17 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task ReloadPluginAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        await httpClient.PostAsync($"/api/plugins/{pluginId}/reload", null, cancellationToken);
+        await httpClient.PostAsync($"api/plugins/{pluginId}/reload", null, cancellationToken);
     }
 
     public async Task UnloadPluginAsync(string pluginId, CancellationToken cancellationToken = default)
     {
-        await httpClient.DeleteAsync($"/api/plugins/{pluginId}", cancellationToken);
+        await httpClient.DeleteAsync($"api/plugins/{pluginId}", cancellationToken);
     }
 
     public async Task<PluginUseResult?> UsePluginImplementationAsync(string pluginId, string interfaceName, string implName, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsync($"/api/plugins/{pluginId}/use?interface={Uri.EscapeDataString(interfaceName)}&impl={Uri.EscapeDataString(implName)}", null, cancellationToken);
+        var response = await httpClient.PostAsync($"api/plugins/{pluginId}/use?interface={Uri.EscapeDataString(interfaceName)}&impl={Uri.EscapeDataString(implName)}", null, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadFromJsonAsync<PluginUseResult>(cancellationToken);
@@ -193,13 +218,13 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<Dictionary<string, ActivePluginImplementation>> GetActivePluginImplementationsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<Dictionary<string, ActivePluginImplementation>>("/api/plugins/active", cancellationToken);
+        var result = await httpClient.GetFromJsonAsync<Dictionary<string, ActivePluginImplementation>>($"api/plugins/active", cancellationToken);
         return result ?? [];
     }
 
     public async Task<bool> ClearActivePluginImplementationAsync(string interfaceName, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.DeleteAsync($"/api/plugins/active/{Uri.EscapeDataString(interfaceName)}", cancellationToken);
+        var response = await httpClient.DeleteAsync($"api/plugins/active/{Uri.EscapeDataString(interfaceName)}", cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -212,7 +237,7 @@ public class ExperimentApiClient(HttpClient httpClient)
         try
         {
             Console.WriteLine($"[DEBUG] Calling: /api/governance/{experimentName}/lifecycle/state");
-            var result = await httpClient.GetFromJsonAsync<ExperimentStateInfo>($"/api/governance/{experimentName}/lifecycle/state", cancellationToken);
+            var result = await httpClient.GetFromJsonAsync<ExperimentStateInfo>($"api/governance/{experimentName}/lifecycle/state", cancellationToken);
             Console.WriteLine($"[DEBUG] Result: {(result != null ? $"State={result.State}" : "null")}");
             return result;
         }
@@ -226,7 +251,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     public async Task<bool> TransitionStateAsync(string experimentName, string targetState, string? actor = null, string? reason = null, CancellationToken cancellationToken = default)
     {
         var request = new { TargetState = targetState, Actor = actor, Reason = reason };
-        var response = await httpClient.PostAsJsonAsync($"/api/governance/{experimentName}/lifecycle/transition", request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"api/governance/{experimentName}/lifecycle/transition", request, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -234,7 +259,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<LifecycleHistoryResponse>($"/api/governance/{experimentName}/lifecycle/history", cancellationToken);
+            var response = await httpClient.GetFromJsonAsync<LifecycleHistoryResponse>($"api/governance/{experimentName}/lifecycle/history", cancellationToken);
             return response?.Transitions?.ToList() ?? [];
         }
         catch (HttpRequestException)
@@ -247,7 +272,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<GovernancePolicyResponse>($"/api/governance/{experimentName}/policies", cancellationToken);
+            var response = await httpClient.GetFromJsonAsync<GovernancePolicyResponse>($"api/governance/{experimentName}/policies", cancellationToken);
             return response?.Policies ?? [];
         }
         catch (HttpRequestException)
@@ -260,7 +285,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<GovernanceVersionsResponse>($"/api/governance/{experimentName}/versions", cancellationToken);
+            var response = await httpClient.GetFromJsonAsync<GovernanceVersionsResponse>($"api/governance/{experimentName}/versions", cancellationToken);
             return response?.Versions ?? [];
         }
         catch (HttpRequestException)
@@ -273,7 +298,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            return await httpClient.GetFromJsonAsync<ConfigurationVersionInfo>($"/api/governance/{experimentName}/versions/{version}", cancellationToken);
+            return await httpClient.GetFromJsonAsync<ConfigurationVersionInfo>($"api/governance/{experimentName}/versions/{version}", cancellationToken);
         }
         catch (HttpRequestException)
         {
@@ -283,7 +308,7 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<bool> RollbackToVersionAsync(string experimentName, int version, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsync($"/api/governance/{experimentName}/versions/{version}/rollback", null, cancellationToken);
+        var response = await httpClient.PostAsync($"api/governance/{experimentName}/versions/{version}/rollback", null, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -291,7 +316,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<GovernanceAuditResponse>($"/api/governance/{experimentName}/audit", cancellationToken);
+            var response = await httpClient.GetFromJsonAsync<GovernanceAuditResponse>($"api/governance/{experimentName}/audit", cancellationToken);
             return response?.AuditLog ?? [];
         }
         catch (HttpRequestException)
@@ -304,6 +329,36 @@ public class ExperimentApiClient(HttpClient httpClient)
 // ============================================================================
 // DTOs
 // ============================================================================
+
+/// <summary>Envelope returned by GET /api/experiments.</summary>
+internal sealed class ExperimentsEnvelope
+{
+    [System.Text.Json.Serialization.JsonPropertyName("experiments")]
+    public List<ServerExperimentInfo>? Experiments { get; set; }
+}
+
+/// <summary>Server-side shape returned by the REST API (matches DashboardExperimentInfo).</summary>
+internal sealed class ServerExperimentInfo
+{
+    public string? Name { get; set; }
+    public string? DisplayName { get; set; }
+    public string? Description { get; set; }
+    public string? ServiceType { get; set; }
+    public bool IsActive { get; set; }
+    public int TrialCount { get; set; }
+    public string? ActiveVariant { get; set; }
+    public string? Category { get; set; }
+    public string? Status { get; set; }
+    public DateTime LastModified { get; set; }
+    public List<ServerTrialInfo>? Trials { get; set; }
+}
+
+internal sealed class ServerTrialInfo
+{
+    public string? Key { get; set; }
+    public string? ImplementationType { get; set; }
+    public bool IsControl { get; set; }
+}
 
 public class ExperimentInfo
 {

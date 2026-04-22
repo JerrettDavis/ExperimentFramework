@@ -92,6 +92,11 @@ if (cliArgs.SeedDocs)
 
     builder.Services.AddExperimentFramework(demoConfig);
 
+    // Bridge: expose the five demo experiments via IExperimentRegistry so that the
+    // Dashboard API (ExperimentEndpoints / DefaultDashboardDataProvider) can list them.
+    // The core ExperimentFramework registry is internal, so we supply this thin adapter.
+    builder.Services.AddSingleton<ExperimentFramework.Admin.IExperimentRegistry, DemoExperimentRegistry>();
+
     // Three demo policies via AddExperimentGovernance builder
     builder.Services.AddExperimentGovernance(governance =>
     {
@@ -207,10 +212,9 @@ app.MapExperimentDashboard("/dashboard");
 // Map Razor Pages (login stub)
 app.MapRazorPages();
 
-// Map Blazor Hub (required for Interactive Server components and blazor.web.js)
-app.MapBlazorHub();
-
 // Map Blazor SSR components (serves /dashboard, /dashboard/experiments, etc.)
+// AddInteractiveServerRenderMode() registers the SignalR hub (/_blazor) automatically.
+// MapBlazorHub() is legacy Blazor Server and must NOT be called here.
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
