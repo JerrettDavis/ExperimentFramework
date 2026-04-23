@@ -281,8 +281,22 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<Dictionary<string, ActivePluginImplementation>> GetActivePluginImplementationsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<Dictionary<string, ActivePluginImplementation>>($"api/plugins/active", cancellationToken);
-        return result ?? [];
+        try
+        {
+            var response = await httpClient.GetAsync("api/plugins/active", cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotImplemented
+                || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return [];
+            }
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<Dictionary<string, ActivePluginImplementation>>(cancellationToken);
+            return result ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
     }
 
     public async Task<bool> ClearActivePluginImplementationAsync(string interfaceName, CancellationToken cancellationToken = default)
