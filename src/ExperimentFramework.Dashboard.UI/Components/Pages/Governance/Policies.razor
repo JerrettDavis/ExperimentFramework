@@ -105,11 +105,11 @@
                                     <h3 class="policy-name">@policy.PolicyName</h3>
                                     @if (policy.IsCompliant)
                                     {
-                                        <span class="status-badge compliant">✓ Compliant</span>
+                                        <span class="status-badge status badge policy-status compliant" data-status="compliant">✓ Compliant</span>
                                     }
                                     else
                                     {
-                                        <span class="status-badge non-compliant">✗ Non-Compliant</span>
+                                        <span class="status-badge status badge policy-status non-compliant" data-status="non-compliant">✗ Non-Compliant</span>
                                     }
                                 </div>
                                 <div class="policy-meta">

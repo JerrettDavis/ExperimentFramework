@@ -98,7 +98,7 @@
                         <div class="plugin-title-area">
                             <h3>@plugin.Name</h3>
                             <div class="plugin-meta">
-                                <span class="version">v@plugin.Version</span>
+                                <span class="version">v@(plugin.Version)</span>
                                 <span class="status-badge @plugin.Status.ToLower()">@plugin.Status</span>
                             </div>
                         </div>
@@ -903,6 +903,7 @@
     /// </summary>
     private void SeedDemoPlugins()
     {
+        var loadedAt = new DateTime(2026, 3, 15, 9, 0, 0, DateTimeKind.Utc);
         _plugins =
         [
             new PluginInfo
@@ -914,6 +915,7 @@
                 Status          = "Loaded",
                 SupportsHotReload = true,
                 IsolationMode   = "AssemblyLoadContext",
+                LoadTime        = loadedAt,
                 Services        =
                 [
                     new PluginServiceInfo { Interface = "IBanditAlgorithm" },
@@ -930,6 +932,7 @@
                 Status          = "Loaded",
                 SupportsHotReload = false,
                 IsolationMode   = "AssemblyLoadContext",
+                LoadTime        = loadedAt,
                 Services        =
                 [
                     new PluginServiceInfo { Interface = "ITargetingEngine" },
@@ -946,6 +949,7 @@
                 Status          = "Loaded",
                 SupportsHotReload = true,
                 IsolationMode   = "AssemblyLoadContext",
+                LoadTime        = loadedAt,
                 Services        =
                 [
                     new PluginServiceInfo { Interface = "IAnalyticsExporter" },

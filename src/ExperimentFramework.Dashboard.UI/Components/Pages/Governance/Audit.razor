@@ -1,5 +1,6 @@
 @page "/dashboard/governance/audit"
 @using ExperimentFramework.Dashboard.UI.Services
+@using Microsoft.AspNetCore.Components.Web
 @rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 
@@ -43,8 +44,8 @@
                     <label for="type-filter">Filter by Type:</label>
                     <select id="type-filter" name="type" class="type-filter" data-filter="type" @bind="_typeFilter" @oninput="ApplyFilters">
                         <option value="">All Types</option>
-                        <option value="StateTransition">State Transitions</option>
-                        <option value="Approval">Approvals</option>
+                        <option value="StateTransition">StateTransition</option>
+                        <option value="Approval">Approval</option>
                     </select>
 
                     <input type="search"

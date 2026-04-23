@@ -945,15 +945,16 @@ experiments:
         }
     }
 
-    private async Task OnYamlChanged(string newValue)
+    private Task OnYamlChanged(string newValue)
     {
         _yamlContent = newValue;
-        // Clear previous validation when content changes
-        if (_isValid || _hasErrors)
-        {
-            _isValid = false;
-            _hasErrors = false;
-        }
+        // Do not clear _isValid / _hasErrors here — the validation result reflects
+        // the last validate-button click and should persist until the user either
+        // clicks Validate again or hits the Clear button. Invalidating on every
+        // keystroke caused a race with Monaco's debounced change event fired
+        // from programmatic setValue (e.g. in e2e tests), which would flip
+        // _isValid back to false moments after the server set it to true.
+        return Task.CompletedTask;
     }
 
     private async Task GoToError(DslValidationError error)
