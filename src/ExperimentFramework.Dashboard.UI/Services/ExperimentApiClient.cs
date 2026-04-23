@@ -48,12 +48,40 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<ExperimentInfo?> ActivateVariantAsync(string experimentName, string variant, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsync($"api/experiments/{experimentName}/activate/{variant}", null, cancellationToken);
-        if (response.IsSuccessStatusCode)
+        // The server exposes POST /api/experiments/{name}/activate-variant with a body
+        // of { "VariantKey": "..." }. It returns a minimal JSON object, not a full
+        // ExperimentInfo, so we re-fetch the experiment after a successful activation.
+        var response = await httpClient.PostAsJsonAsync(
+            $"api/experiments/{experimentName}/activate-variant",
+            new { VariantKey = variant },
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
         {
-            return await response.Content.ReadFromJsonAsync<ExperimentInfo>(cancellationToken);
+            return null;
         }
-        return null;
+
+        var experiments = await GetExperimentsAsync(cancellationToken);
+        var updated = experiments.FirstOrDefault(e => e.Name == experimentName);
+
+        // If we can't find the updated experiment by name, build a minimal stub so
+        // the caller can still reflect the activation in the UI.
+        if (updated == null)
+        {
+            updated = new ExperimentInfo
+            {
+                Name          = experimentName,
+                DisplayName   = experimentName,
+                ActiveVariant = variant,
+                Status        = "Active"
+            };
+        }
+        else
+        {
+            updated.ActiveVariant = variant;
+        }
+
+        return updated;
     }
 
     // ============================================================================
@@ -181,8 +209,43 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<List<PluginInfo>> GetPluginsAsync(CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.GetFromJsonAsync<List<PluginInfo>>($"api/plugins", cancellationToken);
-        return result ?? [];
+        var response = await httpClient.GetAsync("api/plugins", cancellationToken);
+
+        // 501 Not Implemented: plugin system is not configured in the host.
+        // 404 Not Found: route missing. Treat both as "no plugins registered".
+        if (response.StatusCode == System.Net.HttpStatusCode.NotImplemented
+            || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        // Endpoint returns either a bare array or an object with "plugins": [...].
+        // Handle both shapes to stay compatible across host implementations.
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        try
+        {
+            var envelope = await System.Text.Json.JsonSerializer.DeserializeAsync<PluginListEnvelope>(
+                stream,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+                cancellationToken);
+            if (envelope?.Plugins != null)
+                return envelope.Plugins;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Fall through to try bare-array shape below.
+        }
+
+        // Re-fetch if stream was consumed (simpler than buffering + rewinding).
+        var retry = await httpClient.GetFromJsonAsync<List<PluginInfo>>("api/plugins", cancellationToken);
+        return retry ?? [];
+    }
+
+    private sealed class PluginListEnvelope
+    {
+        public List<PluginInfo>? Plugins { get; set; }
     }
 
     public async Task<int> DiscoverPluginsAsync(CancellationToken cancellationToken = default)

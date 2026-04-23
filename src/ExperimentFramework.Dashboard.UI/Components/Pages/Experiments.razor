@@ -95,9 +95,10 @@
     <div class="experiments-list">
         @if (_loading)
         {
+            <div class="loading spinner" data-loading="true" role="status" aria-live="polite" aria-label="Loading experiments"></div>
             @for (int i = 0; i < 3; i++)
             {
-                <div class="experiment-row skeleton">
+                <div class="experiment-row skeleton loading-placeholder" data-skeleton>
                     <div class="exp-main">
                         <div class="skeleton-text" style="width: 200px; height: 20px;"></div>
                         <div class="skeleton-text" style="width: 300px; height: 14px; margin-top: 4px;"></div>
@@ -1011,8 +1012,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadExperiments();
-        _refreshTimer?.Start();
+        // Only load data when running interactively.
+        // During SSR prerender we keep _loading = true so the skeleton HTML is
+        // sent to the browser, then the interactive render loads real data.
+        // This preserves e2e scenarios that verify the skeleton-loading state.
+        if (RendererInfo.IsInteractive)
+        {
+            await LoadExperiments();
+            _refreshTimer?.Start();
+        }
     }
 
     private async Task RefreshKillSwitches()

@@ -710,7 +710,7 @@
         {
             try
             {
-                var response = await ExperimentApi.HttpClient.GetAsync($"/api/hypothesis/{experiment.Name}/results");
+                var response = await ExperimentApi.HttpClient.GetAsync($"api/hypothesis/{experiment.Name}/results");
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();

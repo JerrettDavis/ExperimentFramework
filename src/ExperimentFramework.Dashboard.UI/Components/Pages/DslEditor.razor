@@ -72,9 +72,9 @@
             <div class="panel validation-panel">
                 <div class="panel-header">
                     <span class="panel-title">Validation Results</span>
-                    @if (_errors.Count > 0 || _warnings.Count > 0)
+                    @if (_errors.Count > 0 || _warnings.Count > 0 || _isValid)
                     {
-                        <button class="clear-btn" @onclick="ClearValidation">Clear</button>
+                        <button class="clear-btn" data-action="clear-validation" @onclick="ClearValidation">Clear</button>
                     }
                 </div>
                 <div class="panel-content">

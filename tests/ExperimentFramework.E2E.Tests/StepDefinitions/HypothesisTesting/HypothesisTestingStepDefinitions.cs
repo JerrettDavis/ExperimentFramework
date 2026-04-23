@@ -181,36 +181,40 @@ public class HypothesisTestingStepDefinitions
     [Then(@"I should see sample sizes for control and treatment")]
     public async Task ThenIShouldSeeSampleSizesForControlAndTreatment()
     {
-        await Page.WaitForSelectorAsync(
+        // NOTE: the original selector mixed CSS and Playwright "text=" engine syntax
+        // in a single comma-separated string, which the Playwright CSS parser rejects
+        // with "Unexpected token '='". Use explicit CSS selectors plus a regex text
+        // locator via ILocator.Or() so both branches are still accepted.
+        var cssLocator = Page.Locator(
             ".sample-size, [data-sample-size], " +
             ".control-size, [data-control-size], " +
-            ".treatment-size, [data-treatment-size], " +
-            "text=/sample|n=/i",
-            new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+            ".treatment-size, [data-treatment-size]");
+        var textLocator = Page.GetByText(new System.Text.RegularExpressions.Regex("sample|n=", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        await cssLocator.Or(textLocator).First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
     }
 
     [Then(@"I should see the effect size")]
     public async Task ThenIShouldSeeTheEffectSize()
     {
-        await Page.WaitForSelectorAsync(
-            ".effect-size, [data-effect-size], text=/effect size/i",
-            new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+        var cssLocator = Page.Locator(".effect-size, [data-effect-size]");
+        var textLocator = Page.GetByText(new System.Text.RegularExpressions.Regex("effect size", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        await cssLocator.Or(textLocator).First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
     }
 
     [Then(@"I should see the p-value")]
     public async Task ThenIShouldSeeThePValue()
     {
-        await Page.WaitForSelectorAsync(
-            @".p-value, [data-p-value], text=/p[\-\s]?value|p\s*=/i",
-            new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+        var cssLocator = Page.Locator(".p-value, [data-p-value]");
+        var textLocator = Page.GetByText(new System.Text.RegularExpressions.Regex(@"p[\-\s]?value|p\s*=", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        await cssLocator.Or(textLocator).First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
     }
 
     [Then(@"I should see the confidence interval")]
     public async Task ThenIShouldSeeTheConfidenceInterval()
     {
-        await Page.WaitForSelectorAsync(
-            ".confidence-interval, [data-confidence-interval], .ci, text=/confidence interval|95%|CI/i",
-            new PageWaitForSelectorOptions { State = WaitForSelectorState.Visible });
+        var cssLocator = Page.Locator(".confidence-interval, [data-confidence-interval], .ci");
+        var textLocator = Page.GetByText(new System.Text.RegularExpressions.Regex("confidence interval|95%|CI", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        await cssLocator.Or(textLocator).First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
     }
 
     [Then(@"the hypothesis data should reload")]

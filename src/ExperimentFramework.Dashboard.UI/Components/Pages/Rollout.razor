@@ -856,7 +856,7 @@
             };
 
             var response = await ExperimentApi.HttpClient.PostAsJsonAsync(
-                $"/api/rollout/{_selectedExperiment}/config", config);
+                $"api/rollout/{_selectedExperiment}/config", config);
 
             if (response.IsSuccessStatusCode)
             {
@@ -912,7 +912,7 @@
         _actionInProgress = true;
         try
         {
-            var response = await ExperimentApi.HttpClient.DeleteAsync($"/api/rollout/{_selectedExperiment}/config");
+            var response = await ExperimentApi.HttpClient.DeleteAsync($"api/rollout/{_selectedExperiment}/config");
             if (response.IsSuccessStatusCode)
             {
                 _rolloutConfig = null;
@@ -938,7 +938,7 @@
 
         try
         {
-            var response = await ExperimentApi.HttpClient.PostAsync($"/api/rollout/{_selectedExperiment}/{action}", null);
+            var response = await ExperimentApi.HttpClient.PostAsync($"api/rollout/{_selectedExperiment}/{action}", null);
             if (response.IsSuccessStatusCode)
             {
                 _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();
