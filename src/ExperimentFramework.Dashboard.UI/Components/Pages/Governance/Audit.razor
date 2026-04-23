@@ -66,7 +66,7 @@
             }
             else if (_auditLog.Count == 0)
             {
-                <div class="info-message">
+                <div class="info-message not-configured" data-not-configured>
                     <div class="info-icon">ℹ️</div>
                     <div class="info-content">
                         <h3>Governance Not Configured</h3>
@@ -115,7 +115,7 @@
                 <div class="audit-timeline">
                     @foreach (var entry in _filteredAuditLog)
                     {
-                        <div class="audit-entry @entry.Type.ToLower()">
+                        <div class="audit-entry @entry.Type.ToLower()" data-audit-entry data-audit-type="@entry.Type">
                             <div class="entry-icon">
                                 @if (entry.Type == "StateTransition")
                                 {
