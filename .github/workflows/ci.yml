@@ -145,9 +145,15 @@ jobs:
           pwsh "$PLAYWRIGHT_PS1" install --with-deps chromium
 
       - name: Launch DashboardHost (background, seeded)
+        # Intentionally NOT using --no-build: `dotnet build ExperimentFramework.slnx`
+        # does not always materialise the host's Release-mode runtime artifacts
+        # (apphost binary + deps.json) at the path `dotnet run --no-build` expects,
+        # and the resulting "No such file or directory" error is silent until the
+        # readiness poll times out. Letting `dotnet run` perform an incremental
+        # build is fast (everything is already restored + compiled) and reliable.
         run: |
           dotnet run --project samples/ExperimentFramework.DashboardHost \
-            --configuration Release --no-build -- \
+            --configuration Release -- \
             --seed=docs --freeze-date 2026-04-01T12:00:00Z \
             --Urls=http://localhost:5195 \
             > dashboard-host.log 2>&1 &
@@ -175,7 +181,7 @@ jobs:
           E2E__Headless: "true"
         run: |
           dotnet test tests/ExperimentFramework.E2E.Tests/ \
-            --configuration Release --no-build \
+            --configuration Release \
             --filter "Category!=Manual" \
             --logger "trx;LogFileName=e2e.trx" \
             --logger "console;verbosity=normal"
