@@ -7,7 +7,7 @@
 
 <PageTitle>Experiments - Experiment Dashboard</PageTitle>
 
-<div class="experiments-console">
+<main class="experiments-console experiments-container" data-page="experiments" role="main">
     <!-- Header -->
     <header class="console-header">
         <div class="header-content">
@@ -181,8 +181,8 @@
                                             <span class="control-label">Killswitch</span>
                                             <span class="control-hint">@(isKilled ? "Disabled - using default variant" : "Enabled - experiment is active")</span>
                                         </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked="@isKilled" @onchange="() => ToggleKillSwitchWithApi(experiment.Name)" />
+                                        <label class="toggle kill-switch">
+                                            <input type="checkbox" name="kill-switch" checked="@isKilled" @onchange="() => ToggleKillSwitchWithApi(experiment.Name)" />
                                             <span class="toggle-track"></span>
                                         </label>
                                     </div>
@@ -240,7 +240,7 @@
             }
         }
     </div>
-</div>
+</main>
 
 <style>
     .experiments-console {

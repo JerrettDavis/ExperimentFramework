@@ -4,7 +4,7 @@
 
 <PageTitle>Approval Queue - Experiment Dashboard</PageTitle>
 
-<div class="governance-page">
+<main class="governance-page governance-approvals" data-page="approvals" role="main">
     <div class="page-header">
         <h1>Approval Queue</h1>
         <p class="subtitle">Review and approve experiment state transitions</p>
@@ -17,28 +17,28 @@
             <p>The approval workflow system tracks and manages state transition requests that require authorization before execution.</p>
 
             <div class="workflow-steps">
-                <div class="step">
+                <div class="step workflow-step">
                     <span class="step-number">1</span>
                     <div class="step-content">
                         <strong>Request Submitted</strong>
                         <p>An experiment owner requests a state transition (e.g., Draft → PendingApproval)</p>
                     </div>
                 </div>
-                <div class="step">
+                <div class="step workflow-step">
                     <span class="step-number">2</span>
                     <div class="step-content">
                         <strong>Awaiting Approval</strong>
                         <p>The request enters the approval queue and awaits review by authorized approvers</p>
                     </div>
                 </div>
-                <div class="step">
+                <div class="step workflow-step">
                     <span class="step-number">3</span>
                     <div class="step-content">
                         <strong>Review & Decision</strong>
                         <p>Approvers review the request and either approve or reject with a reason</p>
                     </div>
                 </div>
-                <div class="step">
+                <div class="step workflow-step">
                     <span class="step-number">4</span>
                     <div class="step-content">
                         <strong>Execution</strong>
@@ -96,7 +96,7 @@
             <a href="/dashboard/governance/policies" class="btn-secondary">View Policies</a>
         </div>
     </div>
-</div>
+</main>
 
 <style>
     .governance-page {

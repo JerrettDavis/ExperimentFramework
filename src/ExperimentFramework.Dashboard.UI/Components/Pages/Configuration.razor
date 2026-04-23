@@ -5,7 +5,7 @@
 
 <PageTitle>Configuration - Experiment Dashboard</PageTitle>
 
-<div class="config-page">
+<main class="config-page configuration-container" data-page="configuration" role="main">
     <div class="page-header">
         <h1>Framework Configuration</h1>
         <p class="subtitle">View framework status, export configuration as YAML, and explore features</p>
@@ -27,7 +27,7 @@
     else if (_info != null)
     {
         <!-- Framework Info Cards -->
-        <div class="info-grid">
+        <div class="info-grid framework-info info-panel" data-framework-info>
             <div class="info-card framework-card">
                 <h3>Framework</h3>
                 <div class="info-row">
@@ -91,7 +91,8 @@
             <div class="features-grid">
                 @foreach (var feature in _info.Features)
                 {
-                    <div class="feature-card @(feature.Enabled ? "enabled" : "disabled")">
+                    <div class="feature-card feature-flag @(feature.Enabled ? "enabled enabled-feature" : "disabled")"
+                         data-feature="@(feature.Enabled ? "enabled" : "disabled")">
                         <div class="feature-header">
                             <span class="feature-status">@(feature.Enabled ? "ON" : "OFF")</span>
                             <span class="feature-name">@feature.Name</span>
@@ -135,7 +136,7 @@
         </p>
         <pre class="csharp-code"><code>@GetFluentApiCode()</code></pre>
     </div>
-</div>
+</main>
 
 <style>
     .config-page {

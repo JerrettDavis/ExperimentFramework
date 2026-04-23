@@ -3,56 +3,56 @@
 
 <PageTitle>Home - Experiment Dashboard</PageTitle>
 
-<div class="home-container">
+<main class="home-container" data-page="home" role="main">
     <div class="hero">
         <h1>Experiment Dashboard</h1>
         <p class="hero-subtitle">Manage, monitor, and optimize your experiments with enterprise-grade features</p>
     </div>
 
     <div class="features-grid">
-        <div class="feature-card">
+        <a href="/dashboard/experiments" class="feature-card">
             <div class="feature-icon">🧪</div>
             <h3>Experiment Management</h3>
             <p>Create, configure, and manage experiments with an intuitive wizard and DSL editor.</p>
-            <a href="/dashboard/experiments" class="feature-link">View Experiments →</a>
-        </div>
+            <span class="feature-link">View Experiments →</span>
+        </a>
 
-        <div class="feature-card">
+        <a href="/dashboard/analytics" class="feature-card">
             <div class="feature-icon">📊</div>
             <h3>Advanced Analytics</h3>
             <p>Statistical analysis, confidence intervals, and experiment comparisons.</p>
-            <a href="/dashboard/analytics" class="feature-link">View Analytics →</a>
-        </div>
+            <span class="feature-link">View Analytics →</span>
+        </a>
 
-        <div class="feature-card">
+        <a href="/dashboard/governance/lifecycle" class="feature-card">
             <div class="feature-icon">🔄</div>
             <h3>Governance & Lifecycle</h3>
             <p>Approval workflows, policy evaluation, and audit trails.</p>
-            <a href="/dashboard/governance/lifecycle" class="feature-link">View Governance →</a>
-        </div>
+            <span class="feature-link">View Governance →</span>
+        </a>
 
-        <div class="feature-card">
+        <a href="/dashboard/targeting" class="feature-card">
             <div class="feature-icon">🎯</div>
             <h3>Targeting & Rollout</h3>
             <p>Advanced targeting rules and staged rollout management.</p>
-            <a href="/dashboard/targeting" class="feature-link">View Targeting →</a>
-        </div>
+            <span class="feature-link">View Targeting →</span>
+        </a>
 
-        <div class="feature-card">
+        <a href="/dashboard/plugins" class="feature-card">
             <div class="feature-icon">🔌</div>
             <h3>Plugin System</h3>
             <p>Extend functionality with plugins and custom implementations.</p>
-            <a href="/dashboard/plugins" class="feature-link">View Plugins →</a>
-        </div>
+            <span class="feature-link">View Plugins →</span>
+        </a>
 
-        <div class="feature-card">
+        <a href="/dashboard/hypothesis" class="feature-card">
             <div class="feature-icon">🔬</div>
             <h3>Hypothesis Testing</h3>
             <p>A/B testing with statistical significance and confidence intervals.</p>
-            <a href="/dashboard/hypothesis" class="feature-link">View Hypothesis Tests →</a>
-        </div>
+            <span class="feature-link">View Hypothesis Tests →</span>
+        </a>
     </div>
-</div>
+</main>
 
 <style>
     .home-container {
@@ -87,11 +87,15 @@
     }
 
     .feature-card {
+        display: block;
         background: var(--color-bg-secondary, white);
         border: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
         border-radius: 12px;
         padding: 1.5rem;
         transition: all 200ms ease;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
     }
 
     .feature-card:hover {

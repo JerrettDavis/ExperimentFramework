@@ -6,7 +6,7 @@
 
 <PageTitle>Integrations - OptimizeLab</PageTitle>
 
-<div class="plugins-page">
+<main class="plugins-page plugins-container" data-page="plugins" role="main">
     <div class="page-header">
         <div class="header-content">
             <h1>Plugin System</h1>
@@ -39,7 +39,7 @@
     }
 
     <!-- Plugin System Stats -->
-    <div class="stats-row">
+    <div class="stats-row plugin-stats stats-section" data-stats>
         <div class="stat-card">
             <span class="stat-number @(_loading ? "skeleton-text" : "")">@(_loading ? "--" : _plugins.Count.ToString())</span>
             <span class="stat-label">Loaded Plugins</span>
@@ -217,7 +217,7 @@
             }
         </div>
     </div>
-</div>
+</main>
 
 <style>
     .plugins-page {
