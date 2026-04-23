@@ -22,16 +22,29 @@ builder.WebHost.UseStaticWebAssets();
 // Add feature management for feature flags
 builder.Services.AddFeatureManagement();
 
-// Add authorization with an open-access policy so the Dashboard.UI Blazor components
-// (which require the "CanAccessExperiments" policy) work without login in docs-demo mode.
-builder.Services.AddAuthentication();
+// Cookie authentication for the docs-demo host.
+// Supports the four named demo users; unknown credentials are rejected with an error.
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme    = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultSignInScheme       = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+    })
+    .AddCookie(options =>
+    {
+        options.LoginPath  = "/login";
+        options.LogoutPath = "/logout";
+        options.ExpireTimeSpan    = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+
 builder.Services.AddAuthorization(options =>
 {
-    // Open policy — allows all requests (docs demo runs without auth)
-    options.AddPolicy("CanAccessExperiments", policy => policy.RequireAssertion(_ => true));
-    options.AddPolicy("CanModifyExperiments", policy => policy.RequireAssertion(_ => true));
-    options.AddPolicy("CanManageRollouts",    policy => policy.RequireAssertion(_ => true));
-    options.AddPolicy("AdminOnly",            policy => policy.RequireAssertion(_ => true));
+    // Open policies: roles are not enforced in docs-demo; any authenticated user can do anything.
+    options.AddPolicy("CanAccessExperiments", policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("CanModifyExperiments", policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("CanManageRollouts",    policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("AdminOnly",            policy => policy.RequireAuthenticatedUser());
 });
 
 // Add Razor Pages for the stub login page
@@ -120,7 +133,9 @@ if (cliArgs.SeedDocs)
         options.EnableAnalytics = true;
         options.EnableGovernanceUI = true;
         options.ItemsPerPage = 25;
-        options.RequireAuthorization = false;
+        // Auth is now cookie-based: require authenticated users for the dashboard.
+        // The cookie middleware redirects unauthenticated requests to /login.
+        options.RequireAuthorization = true;
         options.AnalyticsProvider = demoAnalytics;
     });
 }
@@ -152,7 +167,7 @@ else
         options.EnableAnalytics = true;
         options.EnableGovernanceUI = true;
         options.ItemsPerPage = 25;
-        options.RequireAuthorization = false;
+        options.RequireAuthorization = true;
     });
 }
 

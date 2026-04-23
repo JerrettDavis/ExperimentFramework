@@ -92,9 +92,10 @@ public sealed class DashboardMiddleware
                 {
                     _logger.LogWarning("Unauthenticated access attempt to dashboard. Redirecting to login.");
 
-                    // Redirect to login page
+                    // Redirect to login page; honour a configured login path or fall back to /login.
+                    var loginPath = _options.LoginPath ?? "/login";
                     var returnUrl = context.Request.Path + context.Request.QueryString;
-                    context.Response.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}");
+                    context.Response.Redirect($"{loginPath}?returnUrl={Uri.EscapeDataString(returnUrl)}");
                     return;
                 }
 
