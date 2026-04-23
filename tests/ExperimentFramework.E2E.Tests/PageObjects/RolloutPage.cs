@@ -144,11 +144,29 @@ public class RolloutPage
     /// <summary>Removes the last stage in the list.</summary>
     public async Task RemoveLastStageAsync()
     {
-        var count = await StageList.CountAsync();
-        if (count == 0) return;
-        var removeBtn = StageList.Nth(count - 1)
+        var countBefore = await StageList.CountAsync();
+        if (countBefore == 0) return;
+        var removeBtn = StageList.Nth(countBefore - 1)
             .Locator("button:has-text('Remove'), button[data-action='remove-stage']");
         await removeBtn.ClickAsync();
+        // Wait for Blazor's SignalR round-trip to update the DOM —
+        // GetStageCountAsync immediately after ClickAsync can still see
+        // the pre-render count because Blazor updates via WebSocket.
+        if (countBefore > 1)
+        {
+            await _page.WaitForFunctionAsync(
+                $"() => document.querySelectorAll('.stage-item, [data-stage], .rollout-stage').length < {countBefore}",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 10_000 });
+        }
+        else
+        {
+            // When removing the last stage, wait for all stage items to be gone
+            await _page.WaitForFunctionAsync(
+                "() => document.querySelectorAll('.stage-item, [data-stage], .rollout-stage').length === 0",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 10_000 });
+        }
     }
 
     /// <summary>Selects the first non-placeholder option from the variant dropdown.</summary>
