@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Plugins
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Plugins", "Plugin Management", "  As an experiment administrator\r\n  I want to manage framework plugins\r\n  So that" +
-                " I can extend experiment capabilities", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Plugins", "Plugin Management", "  As an experiment administrator\n  I want to manage framework plugins\n  So that I" +
+                " can extend experiment capabilities", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
