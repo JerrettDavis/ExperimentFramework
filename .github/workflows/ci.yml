@@ -98,6 +98,30 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  docs-build-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.x
+
+      - name: Install docfx
+        run: dotnet tool update -g docfx
+
+      - name: Build solution (Release)
+        run: dotnet build ExperimentFramework.slnx --configuration Release /p:BuildInParallel=false
+
+      - name: Build docs
+        run: docfx docs/docfx.json
+
   # E2E tests run the Playwright + Reqnroll suite against a live DashboardHost
   # seeded with demo data (5 experiments, governance records, 4 test users). The
   # host is launched in the background, probed for readiness, and torn down

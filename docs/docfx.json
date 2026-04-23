@@ -13,7 +13,10 @@
             "**/obj/**",
             "**/docs/**",
             "**/tests/**",
-            "**/*.Tests/**"
+            "**/*.Tests/**",
+            "**/samples/**",
+            "**/benchmarks/**",
+            "**/tools/**"
           ]
         }
       ],
