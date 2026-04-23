@@ -13,7 +13,7 @@
             <p class="subtitle">Dynamically load and manage experiment strategy plugins</p>
         </div>
         <div class="header-actions">
-            <button class="action-btn secondary" @onclick="RefreshPlugins" disabled="@_loading">
+            <button class="action-btn secondary refresh-btn" data-action="refresh" @onclick="RefreshPlugins" disabled="@_loading">
                 @if (_loading) { <span class="btn-spinner"></span> }
                 Refresh
             </button>
@@ -197,7 +197,7 @@
     <div class="audit-section">
         <div class="section-title">
             <h2>Plugin Activity Log</h2>
-            <button class="refresh-btn-sm" @onclick="LoadAuditEvents">Refresh</button>
+            <button class="refresh-btn-sm" data-action="reload-audit" @onclick="LoadAuditEvents">Reload</button>
         </div>
         <div class="audit-log">
             @if (_auditEvents.Count == 0)
@@ -878,6 +878,10 @@
             var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
             DashboardState.SyncPluginImplementationsFromApi(activeImpls);
             await LoadAuditEvents().WaitAsync(cts.Token);
+
+            // Seed demo plugins when plugin system is not configured (e.g. docs-demo mode).
+            if (_plugins.Count == 0)
+                SeedDemoPlugins();
         }
         catch (OperationCanceledException)
         {
@@ -891,6 +895,65 @@
         {
             _loading = false;
         }
+    }
+
+    /// <summary>
+    /// Populates demo plugin data when no plugin system is configured.
+    /// This allows the plugin management UI to be functional in docs-demo mode.
+    /// </summary>
+    private void SeedDemoPlugins()
+    {
+        _plugins =
+        [
+            new PluginInfo
+            {
+                Id              = "experiment-bandit-optimizer",
+                Name            = "Bandit Optimizer Plugin",
+                Version         = "1.2.0",
+                Description     = "Provides multi-armed bandit selection strategies (ε-greedy, UCB1, Thompson sampling) for dynamic variant weighting.",
+                Status          = "Loaded",
+                SupportsHotReload = true,
+                IsolationMode   = "AssemblyLoadContext",
+                Services        =
+                [
+                    new PluginServiceInfo { Interface = "IBanditAlgorithm" },
+                    new PluginServiceInfo { Interface = "IVariantWeightProvider" },
+                    new PluginServiceInfo { Interface = "IRewardCollector" },
+                ],
+            },
+            new PluginInfo
+            {
+                Id              = "experiment-ml-targeting",
+                Name            = "ML Targeting Plugin",
+                Version         = "0.9.1",
+                Description     = "Machine-learning–based targeting rules that score subjects against feature vectors for precise variant assignment.",
+                Status          = "Loaded",
+                SupportsHotReload = false,
+                IsolationMode   = "AssemblyLoadContext",
+                Services        =
+                [
+                    new PluginServiceInfo { Interface = "ITargetingEngine" },
+                    new PluginServiceInfo { Interface = "IFeatureVectorProvider" },
+                    new PluginServiceInfo { Interface = "IModelRegistry" },
+                ],
+            },
+            new PluginInfo
+            {
+                Id              = "experiment-analytics-export",
+                Name            = "Analytics Export Plugin",
+                Version         = "2.0.4",
+                Description     = "Exports experiment analytics to Prometheus, OpenTelemetry, and custom sinks for real-time observability.",
+                Status          = "Loaded",
+                SupportsHotReload = true,
+                IsolationMode   = "AssemblyLoadContext",
+                Services        =
+                [
+                    new PluginServiceInfo { Interface = "IAnalyticsExporter" },
+                    new PluginServiceInfo { Interface = "IMetricsSink" },
+                    new PluginServiceInfo { Interface = "IOtelSpanProvider" },
+                ],
+            },
+        ];
     }
 
     private bool IsImplementationActive(string interfaceName, string pluginId, string implType)

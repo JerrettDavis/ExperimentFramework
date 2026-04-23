@@ -1,5 +1,7 @@
 @page "/dashboard/experiments"
 @using ExperimentFramework.Dashboard.UI.Services
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @implements IDisposable
 @inject ExperimentApiClient ExperimentApi
 @inject ThemeService ThemeService
@@ -66,12 +68,15 @@
     <!-- Filters & Search -->
     <div class="toolbar">
         <div class="filter-group">
-            <button class="filter-btn @(DashboardState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DashboardState.ExperimentFilterCategory = null">
+            <button class="filter-btn category-btn @(DashboardState.ExperimentFilterCategory == null ? "active" : "")"
+                    data-category="All"
+                    @onclick="() => DashboardState.ExperimentFilterCategory = null">
                 All
             </button>
             @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog", "Plugins" })
             {
-                <button class="filter-btn @(DashboardState.ExperimentFilterCategory == category ? "active" : "")"
+                <button class="filter-btn category-btn @(DashboardState.ExperimentFilterCategory == category ? "active" : "")"
+                        data-category="@category"
                         @onclick="() => DashboardState.ExperimentFilterCategory = category">
                     @category
                 </button>
@@ -154,11 +159,11 @@
                         <div class="exp-status">
                             @if (isKilled)
                             {
-                                <span class="status-pill killed">Killed</span>
+                                <span class="status-pill status badge experiment-status killed" data-status="killed">Killed</span>
                             }
                             else
                             {
-                                <span class="status-pill @experiment.Status.ToLower()">@experiment.Status</span>
+                                <span class="status-pill status badge experiment-status @experiment.Status.ToLower()" data-status="@experiment.Status.ToLower()">@experiment.Status</span>
                             }
                         </div>
                         <div class="exp-expand">
@@ -205,7 +210,10 @@
                                         @foreach (var variant in experiment.Variants)
                                         {
                                             var isActive = variant.Name == experiment.ActiveVariant;
-                                            <button class="variant-card @(isActive ? "active" : "")"
+                                            <button class="variant-card variant-item @(isActive ? "active" : "")"
+                                                    data-variant="@variant.Name"
+                                                    data-active="@(isActive ? "true" : "false")"
+                                                    aria-pressed="@(isActive ? "true" : "false")"
                                                     @onclick="() => ActivateVariant(experiment.Name, variant.Name)"
                                                     disabled="@(_activating || isKilled)">
                                                 <div class="variant-radio">

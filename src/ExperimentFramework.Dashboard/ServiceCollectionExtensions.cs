@@ -42,6 +42,12 @@ public static class ServiceCollectionExtensions
         configure?.Invoke(options);
         services.AddSingleton(options);
 
+        // Register IAnalyticsProvider directly in DI so API endpoints can resolve it
+        if (options.AnalyticsProvider != null)
+        {
+            services.TryAddSingleton(options.AnalyticsProvider);
+        }
+
         // Also register with IOptions pattern for compatibility
         if (configure != null)
         {

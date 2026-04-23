@@ -1,6 +1,8 @@
 @page "/dashboard/rollout"
 @using ExperimentFramework.Dashboard.UI.Services
 @using ExperimentFramework.Dashboard.Abstractions
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 @implements IDisposable
 
@@ -109,10 +111,11 @@
                                         <span class="stage-name-display">@stage.Name</span>
                                         <span class="stage-percent-display">@stage.Percentage%</span>
                                         <span class="stage-duration-display">@stage.DurationHours hrs</span>
-                                        <button class="btn-icon-danger" @onclick="() => RemoveStage(index)">
+                                        <button class="btn-icon-danger" data-action="remove-stage" @onclick="() => RemoveStage(index)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                             </svg>
+                                            Remove
                                         </button>
                                     </div>
                                 }
@@ -151,7 +154,8 @@
                                 <h4>Rolling out: <strong>@_rolloutConfig.TargetVariant</strong></h4>
                                 <p class="started">Started: @(_rolloutConfig.StartDate?.ToString("MMM d, yyyy h:mm tt") ?? "N/A")</p>
                             </div>
-                            <div class="rollout-status-badge @_rolloutConfig.Status.ToString().ToLower()">
+                            <div class="rollout-status-badge status-badge rollout-status @_rolloutConfig.Status.ToString().ToLower()"
+                                 data-status="@_rolloutConfig.Status.ToString().ToLower()">
                                 @_rolloutConfig.Status
                             </div>
                         </div>
@@ -162,7 +166,11 @@
                                 <span class="progress-label">Rollout Progress</span>
                                 <span class="progress-percentage">@_rolloutConfig.Percentage%</span>
                             </div>
-                            <div class="progress-bar">
+                            <div class="progress-bar rollout-progress" role="progressbar"
+                                 data-progress="@_rolloutConfig.Percentage"
+                                 aria-valuenow="@_rolloutConfig.Percentage"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
                                 <div class="progress-fill" style="width: @(_rolloutConfig.Percentage)%"></div>
                             </div>
                         </div>
