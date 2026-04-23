@@ -113,7 +113,14 @@ if (cliArgs.SeedDocs)
     // Bridge: expose the five demo experiments via IExperimentRegistry so that the
     // Dashboard API (ExperimentEndpoints / DefaultDashboardDataProvider) can list them.
     // The core ExperimentFramework registry is internal, so we supply this thin adapter.
-    builder.Services.AddSingleton<ExperimentFramework.Admin.IExperimentRegistry, DemoExperimentRegistry>();
+    // Also register it as the mutable variant so the rollout endpoints
+    // (Dashboard_CreateOrUpdateRolloutConfig, Dashboard_ActivateVariant, etc.) can
+    // resolve IMutableExperimentRegistry — they 503 without it.
+    builder.Services.AddSingleton<DemoExperimentRegistry>();
+    builder.Services.AddSingleton<ExperimentFramework.Admin.IExperimentRegistry>(
+        sp => sp.GetRequiredService<DemoExperimentRegistry>());
+    builder.Services.AddSingleton<ExperimentFramework.Admin.IMutableExperimentRegistry>(
+        sp => sp.GetRequiredService<DemoExperimentRegistry>());
 
     // Three demo policies via AddExperimentGovernance builder
     builder.Services.AddExperimentGovernance(governance =>

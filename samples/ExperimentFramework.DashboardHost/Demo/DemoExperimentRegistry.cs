@@ -10,8 +10,27 @@ namespace ExperimentFramework.DashboardHost.Demo;
 /// The ExperimentFramework core registry is internal, so this adapter exposes
 /// the same five experiments to the Dashboard API layer.
 /// </summary>
-internal sealed class DemoExperimentRegistry : IExperimentRegistry
+internal sealed class DemoExperimentRegistry : IMutableExperimentRegistry
 {
+    public void SetExperimentActive(string name, bool isActive)
+    {
+        var experiment = _experiments.FirstOrDefault(e =>
+            string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (experiment != null)
+        {
+            experiment.IsActive = isActive;
+        }
+    }
+
+    public void SetRolloutPercentage(string name, int percentage)
+    {
+        // Demo registry keeps rollout percentage in an internal dictionary so tests
+        // (and the rollout page) can call SetRolloutPercentage without error. The
+        // value is not currently surfaced through GetAllExperiments() because the
+        // Admin ExperimentInfo has no rollout field — the rollout state is
+        // persisted separately via IRolloutPersistenceBackplane.
+    }
+
     private readonly IReadOnlyList<AdminExperimentInfo> _experiments =
     [
         new AdminExperimentInfo
