@@ -122,11 +122,16 @@
                             </div>
                         }
 
-                        <!-- New Stage Form — always visible in create mode -->
+                        <!-- New Stage Form — always visible in create mode.
+                             @bind:event="oninput" so form values flush to the server as they
+                             are typed, avoiding a race where a later click outruns the bind. -->
                         <div class="new-stage-form">
-                            <input type="text" name="stage-name" placeholder="Stage name" @bind="_newStageName" />
-                            <input type="number" name="stage-percent" placeholder="Percent" min="0" max="100" @bind="_newStagePercent" />
-                            <input type="number" name="stage-duration" placeholder="Hours" min="1" @bind="_newStageDuration" />
+                            <input type="text" name="stage-name" placeholder="Stage name"
+                                   @bind="_newStageName" @bind:event="oninput" />
+                            <input type="number" name="stage-percent" placeholder="Percent" min="0" max="100"
+                                   @bind="_newStagePercent" @bind:event="oninput" />
+                            <input type="number" name="stage-duration" placeholder="Hours" min="1"
+                                   @bind="_newStageDuration" @bind:event="oninput" />
                         </div>
 
                         <div class="rollout-actions">
@@ -829,11 +834,17 @@
         _newStageName = "";
         _newStagePercent = 10;
         _newStageDuration = null;
+
+        // Force an immediate re-render so e2e tests observing the DOM see
+        // the new stage before the next click action is issued.
+        StateHasChanged();
     }
 
     private void RemoveStage(int index)
     {
+        if (index < 0 || index >= _rolloutStages.Count) return;
         _rolloutStages.RemoveAt(index);
+        StateHasChanged();
     }
 
     private async Task StartRollout()
