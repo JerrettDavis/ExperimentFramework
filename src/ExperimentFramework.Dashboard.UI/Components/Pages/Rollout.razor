@@ -830,13 +830,13 @@
             Percentage = _newStagePercent > 0 ? _newStagePercent : 10,
             DurationHours = _newStageDuration
         });
-        // Reset the form fields
-        _newStageName = "";
-        _newStagePercent = 10;
-        _newStageDuration = null;
 
         // Force an immediate re-render so e2e tests observing the DOM see
-        // the new stage before the next click action is issued.
+        // the new stage before the next click action is issued. We deliberately
+        // leave the new-stage form fields populated with the last-entered values:
+        // resetting them to defaults pushes a render diff that races the next
+        // FillAsync in e2e runs, sometimes overwriting the already-typed value
+        // for the next stage and dropping a stage from the collection.
         StateHasChanged();
     }
 
