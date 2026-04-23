@@ -9,14 +9,15 @@ public class GovernanceLifecyclePage : IGovernanceSelectable
 {
     private readonly IPage _page;
 
-    private ILocator PageContainer         => _page.Locator(".governance-lifecycle, [data-page='lifecycle'], main");
-    private ILocator ExperimentSelect      => _page.Locator("select[name*='experiment' i], [data-select='experiment'], .experiment-select");
-    private ILocator CurrentStateDisplay   => _page.Locator(".current-state, [data-current-state], .lifecycle-state");
-    private ILocator TransitionButtons     => _page.Locator(".transition-btn, button[data-transition], .available-transition");
-    private ILocator TransitionHistory     => _page.Locator(".transition-history li, .history-entry, [data-history-entry]");
-    private ILocator ActorInput            => _page.Locator("input[name*='actor' i], input[placeholder*='actor' i]");
-    private ILocator ReasonInput           => _page.Locator("textarea[name*='reason' i], input[name*='reason' i], textarea[placeholder*='reason' i]");
-    private ILocator NotConfiguredMessage  => _page.Locator(".not-configured, [data-not-configured], .empty-state");
+    private ILocator PageContainer           => _page.Locator(".governance-lifecycle, [data-page='lifecycle'], main");
+    private ILocator ExperimentSelect        => _page.Locator("select[name*='experiment' i], [data-select='experiment'], .experiment-select");
+    private ILocator CurrentStateDisplay     => _page.Locator(".current-state, [data-current-state], .lifecycle-state");
+    private ILocator TransitionButtons       => _page.Locator(".transition-btn, button[data-transition], .available-transition");
+    private ILocator TransitionHistory       => _page.Locator(".transition-history li, .history-entry, [data-history-entry]");
+    private ILocator TransitionHistorySection => _page.Locator(".history-card");
+    private ILocator ActorInput              => _page.Locator("input[name*='actor' i], input[placeholder*='actor' i]");
+    private ILocator ReasonInput             => _page.Locator("textarea[name*='reason' i], input[name*='reason' i], textarea[placeholder*='reason' i]");
+    private ILocator NotConfiguredMessage    => _page.Locator(".not-configured, [data-not-configured], .empty-state");
 
     public GovernanceLifecyclePage(IPage page)
     {
@@ -113,11 +114,11 @@ public class GovernanceLifecyclePage : IGovernanceSelectable
     /// <summary>Selects the first experiment option in the dropdown.</summary>
     public async Task SelectFirstExperimentAsync()
     {
+        // Option index 0 is the "-- Select an experiment --" placeholder (value="").
+        // Always target index 1 directly so Playwright waits until the first real
+        // experiment option is present before attempting to select it.
         var options = ExperimentSelect.Locator("option");
-        var count = await options.CountAsync();
-        // Skip the placeholder (index 0) if there are more options
-        var idx = count > 1 ? 1 : 0;
-        var value = await options.Nth(idx).GetAttributeAsync("value");
+        var value = await options.Nth(1).GetAttributeAsync("value");
         if (value is not null)
             await ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
     }
@@ -157,12 +158,16 @@ public class GovernanceLifecyclePage : IGovernanceSelectable
 
     /// <summary>Asserts the transition history section is visible.</summary>
     public async Task AssertTransitionHistoryVisibleAsync() =>
-        await TransitionHistory.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        await TransitionHistorySection.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
     /// <summary>Asserts the current state has changed from <paramref name="previousState"/>.</summary>
     public async Task AssertStateUpdatedAsync(string? previousState)
     {
-        await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        // After a transition, LoadLifecycleData() briefly hides the current-state element
+        // while it reloads data over Blazor SignalR. WaitForLoadStateAsync(NetworkIdle) is
+        // not useful here because the Blazor server-side HTTP calls are invisible to
+        // Playwright's browser-side network monitor. Wait for the element to reappear.
+        await CurrentStateDisplay.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         var newState = await GetCurrentStateAsync();
         if (newState == previousState)
             throw new Exception(

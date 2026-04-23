@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Rollout
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Rollout", "Progressive Rollout", "  As an experiment administrator\r\n  I want to configure progressive rollouts\r\n  S" +
-                "o that I can gradually release experiments to users", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Rollout", "Progressive Rollout", "  As an experiment administrator\n  I want to configure progressive rollouts\n  So " +
+                "that I can gradually release experiments to users", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Governance
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Governance", "Governance Approvals", "  As a dashboard user\r\n  I want to understand the approval workflow\r\n  So that I " +
-                "know how experiment approvals work", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Governance", "Governance Approvals", "  As a dashboard user\n  I want to understand the approval workflow\n  So that I kn" +
+                "ow how experiment approvals work", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

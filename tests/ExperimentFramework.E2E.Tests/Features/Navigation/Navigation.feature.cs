@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Navigation
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Navigation", "Navigation", "  As an authenticated dashboard user\r\n  I want to navigate between all dashboard " +
-                "pages\r\n  So that I can access all experiment management features", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Navigation", "Navigation", "  As an authenticated dashboard user\n  I want to navigate between all dashboard p" +
+                "ages\n  So that I can access all experiment management features", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
