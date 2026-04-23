@@ -23,7 +23,7 @@ public static class AuditEndpoints
             .WithTags("Audit");
 
         group.MapGet("/", GetAuditLog)
-            .WithName("Dashboard_GetAuditLog");
+            .WithName("Dashboard_GetAuditLogSummary");
 
         return group;
     }
