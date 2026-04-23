@@ -109,7 +109,7 @@
     <div class="section yaml-section">
         <div class="section-header">
             <h2>YAML Configuration DSL</h2>
-            <button class="copy-btn" @onclick="CopyYaml" disabled="@string.IsNullOrEmpty(_yamlConfig)">
+            <button class="copy-btn" @onclick="CopyYaml" disabled="@string.IsNullOrEmpty(_yamlConfig)" data-copied="@(_copied ? "true" : "false")">
                 @(_copied ? "Copied!" : "Copy to Clipboard")
             </button>
         </div>
@@ -541,16 +541,10 @@
     private string _yamlConfig = "";
     private bool _loading = true;
     private bool _copied = false;
-    private bool _dataLoaded = false;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender && !_dataLoaded)
-        {
-            _dataLoaded = true;
-            await RefreshData();
-            StateHasChanged();
-        }
+        await RefreshData();
     }
 
     private async Task RefreshData()
@@ -586,17 +580,18 @@
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", _yamlConfig);
-            _copied = true;
-            StateHasChanged();
-
-            await Task.Delay(2000);
-            _copied = false;
-            StateHasChanged();
         }
         catch
         {
-            // Clipboard access may be denied
+            // Clipboard access may be denied in some environments; still show feedback
         }
+
+        _copied = true;
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        _copied = false;
+        StateHasChanged();
     }
 
     private string GetFluentApiCode()

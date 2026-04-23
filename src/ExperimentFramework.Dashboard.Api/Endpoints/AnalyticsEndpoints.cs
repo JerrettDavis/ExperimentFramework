@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using ExperimentFramework.Admin;
 using ExperimentFramework.Dashboard.Abstractions;
 
 namespace ExperimentFramework.Dashboard.Api.Endpoints;
@@ -30,7 +31,46 @@ public static class AnalyticsEndpoints
         group.MapGet("/{experimentName}/export/{format}", ExportData)
             .WithName("Dashboard_ExportAnalytics");
 
+        group.MapGet("/usage", GetUsageStats)
+            .WithName("Dashboard_GetUsageStats");
+
         return group;
+    }
+
+    private static async Task<IResult> GetUsageStats(
+        IServiceProvider sp,
+        CancellationToken ct)
+    {
+        var analyticsProvider = sp.GetService<IAnalyticsProvider>();
+        if (analyticsProvider == null)
+        {
+            return Results.Ok(new Dictionary<string, object>());
+        }
+
+        var registry = sp.GetService<IExperimentRegistry>();
+        var experiments = registry?.GetAllExperiments().ToList() ?? [];
+
+        var usageStats = new Dictionary<string, Dictionary<string, int>>();
+
+        foreach (var exp in experiments)
+        {
+            try
+            {
+                var assignments = await analyticsProvider.GetAssignmentsAsync(exp.Name, cancellationToken: ct);
+                if (assignments.Any())
+                {
+                    usageStats[exp.Name] = assignments
+                        .GroupBy(a => a.TrialKey)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                }
+            }
+            catch
+            {
+                // Skip experiments that fail to load
+            }
+        }
+
+        return Results.Ok(usageStats);
     }
 
     private static async Task<IResult> GetStatistics(

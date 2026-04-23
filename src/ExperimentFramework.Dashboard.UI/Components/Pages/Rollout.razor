@@ -104,11 +104,11 @@
                             <div class="stages-editor">
                                 @foreach (var (stage, index) in _rolloutStages.Select((s, i) => (s, i)))
                                 {
-                                    <div class="stage-editor">
+                                    <div class="stage-item stage-editor" data-stage>
                                         <div class="stage-number">Stage @(index + 1)</div>
-                                        <input type="text" placeholder="Name" @bind="stage.Name" />
-                                        <input type="number" placeholder="%" min="0" max="100" @bind="stage.Percentage" />
-                                        <input type="number" placeholder="Hours" min="1" @bind="stage.DurationHours" />
+                                        <span class="stage-name-display">@stage.Name</span>
+                                        <span class="stage-percent-display">@stage.Percentage%</span>
+                                        <span class="stage-duration-display">@stage.DurationHours hrs</span>
                                         <button class="btn-icon-danger" @onclick="() => RemoveStage(index)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -118,6 +118,13 @@
                                 }
                             </div>
                         }
+
+                        <!-- New Stage Form — always visible in create mode -->
+                        <div class="new-stage-form">
+                            <input type="text" name="stage-name" placeholder="Stage name" @bind="_newStageName" />
+                            <input type="number" name="stage-percent" placeholder="Percent" min="0" max="100" @bind="_newStagePercent" />
+                            <input type="number" name="stage-duration" placeholder="Hours" min="1" @bind="_newStageDuration" />
+                        </div>
 
                         <div class="rollout-actions">
                             <button class="btn-secondary" @onclick="AddStage">
@@ -534,6 +541,24 @@
         font-size: 0.875rem;
     }
 
+    .new-stage-form {
+        display: grid;
+        grid-template-columns: 1fr 80px 80px;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-bg-tertiary, #f9fafb);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+
+    .new-stage-form input {
+        padding: 0.5rem;
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
     .rollout-actions {
         display: flex;
         gap: 0.75rem;
@@ -742,13 +767,14 @@
     private RolloutConfiguration? _rolloutConfig;
     private List<RolloutStageDto> _rolloutStages = [];
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    // New stage form fields
+    private string _newStageName = "";
+    private int _newStagePercent = 10;
+    private int? _newStageDuration = null;
+
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            await LoadExperiments();
-            StateHasChanged();
-        }
+        await LoadExperiments();
     }
 
     private async Task LoadExperiments()
@@ -775,21 +801,26 @@
         _rolloutConfig = _selectedExperimentInfo?.Rollout;
         _selectedVariant = _rolloutConfig?.TargetVariant ?? "";
 
-        // Initialize with default stages if no rollout exists or rollout is not enabled
-        _rolloutStages = (_rolloutConfig == null || !_rolloutConfig.Enabled)
-            ? [
-                new RolloutStageDto { Name = "Initial rollout", Percentage = 10, DurationHours = 24 },
-                new RolloutStageDto { Name = "Expand to half", Percentage = 50, DurationHours = 48 },
-                new RolloutStageDto { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
-            ]
-            : _rolloutConfig.Stages.ToList();
+        // Initialize stages from existing rollout config, or start empty for a new plan
+        _rolloutStages = (_rolloutConfig != null && _rolloutConfig.Enabled)
+            ? _rolloutConfig.Stages.ToList()
+            : [];
 
         StateHasChanged();
     }
 
     private void AddStage()
     {
-        _rolloutStages.Add(new RolloutStageDto { Percentage = 10 });
+        _rolloutStages.Add(new RolloutStageDto
+        {
+            Name = string.IsNullOrWhiteSpace(_newStageName) ? $"Stage {_rolloutStages.Count + 1}" : _newStageName,
+            Percentage = _newStagePercent > 0 ? _newStagePercent : 10,
+            DurationHours = _newStageDuration
+        });
+        // Reset the form fields
+        _newStageName = "";
+        _newStagePercent = 10;
+        _newStageDuration = null;
     }
 
     private void RemoveStage(int index)

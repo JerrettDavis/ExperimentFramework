@@ -24,11 +24,13 @@ public static class DashboardApiExtensions
         // Map all endpoint groups
         group.MapExperimentEndpoints("/experiments");
         group.MapConfigurationEndpoints("/configuration");
+        group.MapDslEndpoints("/dsl");
         group.MapPluginEndpoints("/plugins");
         group.MapRolloutEndpoints("/rollout");
         group.MapTargetingEndpoints("/targeting");
         group.MapAnalyticsEndpoints("/analytics");
         group.MapGovernanceEndpoints("/governance");
+        group.MapAuditEndpoints("/audit");
 
         return group;
     }

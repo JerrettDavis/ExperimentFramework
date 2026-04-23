@@ -132,7 +132,7 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<KillSwitchStatus?> UpdateKillSwitchAsync(KillSwitchUpdate request, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsJsonAsync($"api/config/kill-switch", request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"api/configuration/kill-switch", request, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadFromJsonAsync<KillSwitchStatus>(cancellationToken);
@@ -236,14 +236,11 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            Console.WriteLine($"[DEBUG] Calling: /api/governance/{experimentName}/lifecycle/state");
-            var result = await httpClient.GetFromJsonAsync<ExperimentStateInfo>($"api/governance/{experimentName}/lifecycle/state", cancellationToken);
-            Console.WriteLine($"[DEBUG] Result: {(result != null ? $"State={result.State}" : "null")}");
+            var result = await httpClient.GetFromJsonAsync<ExperimentStateInfo>($"api/governance/{experimentName}/state", cancellationToken);
             return result;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DEBUG] Error getting lifecycle state: {ex.Message}");
             return null;
         }
     }
@@ -251,7 +248,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     public async Task<bool> TransitionStateAsync(string experimentName, string targetState, string? actor = null, string? reason = null, CancellationToken cancellationToken = default)
     {
         var request = new { TargetState = targetState, Actor = actor, Reason = reason };
-        var response = await httpClient.PostAsJsonAsync($"api/governance/{experimentName}/lifecycle/transition", request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync($"api/governance/{experimentName}/transition", request, cancellationToken);
         return response.IsSuccessStatusCode;
     }
 
@@ -259,7 +256,7 @@ public class ExperimentApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.GetFromJsonAsync<LifecycleHistoryResponse>($"api/governance/{experimentName}/lifecycle/history", cancellationToken);
+            var response = await httpClient.GetFromJsonAsync<LifecycleHistoryResponse>($"api/governance/{experimentName}/transitions", cancellationToken);
             return response?.Transitions?.ToList() ?? [];
         }
         catch (HttpRequestException)
@@ -687,10 +684,10 @@ public class LifecycleHistoryResponse
 
 public class StateTransitionInfo
 {
-    [System.Text.Json.Serialization.JsonPropertyName("from")]
+    [System.Text.Json.Serialization.JsonPropertyName("fromState")]
     public string FromState { get; set; } = "";
 
-    [System.Text.Json.Serialization.JsonPropertyName("to")]
+    [System.Text.Json.Serialization.JsonPropertyName("toState")]
     public string ToState { get; set; } = "";
 
     [System.Text.Json.Serialization.JsonPropertyName("timestamp")]

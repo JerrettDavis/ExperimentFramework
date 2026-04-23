@@ -68,7 +68,7 @@
                 <div class="current-state-card">
                     <h2>Current State</h2>
                     <div class="state-info">
-                        <div class="state-badge @_currentState.State.ToLower()">@_currentState.State</div>
+                        <div class="state-badge current-state lifecycle-state @_currentState.State.ToLower()" data-current-state="@_currentState.State">@_currentState.State</div>
                         <div class="state-details">
                             <p><strong>Configuration Version:</strong> @_currentState.ConfigurationVersion</p>
                             <p><strong>Last Modified:</strong> @_currentState.LastModified.ToString("g")</p>
@@ -146,7 +146,7 @@
                         <div class="history-list">
                             @foreach (var transition in _transitionHistory)
                             {
-                                <div class="history-item">
+                                <div class="history-item history-entry" data-history-entry>
                                     <div class="history-arrow">@transition.FromState → @transition.ToState</div>
                                     <div class="history-details">
                                         <span class="history-time">@transition.Timestamp.ToString("g")</span>

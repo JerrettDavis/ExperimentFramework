@@ -6,6 +6,7 @@ using Reqnroll;
 namespace ExperimentFramework.E2E.Tests.StepDefinitions.Configuration;
 
 [Binding]
+[Scope(Feature = "Configuration View")]
 public class ConfigurationStepDefinitions
 {
     private readonly BrowserDriver _browser;
@@ -45,6 +46,7 @@ public class ConfigurationStepDefinitions
     }
 
     [When(@"I click the refresh button")]
+    [Scope(Feature = "Configuration View")]
     public async Task WhenIClickTheRefreshButton()
     {
         await ConfigPage.RefreshAsync();

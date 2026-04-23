@@ -6,6 +6,7 @@ using Reqnroll;
 namespace ExperimentFramework.E2E.Tests.StepDefinitions.Analytics;
 
 [Binding]
+[Scope(Feature = "Analytics Dashboard")]
 public class AnalyticsStepDefinitions
 {
     private readonly BrowserDriver _browser;
@@ -40,6 +41,7 @@ public class AnalyticsStepDefinitions
     // -------------------------------------------------------------------------
 
     [When(@"I click the refresh button")]
+    [Scope(Feature = "Analytics Dashboard")]
     public async Task WhenIClickTheRefreshButton()
     {
         await _analyticsPage.RefreshAsync();

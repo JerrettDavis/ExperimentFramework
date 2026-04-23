@@ -132,7 +132,7 @@
 
 @if (_showVersionViewer && _viewingVersion != null)
 {
-    <div class="modal-overlay" @onclick="CloseVersionViewer">
+    <div class="modal-overlay version-viewer version-detail" data-version-viewer @onclick="CloseVersionViewer">
         <div class="modal-content large" @onclick:stopPropagation="true">
             <div class="modal-header">
                 <h3>Version @_viewingVersion.VersionNumber Configuration</h3>

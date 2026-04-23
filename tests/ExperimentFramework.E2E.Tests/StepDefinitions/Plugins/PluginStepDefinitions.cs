@@ -6,6 +6,7 @@ using Reqnroll;
 namespace ExperimentFramework.E2E.Tests.StepDefinitions.Plugins;
 
 [Binding]
+[Scope(Feature = "Plugin Management")]
 public class PluginStepDefinitions
 {
     private readonly BrowserDriver _browser;
@@ -53,6 +54,7 @@ public class PluginStepDefinitions
     // -------------------------------------------------------------------------
 
     [When(@"I click the refresh button")]
+    [Scope(Feature = "Plugin Management")]
     public async Task WhenIClickTheRefreshButton()
     {
         await PluginPage.RefreshAsync();

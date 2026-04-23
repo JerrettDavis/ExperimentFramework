@@ -43,7 +43,7 @@
         <div class="editor-panel">
             <div class="panel-header">
                 <span class="panel-title">YAML Configuration</span>
-                <span class="status-indicator @(_isValid ? "valid" : _hasErrors ? "invalid" : "")">
+                <span class="status-indicator status-badge @(_isValid ? "valid" : _hasErrors ? "invalid" : "")" data-status-badge>
                     @if (_isValid)
                     {
                         <span>Valid</span>
@@ -87,7 +87,7 @@
                     {
                         @foreach (var error in _errors)
                         {
-                            <div class="validation-item error" @onclick="() => GoToError(error)">
+                            <div class="validation-item error validation-error" data-validation-error @onclick="() => GoToError(error)">
                                 <span class="item-icon">X</span>
                                 <div class="item-content">
                                     <span class="item-location">Line @error.Line</span>
@@ -192,7 +192,7 @@
     @if (_showApplyConfirmation)
     {
         <div class="modal-overlay" @onclick="HideApplyConfirmation">
-            <div class="modal-dialog" @onclick:stopPropagation>
+            <div class="modal-dialog" role="dialog" data-modal @onclick:stopPropagation>
                 <div class="modal-header">
                     <h3>Apply Configuration</h3>
                 </div>

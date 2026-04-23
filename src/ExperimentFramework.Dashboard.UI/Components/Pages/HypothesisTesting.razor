@@ -58,11 +58,11 @@
                     var hypothesis = experiment.Hypothesis!;
                     var results = hypothesis.Results;
 
-                    <div class="hypothesis-card">
+                    <div class="hypothesis-card" data-hypothesis-card>
                         <div class="hypothesis-header">
                             <div>
                                 <h3>@experiment.DisplayName</h3>
-                                <div class="hypothesis-status-badge @hypothesis.Status.ToString().ToLower()">
+                                <div class="hypothesis-status-badge status-badge @hypothesis.Status.ToString().ToLower()">
                                     @hypothesis.Status
                                 </div>
                             </div>
@@ -85,11 +85,11 @@
                             <div class="design-grid">
                                 <div class="design-item">
                                     <span class="design-label">Test Type</span>
-                                    <span class="design-value">@hypothesis.TestType</span>
+                                    <span class="design-value test-type" data-test-type>@hypothesis.TestType</span>
                                 </div>
                                 <div class="design-item">
                                     <span class="design-label">Primary Metric</span>
-                                    <span class="design-value">@hypothesis.PrimaryMetric</span>
+                                    <span class="design-value primary-metric" data-primary-metric>@hypothesis.PrimaryMetric</span>
                                 </div>
                                 <div class="design-item">
                                     <span class="design-label">Alpha Level</span>
@@ -127,7 +127,7 @@
                         <!-- Results (if available) -->
                         @if (results != null)
                         {
-                            <div class="results-section">
+                            <div class="results-section result-section" data-result>
                                 <div class="results-header">
                                     <h4>Statistical Results</h4>
                                     @if (results.IsSignificant)
@@ -151,12 +151,12 @@
                                 <div class="samples-grid">
                                     <div class="sample-card">
                                         <span class="sample-label">Control Samples</span>
-                                        <span class="sample-value">@results.ControlSamples.ToString("N0")</span>
+                                        <span class="sample-value sample-size control-size" data-sample-size data-control-size>@results.ControlSamples.ToString("N0")</span>
                                         <span class="sample-mean">Mean: @results.ControlMean.ToString("P2")</span>
                                     </div>
                                     <div class="sample-card treatment">
                                         <span class="sample-label">Treatment Samples</span>
-                                        <span class="sample-value">@results.TreatmentSamples.ToString("N0")</span>
+                                        <span class="sample-value sample-size treatment-size" data-sample-size data-treatment-size>@results.TreatmentSamples.ToString("N0")</span>
                                         <span class="sample-mean">Mean: @results.TreatmentMean.ToString("P2")</span>
                                     </div>
                                 </div>
@@ -165,17 +165,17 @@
                                 <div class="stats-grid">
                                     <div class="stat-item">
                                         <span class="stat-label">Effect Size</span>
-                                        <span class="stat-value highlight">@results.EffectSize.ToString("P1")</span>
+                                        <span class="stat-value effect-size highlight" data-effect-size>@results.EffectSize.ToString("P1")</span>
                                     </div>
                                     <div class="stat-item">
                                         <span class="stat-label">P-Value</span>
-                                        <span class="stat-value @(results.PValue < hypothesis.AlphaLevel ? "significant" : "")">
+                                        <span class="stat-value p-value @(results.PValue < hypothesis.AlphaLevel ? "significant" : "")" data-p-value>
                                             @results.PValue.ToString("0.####")
                                         </span>
                                     </div>
                                     <div class="stat-item">
                                         <span class="stat-label">95% CI Lower</span>
-                                        <span class="stat-value">@results.ConfidenceIntervalLower.ToString("P2")</span>
+                                        <span class="stat-value confidence-interval" data-confidence-interval>@results.ConfidenceIntervalLower.ToString("P2")</span>
                                     </div>
                                     <div class="stat-item">
                                         <span class="stat-label">95% CI Upper</span>
@@ -605,15 +605,11 @@
     private IEnumerable<ExperimentInfo> _experimentsWithHypothesis =>
         _experiments.Where(e => e.Hypothesis != null);
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            await SeedDemoData();
-            await LoadExperiments();
-            await LoadRealTimeResults();
-            StateHasChanged();
-        }
+        await SeedDemoData();
+        await LoadExperiments();
+        await LoadRealTimeResults();
     }
 
     private async Task SeedDemoData()

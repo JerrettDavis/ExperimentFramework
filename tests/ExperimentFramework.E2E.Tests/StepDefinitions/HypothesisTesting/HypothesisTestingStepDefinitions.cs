@@ -6,6 +6,7 @@ using Reqnroll;
 namespace ExperimentFramework.E2E.Tests.StepDefinitions.HypothesisTesting;
 
 [Binding]
+[Scope(Feature = "Hypothesis Testing Dashboard")]
 public class HypothesisTestingStepDefinitions
 {
     private readonly BrowserDriver _browser;
@@ -28,7 +29,7 @@ public class HypothesisTestingStepDefinitions
     [Given(@"I am on the hypothesis testing page")]
     public async Task GivenIAmOnTheHypothesisTestingPage()
     {
-        await _dashboard.NavigateToAsync("/dashboard/hypothesis-testing");
+        await _dashboard.NavigateToAsync("/dashboard/hypothesis");
 
         // The first render seeds demo data via an API call — wait for that to complete.
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
@@ -74,6 +75,7 @@ public class HypothesisTestingStepDefinitions
     // -------------------------------------------------------------------------
 
     [When(@"I click the refresh button")]
+    [Scope(Feature = "Hypothesis Testing Dashboard")]
     public async Task WhenIClickTheRefreshButton()
     {
         await HypothesisPage.RefreshAsync();

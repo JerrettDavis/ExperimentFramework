@@ -844,13 +844,17 @@
     private List<AuditLogEntry> _auditEvents = [];
     private bool _loading = true;
     private bool _reloading = false;
-    private bool _dataLoaded = false;
     private string? _error;
     private string? _success;
 
     protected override void OnInitialized()
     {
         DashboardState.OnStateChanged += HandleStateChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshPlugins();
     }
 
     private void HandleStateChanged()
@@ -861,16 +865,6 @@
     public void Dispose()
     {
         DashboardState.OnStateChanged -= HandleStateChanged;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_dataLoaded)
-        {
-            _dataLoaded = true;
-            await RefreshPlugins();
-            StateHasChanged();
-        }
     }
 
     private async Task RefreshPlugins()

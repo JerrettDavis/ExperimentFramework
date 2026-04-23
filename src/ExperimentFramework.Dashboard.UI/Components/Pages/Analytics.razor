@@ -694,17 +694,11 @@
     private Dictionary<string, Dictionary<string, int>> _usageStats = [];
     private List<AuditLogEntry> _auditLog = [];
     private bool _loading = true;
-    private bool _dataLoaded = false;
     private int _totalCalls = 0;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender && !_dataLoaded)
-        {
-            _dataLoaded = true;
-            await RefreshData();
-            StateHasChanged();
-        }
+        await RefreshData();
     }
 
     private async Task RefreshData()
