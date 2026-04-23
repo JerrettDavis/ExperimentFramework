@@ -134,6 +134,10 @@
                         <div class="exp-info">
                             <div class="exp-header">
                                 <span class="exp-name experiment-name" data-experiment-name="@experiment.Name">@experiment.DisplayName</span>
+                                @if (!string.Equals(experiment.DisplayName, experiment.Name, StringComparison.Ordinal))
+                                {
+                                    <span class="exp-key" title="Experiment key">@experiment.Name</span>
+                                }
                                 @if (isPlugin)
                                 {
                                     <span class="source-badge plugin">
@@ -177,7 +181,7 @@
 
                     @if (isExpanded)
                     {
-                        <div class="exp-details">
+                        <div class="exp-details experiment-details details-panel experiment-expanded" data-experiment-details>
                             <div class="details-grid">
                                 <!-- Controls Panel -->
                                 <div class="control-panel">
@@ -532,6 +536,13 @@
         font-size: 0.95rem;
         font-weight: 600;
         color: var(--color-text-primary, #0f172a);
+    }
+
+    .exp-key {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+        font-size: 0.75rem;
+        color: var(--color-text-secondary, #64748b);
+        margin-left: 0.4rem;
     }
 
     .source-badge {

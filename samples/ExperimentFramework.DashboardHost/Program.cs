@@ -59,21 +59,18 @@ builder.Services.AddScoped<DashboardStateService>();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<ExperimentCodeGenerator>();
 
-// Forward the browser's auth cookie from the current HttpContext onto outbound
-// API calls made by the Blazor Server circuit. Without this, protected dashboard
-// API endpoints (e.g. /dashboard/api/dsl/validate) would be rejected with a
-// 302 redirect to /login.
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddTransient<CookieForwardingHandler>();
-
 // Register API client — the Dashboard.UI ExperimentApiClient calls paths like /api/experiments.
 // The REST API is mounted at /dashboard/api/... so set base address to /dashboard/.
+//
+// Note: the dashboard middleware exempts the /dashboard/api/* subpath from its
+// cookie-auth redirect check precisely because Blazor Server's HttpClient cannot
+// forward the browser's auth cookie during SignalR callbacks
+// (IHttpContextAccessor.HttpContext is null then). Page routes remain protected.
 builder.Services.AddHttpClient<ExperimentApiClient>(client =>
 {
     // Client calls relative paths like "api/experiments"; prepend "/dashboard/" to route correctly
     client.BaseAddress = new Uri("http://localhost:5195/dashboard/");
-})
-.AddHttpMessageHandler<CookieForwardingHandler>();
+});
 
 if (cliArgs.SeedDocs)
 {
@@ -367,31 +364,3 @@ file sealed record DocsCliArgs(bool SeedDocs, DateTimeOffset? FreezeDate)
     }
 }
 
-/// <summary>
-/// Forwards the browser's cookie from the current <see cref="HttpContext"/>
-/// onto outbound <see cref="HttpClient"/> requests. Needed so that Blazor Server
-/// components can call dashboard API endpoints protected by cookie auth without
-/// being redirected to the login page.
-/// </summary>
-internal sealed class CookieForwardingHandler : DelegatingHandler
-{
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public CookieForwardingHandler(IHttpContextAccessor httpContextAccessor)
-    {
-        _httpContextAccessor = httpContextAccessor;
-    }
-
-    protected override Task<HttpResponseMessage> SendAsync(
-        HttpRequestMessage request,
-        CancellationToken cancellationToken)
-    {
-        var cookieHeader = _httpContextAccessor.HttpContext?.Request.Headers.Cookie.ToString();
-        if (!string.IsNullOrEmpty(cookieHeader) && !request.Headers.Contains("Cookie"))
-        {
-            request.Headers.Add("Cookie", cookieHeader);
-        }
-
-        return base.SendAsync(request, cancellationToken);
-    }
-}

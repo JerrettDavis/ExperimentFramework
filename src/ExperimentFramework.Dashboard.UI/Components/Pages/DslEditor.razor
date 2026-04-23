@@ -45,16 +45,18 @@
         <div class="editor-panel">
             <div class="panel-header">
                 <span class="panel-title">YAML Configuration</span>
-                <span class="status-indicator status-badge @(_isValid ? "valid" : _hasErrors ? "invalid" : "")" data-status-badge>
-                    @if (_isValid)
-                    {
+                @if (_isValid)
+                {
+                    <span class="status-indicator status-badge valid" data-status-badge>
                         <span>Valid</span>
-                    }
-                    else if (_hasErrors)
-                    {
+                    </span>
+                }
+                else if (_hasErrors)
+                {
+                    <span class="status-indicator status-badge invalid" data-status-badge>
                         <span>@_errors.Count error(s)</span>
-                    }
-                </span>
+                    </span>
+                }
             </div>
             <MonacoEditor @ref="_editor"
                           Value="@_yamlContent"
