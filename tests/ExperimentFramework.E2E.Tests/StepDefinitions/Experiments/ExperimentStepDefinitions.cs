@@ -165,7 +165,20 @@ public class ExperimentStepDefinitions
     [Then(@"each experiment should display its name and status")]
     public async Task ThenEachExperimentShouldDisplayItsNameAndStatus()
     {
-        var items = Page.Locator(".experiment-item, .experiment-row, [data-experiment]");
+        // Wait for the skeleton loading placeholders to disappear before
+        // counting real experiment rows — skeleton rows match .experiment-row
+        // but have no .experiment-name child, so counting too early would
+        // make the name assertion fail on a skeleton item.
+        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        var skeletons = Page.Locator("[data-skeleton]");
+        var skeletonCount = await skeletons.CountAsync();
+        if (skeletonCount > 0)
+        {
+            await skeletons.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden });
+        }
+
+        // Only count real experiment rows (exclude skeleton placeholders)
+        var items = Page.Locator(".experiment-item, .experiment-row:not([data-skeleton]), [data-experiment]");
         var count = await items.CountAsync();
 
         if (count == 0)
