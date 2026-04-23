@@ -840,6 +840,14 @@ experiments:
 
         try
         {
+            // Read fresh content directly from the editor to bypass the 300ms
+            // debounce on the Monaco onDidChangeModelContent callback. Without
+            // this, ValidateDslAsync would use _yamlContent which still holds
+            // the previous value when Validate is clicked immediately after
+            // SetEditorContentAsync (e.g. in e2e tests).
+            if (_editor != null)
+                _yamlContent = await _editor.GetValueAsync();
+
             var result = await ExperimentApi.ValidateDslAsync(_yamlContent);
             if (result != null)
             {

@@ -57,10 +57,20 @@ public class RolloutPage
     /// <summary>Fills the new-stage form and adds it to the rollout plan.</summary>
     public async Task AddStageAsync(string name, int percentage, int durationHours)
     {
+        var countBefore = await StageList.CountAsync();
         await StageNameInput.FillAsync(name);
         await StagePercentInput.FillAsync(percentage.ToString());
+        // Use SelectTextAsync + TypeAsync for number inputs to ensure the value is
+        // set correctly even when the previous value is still present.
         await StageDurationInput.FillAsync(durationHours.ToString());
         await AddStageButton.ClickAsync();
+        // Wait for Blazor's SignalR round-trip to complete and the new stage to
+        // appear in the DOM — CountAsync() immediately after ClickAsync() can see
+        // the pre-render count because Blazor updates via WebSocket, not HTTP.
+        await _page.WaitForFunctionAsync(
+            $"() => document.querySelectorAll('.stage-item, [data-stage], .rollout-stage').length > {countBefore}",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 10_000 });
     }
 
     /// <summary>Removes the stage at zero-based <paramref name="index"/>.</summary>
