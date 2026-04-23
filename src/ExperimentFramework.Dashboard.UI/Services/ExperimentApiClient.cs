@@ -108,19 +108,19 @@ public class ExperimentApiClient(HttpClient httpClient)
 
     public async Task<string> GetConfigYamlAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetStringAsync($"api/config/yaml", cancellationToken);
+        return await httpClient.GetStringAsync($"api/configuration/yaml", cancellationToken);
     }
 
     public async Task<FrameworkInfo?> GetConfigInfoAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<FrameworkInfo>($"api/config/info", cancellationToken);
+        return await httpClient.GetFromJsonAsync<FrameworkInfo>($"api/configuration/info", cancellationToken);
     }
 
     public async Task<List<KillSwitchStatus>> GetKillSwitchStatusesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var result = await httpClient.GetFromJsonAsync<List<KillSwitchStatus>>($"api/config/kill-switch", cancellationToken);
+            var result = await httpClient.GetFromJsonAsync<List<KillSwitchStatus>>($"api/configuration/kill-switch", cancellationToken);
             return result ?? [];
         }
         catch (HttpRequestException)
