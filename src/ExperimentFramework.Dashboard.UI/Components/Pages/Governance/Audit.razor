@@ -27,7 +27,7 @@
         <div class="audit-controls">
             <div class="experiment-selector">
                 <label for="experiment-select">Select Experiment:</label>
-                <select id="experiment-select" @onchange="OnExperimentSelected">
+                <select id="experiment-select" name="experiment" class="experiment-select" data-select="experiment" @onchange="OnExperimentSelected">
                     <option value="">-- Select an experiment --</option>
                     @foreach (var exp in _experiments)
                     {
@@ -40,7 +40,7 @@
             {
                 <div class="filter-controls">
                     <label for="type-filter">Filter by Type:</label>
-                    <select id="type-filter" @bind="_typeFilter" @oninput="ApplyFilters">
+                    <select id="type-filter" name="type" class="type-filter" data-filter="type" @bind="_typeFilter" @oninput="ApplyFilters">
                         <option value="">All Types</option>
                         <option value="StateTransition">State Transitions</option>
                         <option value="Approval">Approvals</option>

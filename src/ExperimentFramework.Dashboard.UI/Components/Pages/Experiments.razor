@@ -123,8 +123,8 @@
                 var isExpanded = DashboardState.IsExpanded("experiments", experiment.Name);
                 var isPlugin = experiment.Source == "Plugin";
 
-                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "") @(isPlugin ? "plugin-source" : "")">
-                    <div class="exp-main" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
+                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "") @(isPlugin ? "plugin-source" : "")" data-experiment="@experiment.Name">
+                    <div class="exp-main expand-toggle" role="button" tabindex="0" aria-expanded="@(isExpanded ? "true" : "false")" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
                         <div class="exp-info">
                             <div class="exp-header">
                                 <span class="exp-name">@experiment.DisplayName</span>

@@ -44,7 +44,7 @@
         <!-- Experiment Selector -->
         <div class="experiment-selector">
             <label>Select Experiment</label>
-            <select @bind="_selectedExperiment" @bind:after="OnExperimentSelected">
+            <select name="experiment" class="experiment-select" data-select="experiment" @bind="_selectedExperiment" @bind:after="OnExperimentSelected">
                 <option value="">-- Choose an experiment --</option>
                 @foreach (var exp in _experiments)
                 {
@@ -63,7 +63,7 @@
 
                     <div class="variant-selector">
                         <label>Target Variant to Rollout</label>
-                        <select @bind="_selectedVariant">
+                        <select name="variant" class="variant-select" data-select="variant" @bind="_selectedVariant">
                             <option value="">-- Select variant --</option>
                             @foreach (var variant in _selectedExperimentInfo.Variants)
                             {

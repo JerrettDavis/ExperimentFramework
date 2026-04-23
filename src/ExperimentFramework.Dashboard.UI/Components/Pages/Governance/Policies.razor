@@ -26,7 +26,7 @@
     {
         <div class="experiment-selector">
             <label for="experiment-select">Select Experiment:</label>
-            <select id="experiment-select" @onchange="OnExperimentSelected">
+            <select id="experiment-select" name="experiment" class="experiment-select" data-select="experiment" @onchange="OnExperimentSelected">
                 <option value="">-- Select an experiment --</option>
                 @foreach (var exp in _experiments)
                 {
