@@ -1,10 +1,12 @@
 @page "/dashboard/governance/lifecycle"
 @using ExperimentFramework.Dashboard.UI.Services
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 
 <PageTitle>Lifecycle Management - Experiment Dashboard</PageTitle>
 
-<div class="governance-page">
+<main class="governance-page governance-lifecycle" data-page="lifecycle" role="main">
     <div class="page-header">
         <h1>Lifecycle Management</h1>
         <p class="subtitle">State machine visualization and workflow management</p>
@@ -26,7 +28,7 @@
     {
         <div class="experiment-selector">
             <label for="experiment-select">Select Experiment:</label>
-            <select id="experiment-select" @onchange="OnExperimentSelected">
+            <select id="experiment-select" name="experiment" class="experiment-select" data-select="experiment" @onchange="OnExperimentSelected">
                 <option value="">-- Select an experiment --</option>
                 @foreach (var exp in _experiments)
                 {
@@ -68,7 +70,7 @@
                 <div class="current-state-card">
                     <h2>Current State</h2>
                     <div class="state-info">
-                        <div class="state-badge @_currentState.State.ToLower()">@_currentState.State</div>
+                        <div class="state-badge current-state lifecycle-state @_currentState.State.ToLower()" data-current-state="@_currentState.State">@_currentState.State</div>
                         <div class="state-details">
                             <p><strong>Configuration Version:</strong> @_currentState.ConfigurationVersion</p>
                             <p><strong>Last Modified:</strong> @_currentState.LastModified.ToString("g")</p>
@@ -146,7 +148,7 @@
                         <div class="history-list">
                             @foreach (var transition in _transitionHistory)
                             {
-                                <div class="history-item">
+                                <div class="history-item history-entry" data-history-entry>
                                     <div class="history-arrow">@transition.FromState → @transition.ToState</div>
                                     <div class="history-details">
                                         <span class="history-time">@transition.Timestamp.ToString("g")</span>
@@ -169,7 +171,7 @@
             }
         }
     }
-</div>
+</main>
 
 @if (_showTransitionDialog)
 {

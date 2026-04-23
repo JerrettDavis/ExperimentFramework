@@ -51,8 +51,12 @@ public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
             experiments.Add(new DashboardExperimentInfo
             {
                 Name = e.Name,
+                DisplayName = GetMetadataString(e.Metadata, "DisplayName"),
+                Description = GetMetadataString(e.Metadata, "Description"),
+                Category = GetMetadataString(e.Metadata, "Category"),
                 ServiceType = e.ServiceType?.Name,
                 IsActive = e.IsActive,
+                ActiveVariant = GetMetadataString(e.Metadata, "ActiveVariant"),
                 TrialCount = e.Trials?.Count ?? 0,
                 Trials = e.Trials?.Select(t => new DashboardTrialInfo
                 {
@@ -60,7 +64,8 @@ public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
                     ImplementationType = t.ImplementationType?.Name,
                     IsControl = t.IsControl
                 }).ToList(),
-                Rollout = rollout
+                Rollout = rollout,
+                LastModified = GetMetadataDate(e.Metadata, "LastModified")
             });
         }
 
@@ -97,8 +102,12 @@ public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
         var info = new DashboardExperimentInfo
         {
             Name = experiment.Name,
+            DisplayName = GetMetadataString(experiment.Metadata, "DisplayName"),
+            Description = GetMetadataString(experiment.Metadata, "Description"),
+            Category = GetMetadataString(experiment.Metadata, "Category"),
             ServiceType = experiment.ServiceType?.Name,
             IsActive = experiment.IsActive,
+            ActiveVariant = GetMetadataString(experiment.Metadata, "ActiveVariant"),
             TrialCount = experiment.Trials?.Count ?? 0,
             Trials = experiment.Trials?.Select(t => new DashboardTrialInfo
             {
@@ -106,9 +115,29 @@ public sealed class DefaultDashboardDataProvider : IDashboardDataProvider
                 ImplementationType = t.ImplementationType?.Name,
                 IsControl = t.IsControl
             }).ToList(),
-            Rollout = rollout
+            Rollout = rollout,
+            LastModified = GetMetadataDate(experiment.Metadata, "LastModified")
         };
 
         return info;
+    }
+
+    private static string? GetMetadataString(IReadOnlyDictionary<string, object>? metadata, string key)
+    {
+        if (metadata is null) return null;
+        return metadata.TryGetValue(key, out var value) ? value?.ToString() : null;
+    }
+
+    private static DateTime GetMetadataDate(IReadOnlyDictionary<string, object>? metadata, string key)
+    {
+        if (metadata is null) return default;
+        if (!metadata.TryGetValue(key, out var value)) return default;
+        return value switch
+        {
+            DateTime dt => dt,
+            DateTimeOffset dto => dto.UtcDateTime,
+            string s when DateTime.TryParse(s, out var parsed) => parsed,
+            _ => default
+        };
     }
 }

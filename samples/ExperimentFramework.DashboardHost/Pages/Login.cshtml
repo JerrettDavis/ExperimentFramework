@@ -11,19 +11,30 @@
         .login-card { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); min-width: 320px; }
         h1 { margin: 0 0 1.5rem; font-size: 1.5rem; color: #333; }
         label { display: block; margin-bottom: .25rem; font-size: .875rem; color: #555; }
-        input { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 1rem; box-sizing: border-box; }
+        input[type="email"], input[type="password"] { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 1rem; box-sizing: border-box; }
         button { width: 100%; padding: .6rem; background: #0066cc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; }
         button:hover { background: #0052a3; }
+        .remember-row { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+        .remember-row label { margin-bottom: 0; }
+        .error-message { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 4px; padding: .75rem; margin-bottom: 1rem; color: #b91c1c; font-size: .875rem; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <h1>Experiment Dashboard</h1>
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="error-message" role="alert">@Model.ErrorMessage</div>
+        }
         <form method="post">
             <label for="email">Email</label>
-            <input id="email" type="email" name="email" autocomplete="username" />
+            <input id="email" type="email" name="email" value="@Model.Email" autocomplete="username" />
             <label for="password">Password</label>
             <input id="password" type="password" name="password" autocomplete="current-password" />
+            <div class="remember-row">
+                <input id="RememberMe" type="checkbox" name="RememberMe" value="true" @(Model.RememberMe ? "checked" : "") />
+                <label for="RememberMe">Remember me</label>
+            </div>
             <button type="submit" class="login-submit">Sign in</button>
         </form>
     </div>

@@ -1,4 +1,4 @@
-<nav class="nav-menu">
+<nav class="nav-menu sidebar" role="navigation">
     <NavLink href="/dashboard" Match="NavLinkMatch.All">
         <span class="nav-icon">🏠</span>
         <span>Home</span>
@@ -21,7 +21,7 @@
 
     <NavLink href="/dashboard/targeting">
         <span class="nav-icon">🎯</span>
-        <span>Targeting</span>
+        <span>Targeting Rules</span>
     </NavLink>
 
     <NavLink href="/dashboard/rollout">
@@ -44,10 +44,15 @@
         <span>Configuration</span>
     </NavLink>
 
-    <NavLink href="/dashboard/dsl-editor">
+    <NavLink href="/dashboard/dsl">
         <span class="nav-icon">📝</span>
         <span>DSL Editor</span>
     </NavLink>
+
+    <a href="/logout" class="nav-logout" data-action="logout">
+        <span class="nav-icon">🚪</span>
+        <span>Log out</span>
+    </a>
 </nav>
 
 <style>
@@ -93,5 +98,23 @@
     :global(.theme-dark) .nav-menu :global(a:hover) {
         background: rgba(99, 102, 241, 0.2);
         color: #e5e7eb;
+    }
+
+    .nav-logout {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        color: var(--color-text-secondary, #64748b);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 150ms ease;
+        font-size: 0.875rem;
+        margin-top: auto;
+    }
+
+    .nav-logout:hover {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
     }
 </style>

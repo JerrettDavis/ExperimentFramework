@@ -1,12 +1,14 @@
 @page "/dashboard/rollout"
 @using ExperimentFramework.Dashboard.UI.Services
 @using ExperimentFramework.Dashboard.Abstractions
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 @implements IDisposable
 
 <PageTitle>Rollout Management - Experiment Dashboard</PageTitle>
 
-<div class="rollout-console">
+<main class="rollout-console rollout-container" data-page="rollout" role="main">
     <!-- Header -->
     <header class="console-header">
         <div class="header-content">
@@ -44,7 +46,7 @@
         <!-- Experiment Selector -->
         <div class="experiment-selector">
             <label>Select Experiment</label>
-            <select @bind="_selectedExperiment" @bind:after="OnExperimentSelected">
+            <select name="experiment" class="experiment-select" data-select="experiment" @bind="_selectedExperiment" @bind:after="OnExperimentSelected">
                 <option value="">-- Choose an experiment --</option>
                 @foreach (var exp in _experiments)
                 {
@@ -63,7 +65,7 @@
 
                     <div class="variant-selector">
                         <label>Target Variant to Rollout</label>
-                        <select @bind="_selectedVariant">
+                        <select name="variant" class="variant-select" data-select="variant" @bind="_selectedVariant">
                             <option value="">-- Select variant --</option>
                             @foreach (var variant in _selectedExperimentInfo.Variants)
                             {
@@ -104,20 +106,33 @@
                             <div class="stages-editor">
                                 @foreach (var (stage, index) in _rolloutStages.Select((s, i) => (s, i)))
                                 {
-                                    <div class="stage-editor">
+                                    <div class="stage-item stage-editor" data-stage>
                                         <div class="stage-number">Stage @(index + 1)</div>
-                                        <input type="text" placeholder="Name" @bind="stage.Name" />
-                                        <input type="number" placeholder="%" min="0" max="100" @bind="stage.Percentage" />
-                                        <input type="number" placeholder="Hours" min="1" @bind="stage.DurationHours" />
-                                        <button class="btn-icon-danger" @onclick="() => RemoveStage(index)">
+                                        <span class="stage-name-display">@stage.Name</span>
+                                        <span class="stage-percent-display">@stage.Percentage%</span>
+                                        <span class="stage-duration-display">@stage.DurationHours hrs</span>
+                                        <button class="btn-icon-danger" data-action="remove-stage" @onclick="() => RemoveStage(index)">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                             </svg>
+                                            Remove
                                         </button>
                                     </div>
                                 }
                             </div>
                         }
+
+                        <!-- New Stage Form — always visible in create mode.
+                             @bind:event="oninput" so form values flush to the server as they
+                             are typed, avoiding a race where a later click outruns the bind. -->
+                        <div class="new-stage-form">
+                            <input type="text" name="stage-name" placeholder="Stage name"
+                                   @bind="_newStageName" @bind:event="oninput" />
+                            <input type="number" name="stage-percent" placeholder="Percent" min="0" max="100"
+                                   @bind="_newStagePercent" @bind:event="oninput" />
+                            <input type="number" name="stage-duration" placeholder="Hours" min="0"
+                                   @bind="_newStageDuration" @bind:event="oninput" />
+                        </div>
 
                         <div class="rollout-actions">
                             <button class="btn-secondary" @onclick="AddStage">
@@ -144,7 +159,8 @@
                                 <h4>Rolling out: <strong>@_rolloutConfig.TargetVariant</strong></h4>
                                 <p class="started">Started: @(_rolloutConfig.StartDate?.ToString("MMM d, yyyy h:mm tt") ?? "N/A")</p>
                             </div>
-                            <div class="rollout-status-badge @_rolloutConfig.Status.ToString().ToLower()">
+                            <div class="rollout-status-badge status-badge rollout-status @_rolloutConfig.Status.ToString().ToLower()"
+                                 data-status="@_rolloutConfig.Status.ToString().ToLower()">
                                 @_rolloutConfig.Status
                             </div>
                         </div>
@@ -155,7 +171,11 @@
                                 <span class="progress-label">Rollout Progress</span>
                                 <span class="progress-percentage">@_rolloutConfig.Percentage%</span>
                             </div>
-                            <div class="progress-bar">
+                            <div class="progress-bar rollout-progress" role="progressbar"
+                                 data-progress="@_rolloutConfig.Percentage"
+                                 aria-valuenow="@_rolloutConfig.Percentage"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
                                 <div class="progress-fill" style="width: @(_rolloutConfig.Percentage)%"></div>
                             </div>
                         </div>
@@ -269,7 +289,7 @@
             </div>
         }
     }
-</div>
+</main>
 
 <style>
     .rollout-console {
@@ -534,6 +554,24 @@
         font-size: 0.875rem;
     }
 
+    .new-stage-form {
+        display: grid;
+        grid-template-columns: 1fr 80px 80px;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-bg-tertiary, #f9fafb);
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+
+    .new-stage-form input {
+        padding: 0.5rem;
+        border: 1px solid var(--color-border, rgba(148, 163, 184, 0.3));
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
     .rollout-actions {
         display: flex;
         gap: 0.75rem;
@@ -742,13 +780,14 @@
     private RolloutConfiguration? _rolloutConfig;
     private List<RolloutStageDto> _rolloutStages = [];
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    // New stage form fields
+    private string _newStageName = "";
+    private int _newStagePercent = 10;
+    private int? _newStageDuration = null;
+
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            await LoadExperiments();
-            StateHasChanged();
-        }
+        await LoadExperiments();
     }
 
     private async Task LoadExperiments()
@@ -775,26 +814,37 @@
         _rolloutConfig = _selectedExperimentInfo?.Rollout;
         _selectedVariant = _rolloutConfig?.TargetVariant ?? "";
 
-        // Initialize with default stages if no rollout exists or rollout is not enabled
-        _rolloutStages = (_rolloutConfig == null || !_rolloutConfig.Enabled)
-            ? [
-                new RolloutStageDto { Name = "Initial rollout", Percentage = 10, DurationHours = 24 },
-                new RolloutStageDto { Name = "Expand to half", Percentage = 50, DurationHours = 48 },
-                new RolloutStageDto { Name = "Full rollout", Percentage = 100, DurationHours = 72 }
-            ]
-            : _rolloutConfig.Stages.ToList();
+        // Initialize stages from existing rollout config, or start empty for a new plan
+        _rolloutStages = (_rolloutConfig != null && _rolloutConfig.Enabled)
+            ? _rolloutConfig.Stages.ToList()
+            : [];
 
         StateHasChanged();
     }
 
     private void AddStage()
     {
-        _rolloutStages.Add(new RolloutStageDto { Percentage = 10 });
+        _rolloutStages.Add(new RolloutStageDto
+        {
+            Name = string.IsNullOrWhiteSpace(_newStageName) ? $"Stage {_rolloutStages.Count + 1}" : _newStageName,
+            Percentage = _newStagePercent > 0 ? _newStagePercent : 10,
+            DurationHours = _newStageDuration
+        });
+
+        // Force an immediate re-render so e2e tests observing the DOM see
+        // the new stage before the next click action is issued. We deliberately
+        // leave the new-stage form fields populated with the last-entered values:
+        // resetting them to defaults pushes a render diff that races the next
+        // FillAsync in e2e runs, sometimes overwriting the already-typed value
+        // for the next stage and dropping a stage from the collection.
+        StateHasChanged();
     }
 
     private void RemoveStage(int index)
     {
+        if (index < 0 || index >= _rolloutStages.Count) return;
         _rolloutStages.RemoveAt(index);
+        StateHasChanged();
     }
 
     private async Task StartRollout()
@@ -817,7 +867,7 @@
             };
 
             var response = await ExperimentApi.HttpClient.PostAsJsonAsync(
-                $"/api/rollout/{_selectedExperiment}/config", config);
+                $"api/rollout/{_selectedExperiment}/config", config);
 
             if (response.IsSuccessStatusCode)
             {
@@ -873,7 +923,7 @@
         _actionInProgress = true;
         try
         {
-            var response = await ExperimentApi.HttpClient.DeleteAsync($"/api/rollout/{_selectedExperiment}/config");
+            var response = await ExperimentApi.HttpClient.DeleteAsync($"api/rollout/{_selectedExperiment}/config");
             if (response.IsSuccessStatusCode)
             {
                 _rolloutConfig = null;
@@ -899,7 +949,7 @@
 
         try
         {
-            var response = await ExperimentApi.HttpClient.PostAsync($"/api/rollout/{_selectedExperiment}/{action}", null);
+            var response = await ExperimentApi.HttpClient.PostAsync($"api/rollout/{_selectedExperiment}/{action}", null);
             if (response.IsSuccessStatusCode)
             {
                 _rolloutConfig = await response.Content.ReadFromJsonAsync<RolloutConfiguration>();

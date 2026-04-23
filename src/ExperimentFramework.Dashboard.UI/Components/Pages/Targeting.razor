@@ -4,7 +4,7 @@
 
 <PageTitle>Targeting Rules - Experiment Dashboard</PageTitle>
 
-<div class="targeting-console">
+<main class="targeting-console targeting-container" data-page="targeting" role="main">
     <!-- Header -->
     <header class="console-header">
         <div class="header-content">
@@ -124,7 +124,7 @@
             </div>
         }
     }
-</div>
+</main>
 
 <style>
     .targeting-console {
@@ -477,13 +477,9 @@
     private IEnumerable<ExperimentInfo> _experimentsWithTargeting =>
         _experiments.Where(e => e.TargetingRules.Any());
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            await LoadExperiments();
-            StateHasChanged();
-        }
+        await LoadExperiments();
     }
 
     private async Task LoadExperiments()

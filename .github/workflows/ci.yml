@@ -98,13 +98,15 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  # E2E tests require the AspireDemo app to be running — marked continue-on-error as informational
+  # E2E tests run the Playwright + Reqnroll suite against a live DashboardHost
+  # seeded with demo data (5 experiments, governance records, 4 test users). The
+  # host is launched in the background, probed for readiness, and torn down
+  # after the suite completes.
   e2e-tests:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     needs: pr-checks
-    continue-on-error: true
     permissions:
       contents: read
     steps:
@@ -126,20 +128,87 @@ jobs:
           dotnet tool restore
           dotnet restore --use-lock-file
 
-      - name: Build E2E tests (Release)
-        run: dotnet build tests/ExperimentFramework.E2E.Tests/ --configuration Release --no-restore
+      - name: Build solution (Release)
+        # The E2E suite drives the DashboardHost, which pulls in the full
+        # solution graph (Dashboard.UI RCL, Governance, Admin, etc.). Build the
+        # whole solution so `dotnet run --no-build` and `dotnet test --no-build`
+        # both succeed without re-triggering Razor compilation.
+        run: dotnet build ExperimentFramework.slnx --configuration Release --no-restore /p:BuildInParallel=false
 
       - name: Install Playwright browsers
         run: |
           PLAYWRIGHT_PS1=$(find tests/ExperimentFramework.E2E.Tests/bin/Release -name "playwright.ps1" | head -1)
           if [ -z "$PLAYWRIGHT_PS1" ]; then
-            echo "playwright.ps1 not found, skipping browser install"
-            exit 0
+            echo "playwright.ps1 not found" >&2
+            exit 1
           fi
           pwsh "$PLAYWRIGHT_PS1" install --with-deps chromium
 
+      - name: Launch DashboardHost (background, seeded)
+        # Intentionally NOT using --no-build: `dotnet build ExperimentFramework.slnx`
+        # does not always materialise the host's Release-mode runtime artifacts
+        # (apphost binary + deps.json) at the path `dotnet run --no-build` expects,
+        # and the resulting "No such file or directory" error is silent until the
+        # readiness poll times out. Letting `dotnet run` perform an incremental
+        # build is fast (everything is already restored + compiled) and reliable.
+        run: |
+          dotnet run --project samples/ExperimentFramework.DashboardHost \
+            --configuration Release -- \
+            --seed=docs --freeze-date 2026-04-01T12:00:00Z \
+            --Urls=http://localhost:5195 \
+            > dashboard-host.log 2>&1 &
+          echo "DASHBOARD_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for DashboardHost readiness
+        run: |
+          for i in $(seq 1 40); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5195/dashboard || echo "000")
+            if [ "$status" = "200" ] || [ "$status" = "302" ]; then
+              echo "Dashboard is ready (HTTP $status) after $i attempts"
+              exit 0
+            fi
+            echo "Attempt $i/40 — waiting 3s (last status: $status)..."
+            sleep 3
+          done
+          echo "Dashboard did not become ready in 120 seconds" >&2
+          echo "---- dashboard-host.log (tail) ----" >&2
+          tail -n 200 dashboard-host.log >&2 || true
+          exit 1
+
       - name: Run E2E tests
-        run: dotnet test tests/ExperimentFramework.E2E.Tests/ --configuration Release --verbosity quiet --filter "Category!=Manual"
+        env:
+          E2E__BaseUrl: http://localhost:5195
+          E2E__Headless: "true"
+        run: |
+          dotnet test tests/ExperimentFramework.E2E.Tests/ \
+            --configuration Release \
+            --filter "Category!=Manual" \
+            --logger "trx;LogFileName=e2e.trx" \
+            --logger "console;verbosity=normal"
+
+      - name: Stop DashboardHost
+        if: always()
+        run: |
+          if [ -n "${DASHBOARD_PID:-}" ]; then
+            kill "$DASHBOARD_PID" 2>/dev/null || true
+          fi
+
+      - name: Upload DashboardHost log on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dashboard-host-log
+          path: dashboard-host.log
+          retention-days: 7
+
+      - name: Upload E2E failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-failure-screenshots
+          path: tests/ExperimentFramework.E2E.Tests/bin/Release/net10.0/TestResults/Screenshots/
+          retention-days: 7
+          if-no-files-found: ignore
 
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

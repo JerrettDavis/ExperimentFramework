@@ -1,8 +1,56 @@
 @inherits LayoutComponentBase
 
-<div class="page">
-    <h2>Dashboard</h2>
-    <div>
+<div class="page dashboard-shell">
+    <aside class="dashboard-sidebar">
+        <header class="dashboard-brand">
+            <h2>Dashboard</h2>
+        </header>
+        <NavMenu />
+    </aside>
+
+    <div class="dashboard-main">
         @Body
     </div>
 </div>
+
+<style>
+    .dashboard-shell {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        min-height: 100vh;
+    }
+
+    .dashboard-sidebar {
+        background: var(--color-bg-secondary, #f8fafc);
+        border-right: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        padding: 0;
+        overflow-y: auto;
+    }
+
+    .dashboard-brand {
+        padding: 1.25rem 1rem;
+        border-bottom: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+    }
+
+    .dashboard-brand h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--color-text-primary, #0f172a);
+    }
+
+    .dashboard-main {
+        min-width: 0;
+    }
+
+    @@media (max-width: 768px) {
+        .dashboard-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-sidebar {
+            border-right: none;
+            border-bottom: 1px solid var(--color-border, rgba(148, 163, 184, 0.2));
+        }
+    }
+</style>

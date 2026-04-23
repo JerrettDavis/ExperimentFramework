@@ -2,12 +2,14 @@
 @using ExperimentFramework.Dashboard.UI.Services
 @using ExperimentFramework.Dashboard.UI.Models
 @using ExperimentFramework.Dashboard.UI.Components.Shared
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 @inject IJSRuntime JS
 
 <PageTitle>DSL Editor - Experiment Dashboard</PageTitle>
 
-<div class="dsl-editor-page">
+<main class="dsl-editor-page dsl-editor-container" data-page="dsl" role="main">
     <div class="page-header">
         <div class="header-content">
             <h1>DSL Configuration Editor</h1>
@@ -43,16 +45,18 @@
         <div class="editor-panel">
             <div class="panel-header">
                 <span class="panel-title">YAML Configuration</span>
-                <span class="status-indicator @(_isValid ? "valid" : _hasErrors ? "invalid" : "")">
-                    @if (_isValid)
-                    {
+                @if (_isValid)
+                {
+                    <span class="status-indicator status-badge valid" data-status-badge>
                         <span>Valid</span>
-                    }
-                    else if (_hasErrors)
-                    {
+                    </span>
+                }
+                else if (_hasErrors)
+                {
+                    <span class="status-indicator status-badge invalid" data-status-badge>
                         <span>@_errors.Count error(s)</span>
-                    }
-                </span>
+                    </span>
+                }
             </div>
             <MonacoEditor @ref="_editor"
                           Value="@_yamlContent"
@@ -70,9 +74,9 @@
             <div class="panel validation-panel">
                 <div class="panel-header">
                     <span class="panel-title">Validation Results</span>
-                    @if (_errors.Count > 0 || _warnings.Count > 0)
+                    @if (_errors.Count > 0 || _warnings.Count > 0 || _isValid)
                     {
-                        <button class="clear-btn" @onclick="ClearValidation">Clear</button>
+                        <button class="clear-btn" data-action="clear-validation" @onclick="ClearValidation">Clear</button>
                     }
                 </div>
                 <div class="panel-content">
@@ -87,7 +91,7 @@
                     {
                         @foreach (var error in _errors)
                         {
-                            <div class="validation-item error" @onclick="() => GoToError(error)">
+                            <div class="validation-item error validation-error" data-validation-error @onclick="() => GoToError(error)">
                                 <span class="item-icon">X</span>
                                 <div class="item-content">
                                     <span class="item-location">Line @error.Line</span>
@@ -192,7 +196,7 @@
     @if (_showApplyConfirmation)
     {
         <div class="modal-overlay" @onclick="HideApplyConfirmation">
-            <div class="modal-dialog" @onclick:stopPropagation>
+            <div class="modal-dialog" role="dialog" data-modal @onclick:stopPropagation>
                 <div class="modal-header">
                     <h3>Apply Configuration</h3>
                 </div>
@@ -225,7 +229,7 @@
             </div>
         </div>
     }
-</div>
+</main>
 
 <style>
     .dsl-editor-page {
@@ -836,6 +840,14 @@ experiments:
 
         try
         {
+            // Read fresh content directly from the editor to bypass the 300ms
+            // debounce on the Monaco onDidChangeModelContent callback. Without
+            // this, ValidateDslAsync would use _yamlContent which still holds
+            // the previous value when Validate is clicked immediately after
+            // SetEditorContentAsync (e.g. in e2e tests).
+            if (_editor != null)
+                _yamlContent = await _editor.GetValueAsync();
+
             var result = await ExperimentApi.ValidateDslAsync(_yamlContent);
             if (result != null)
             {
@@ -941,15 +953,16 @@ experiments:
         }
     }
 
-    private async Task OnYamlChanged(string newValue)
+    private Task OnYamlChanged(string newValue)
     {
         _yamlContent = newValue;
-        // Clear previous validation when content changes
-        if (_isValid || _hasErrors)
-        {
-            _isValid = false;
-            _hasErrors = false;
-        }
+        // Do not clear _isValid / _hasErrors here — the validation result reflects
+        // the last validate-button click and should persist until the user either
+        // clicks Validate again or hits the Clear button. Invalidating on every
+        // keystroke caused a race with Monaco's debounced change event fired
+        // from programmatic setValue (e.g. in e2e tests), which would flip
+        // _isValid back to false moments after the server set it to true.
+        return Task.CompletedTask;
     }
 
     private async Task GoToError(DslValidationError error)

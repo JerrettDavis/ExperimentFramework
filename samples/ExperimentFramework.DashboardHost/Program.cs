@@ -22,16 +22,29 @@ builder.WebHost.UseStaticWebAssets();
 // Add feature management for feature flags
 builder.Services.AddFeatureManagement();
 
-// Add authorization with an open-access policy so the Dashboard.UI Blazor components
-// (which require the "CanAccessExperiments" policy) work without login in docs-demo mode.
-builder.Services.AddAuthentication();
+// Cookie authentication for the docs-demo host.
+// Supports the four named demo users; unknown credentials are rejected with an error.
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme    = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultSignInScheme       = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+    })
+    .AddCookie(options =>
+    {
+        options.LoginPath  = "/login";
+        options.LogoutPath = "/logout";
+        options.ExpireTimeSpan    = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+    });
+
 builder.Services.AddAuthorization(options =>
 {
-    // Open policy — allows all requests (docs demo runs without auth)
-    options.AddPolicy("CanAccessExperiments", policy => policy.RequireAssertion(_ => true));
-    options.AddPolicy("CanModifyExperiments", policy => policy.RequireAssertion(_ => true));
-    options.AddPolicy("CanManageRollouts",    policy => policy.RequireAssertion(_ => true));
-    options.AddPolicy("AdminOnly",            policy => policy.RequireAssertion(_ => true));
+    // Open policies: roles are not enforced in docs-demo; any authenticated user can do anything.
+    options.AddPolicy("CanAccessExperiments", policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("CanModifyExperiments", policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("CanManageRollouts",    policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy("AdminOnly",            policy => policy.RequireAuthenticatedUser());
 });
 
 // Add Razor Pages for the stub login page
@@ -48,6 +61,11 @@ builder.Services.AddScoped<ExperimentCodeGenerator>();
 
 // Register API client — the Dashboard.UI ExperimentApiClient calls paths like /api/experiments.
 // The REST API is mounted at /dashboard/api/... so set base address to /dashboard/.
+//
+// Note: the dashboard middleware exempts the /dashboard/api/* subpath from its
+// cookie-auth redirect check precisely because Blazor Server's HttpClient cannot
+// forward the browser's auth cookie during SignalR callbacks
+// (IHttpContextAccessor.HttpContext is null then). Page routes remain protected.
 builder.Services.AddHttpClient<ExperimentApiClient>(client =>
 {
     // Client calls relative paths like "api/experiments"; prepend "/dashboard/" to route correctly
@@ -95,7 +113,14 @@ if (cliArgs.SeedDocs)
     // Bridge: expose the five demo experiments via IExperimentRegistry so that the
     // Dashboard API (ExperimentEndpoints / DefaultDashboardDataProvider) can list them.
     // The core ExperimentFramework registry is internal, so we supply this thin adapter.
-    builder.Services.AddSingleton<ExperimentFramework.Admin.IExperimentRegistry, DemoExperimentRegistry>();
+    // Also register it as the mutable variant so the rollout endpoints
+    // (Dashboard_CreateOrUpdateRolloutConfig, Dashboard_ActivateVariant, etc.) can
+    // resolve IMutableExperimentRegistry — they 503 without it.
+    builder.Services.AddSingleton<DemoExperimentRegistry>();
+    builder.Services.AddSingleton<ExperimentFramework.Admin.IExperimentRegistry>(
+        sp => sp.GetRequiredService<DemoExperimentRegistry>());
+    builder.Services.AddSingleton<ExperimentFramework.Admin.IMutableExperimentRegistry>(
+        sp => sp.GetRequiredService<DemoExperimentRegistry>());
 
     // Three demo policies via AddExperimentGovernance builder
     builder.Services.AddExperimentGovernance(governance =>
@@ -120,7 +145,9 @@ if (cliArgs.SeedDocs)
         options.EnableAnalytics = true;
         options.EnableGovernanceUI = true;
         options.ItemsPerPage = 25;
-        options.RequireAuthorization = false;
+        // Auth is now cookie-based: require authenticated users for the dashboard.
+        // The cookie middleware redirects unauthenticated requests to /login.
+        options.RequireAuthorization = true;
         options.AnalyticsProvider = demoAnalytics;
     });
 }
@@ -152,7 +179,7 @@ else
         options.EnableAnalytics = true;
         options.EnableGovernanceUI = true;
         options.ItemsPerPage = 25;
-        options.RequireAuthorization = false;
+        options.RequireAuthorization = true;
     });
 }
 
@@ -343,3 +370,4 @@ file sealed record DocsCliArgs(bool SeedDocs, DateTimeOffset? FreezeDate)
         return new DocsCliArgs(seedDocs, freezeDate);
     }
 }
+

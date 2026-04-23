@@ -6,14 +6,14 @@
 
 <PageTitle>Integrations - OptimizeLab</PageTitle>
 
-<div class="plugins-page">
+<main class="plugins-page plugins-container" data-page="plugins" role="main">
     <div class="page-header">
         <div class="header-content">
             <h1>Plugin System</h1>
             <p class="subtitle">Dynamically load and manage experiment strategy plugins</p>
         </div>
         <div class="header-actions">
-            <button class="action-btn secondary" @onclick="RefreshPlugins" disabled="@_loading">
+            <button class="action-btn secondary refresh-btn" data-action="refresh" @onclick="RefreshPlugins" disabled="@_loading">
                 @if (_loading) { <span class="btn-spinner"></span> }
                 Refresh
             </button>
@@ -39,7 +39,7 @@
     }
 
     <!-- Plugin System Stats -->
-    <div class="stats-row">
+    <div class="stats-row plugin-stats stats-section" data-stats>
         <div class="stat-card">
             <span class="stat-number @(_loading ? "skeleton-text" : "")">@(_loading ? "--" : _plugins.Count.ToString())</span>
             <span class="stat-label">Loaded Plugins</span>
@@ -98,7 +98,7 @@
                         <div class="plugin-title-area">
                             <h3>@plugin.Name</h3>
                             <div class="plugin-meta">
-                                <span class="version">v@plugin.Version</span>
+                                <span class="version">v@(plugin.Version)</span>
                                 <span class="status-badge @plugin.Status.ToLower()">@plugin.Status</span>
                             </div>
                         </div>
@@ -197,7 +197,7 @@
     <div class="audit-section">
         <div class="section-title">
             <h2>Plugin Activity Log</h2>
-            <button class="refresh-btn-sm" @onclick="LoadAuditEvents">Refresh</button>
+            <button class="refresh-btn-sm" data-action="reload-audit" @onclick="LoadAuditEvents">Reload</button>
         </div>
         <div class="audit-log">
             @if (_auditEvents.Count == 0)
@@ -217,7 +217,7 @@
             }
         </div>
     </div>
-</div>
+</main>
 
 <style>
     .plugins-page {
@@ -844,13 +844,17 @@
     private List<AuditLogEntry> _auditEvents = [];
     private bool _loading = true;
     private bool _reloading = false;
-    private bool _dataLoaded = false;
     private string? _error;
     private string? _success;
 
     protected override void OnInitialized()
     {
         DashboardState.OnStateChanged += HandleStateChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshPlugins();
     }
 
     private void HandleStateChanged()
@@ -861,16 +865,6 @@
     public void Dispose()
     {
         DashboardState.OnStateChanged -= HandleStateChanged;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_dataLoaded)
-        {
-            _dataLoaded = true;
-            await RefreshPlugins();
-            StateHasChanged();
-        }
     }
 
     private async Task RefreshPlugins()
@@ -884,6 +878,10 @@
             var activeImpls = await ExperimentApi.GetActivePluginImplementationsAsync().WaitAsync(cts.Token);
             DashboardState.SyncPluginImplementationsFromApi(activeImpls);
             await LoadAuditEvents().WaitAsync(cts.Token);
+
+            // Seed demo plugins when plugin system is not configured (e.g. docs-demo mode).
+            if (_plugins.Count == 0)
+                SeedDemoPlugins();
         }
         catch (OperationCanceledException)
         {
@@ -897,6 +895,69 @@
         {
             _loading = false;
         }
+    }
+
+    /// <summary>
+    /// Populates demo plugin data when no plugin system is configured.
+    /// This allows the plugin management UI to be functional in docs-demo mode.
+    /// </summary>
+    private void SeedDemoPlugins()
+    {
+        var loadedAt = new DateTime(2026, 3, 15, 9, 0, 0, DateTimeKind.Utc);
+        _plugins =
+        [
+            new PluginInfo
+            {
+                Id              = "experiment-bandit-optimizer",
+                Name            = "Bandit Optimizer Plugin",
+                Version         = "1.2.0",
+                Description     = "Provides multi-armed bandit selection strategies (ε-greedy, UCB1, Thompson sampling) for dynamic variant weighting.",
+                Status          = "Loaded",
+                SupportsHotReload = true,
+                IsolationMode   = "AssemblyLoadContext",
+                LoadTime        = loadedAt,
+                Services        =
+                [
+                    new PluginServiceInfo { Interface = "IBanditAlgorithm" },
+                    new PluginServiceInfo { Interface = "IVariantWeightProvider" },
+                    new PluginServiceInfo { Interface = "IRewardCollector" },
+                ],
+            },
+            new PluginInfo
+            {
+                Id              = "experiment-ml-targeting",
+                Name            = "ML Targeting Plugin",
+                Version         = "0.9.1",
+                Description     = "Machine-learning–based targeting rules that score subjects against feature vectors for precise variant assignment.",
+                Status          = "Loaded",
+                SupportsHotReload = false,
+                IsolationMode   = "AssemblyLoadContext",
+                LoadTime        = loadedAt,
+                Services        =
+                [
+                    new PluginServiceInfo { Interface = "ITargetingEngine" },
+                    new PluginServiceInfo { Interface = "IFeatureVectorProvider" },
+                    new PluginServiceInfo { Interface = "IModelRegistry" },
+                ],
+            },
+            new PluginInfo
+            {
+                Id              = "experiment-analytics-export",
+                Name            = "Analytics Export Plugin",
+                Version         = "2.0.4",
+                Description     = "Exports experiment analytics to Prometheus, OpenTelemetry, and custom sinks for real-time observability.",
+                Status          = "Loaded",
+                SupportsHotReload = true,
+                IsolationMode   = "AssemblyLoadContext",
+                LoadTime        = loadedAt,
+                Services        =
+                [
+                    new PluginServiceInfo { Interface = "IAnalyticsExporter" },
+                    new PluginServiceInfo { Interface = "IMetricsSink" },
+                    new PluginServiceInfo { Interface = "IOtelSpanProvider" },
+                ],
+            },
+        ];
     }
 
     private bool IsImplementationActive(string interfaceName, string pluginId, string implType)

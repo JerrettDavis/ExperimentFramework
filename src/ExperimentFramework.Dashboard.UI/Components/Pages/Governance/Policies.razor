@@ -1,10 +1,12 @@
 @page "/dashboard/governance/policies"
 @using ExperimentFramework.Dashboard.UI.Services
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 
 <PageTitle>Policy Dashboard - Experiment Dashboard</PageTitle>
 
-<div class="governance-page">
+<main class="governance-page governance-policies" data-page="policies" role="main">
     <div class="page-header">
         <h1>Policy Dashboard</h1>
         <p class="subtitle">Policy evaluation and compliance monitoring</p>
@@ -26,7 +28,7 @@
     {
         <div class="experiment-selector">
             <label for="experiment-select">Select Experiment:</label>
-            <select id="experiment-select" @onchange="OnExperimentSelected">
+            <select id="experiment-select" name="experiment" class="experiment-select" data-select="experiment" @onchange="OnExperimentSelected">
                 <option value="">-- Select an experiment --</option>
                 @foreach (var exp in _experiments)
                 {
@@ -45,7 +47,7 @@
             }
             else if (_policies.Count == 0)
             {
-                <div class="info-message">
+                <div class="info-message not-configured" data-not-configured>
                     <div class="info-icon">ℹ️</div>
                     <div class="info-content">
                         <h3>Governance Not Configured</h3>
@@ -103,11 +105,11 @@
                                     <h3 class="policy-name">@policy.PolicyName</h3>
                                     @if (policy.IsCompliant)
                                     {
-                                        <span class="status-badge compliant">✓ Compliant</span>
+                                        <span class="status-badge status badge policy-status compliant" data-status="compliant">✓ Compliant</span>
                                     }
                                     else
                                     {
-                                        <span class="status-badge non-compliant">✗ Non-Compliant</span>
+                                        <span class="status-badge status badge policy-status non-compliant" data-status="non-compliant">✗ Non-Compliant</span>
                                     }
                                 </div>
                                 <div class="policy-meta">
@@ -157,7 +159,7 @@
             }
         }
     }
-</div>
+</main>
 
 <style>
     .governance-page {

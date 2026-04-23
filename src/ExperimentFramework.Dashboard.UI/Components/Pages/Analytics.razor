@@ -4,7 +4,7 @@
 
 <PageTitle>Analytics - Experiment Dashboard</PageTitle>
 
-<div class="analytics-console">
+<main class="analytics-console analytics-container" data-page="analytics" role="main">
     <!-- Header -->
     <header class="console-header">
         <div class="header-content">
@@ -30,7 +30,7 @@
     </header>
 
     <!-- Summary Stats -->
-    <div class="stats-row">
+    <div class="stats-row analytics-stats stats-section" data-stats>
         <div class="stat-card">
             <div class="stat-icon blue">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -82,7 +82,7 @@
 
     <div class="analytics-grid">
         <!-- Variant Distribution -->
-        <section class="card distribution-section">
+        <section class="card distribution-section variant-distribution">
             <div class="card-header">
                 <h2>Variant Distribution</h2>
                 <span class="card-subtitle">Selection breakdown by experiment</span>
@@ -144,7 +144,7 @@
         </section>
 
         <!-- Audit Log -->
-        <section class="card audit-section">
+        <section class="card audit-section audit-log" data-audit-log>
             <div class="card-header">
                 <h2>Audit Log</h2>
                 <span class="card-subtitle">Recent system events and changes</span>
@@ -188,7 +188,7 @@
                             <tbody>
                                 @foreach (var entry in _auditLog.Take(20))
                                 {
-                                    <tr>
+                                    <tr class="audit-entry audit-row" data-audit-entry>
                                         <td class="timestamp-cell">
                                             <span class="time">@entry.Timestamp.ToString("HH:mm:ss")</span>
                                             <span class="date">@entry.Timestamp.ToString("MMM d")</span>
@@ -227,7 +227,7 @@
             </div>
         </section>
     </div>
-</div>
+</main>
 
 <style>
     .analytics-console {
@@ -694,17 +694,11 @@
     private Dictionary<string, Dictionary<string, int>> _usageStats = [];
     private List<AuditLogEntry> _auditLog = [];
     private bool _loading = true;
-    private bool _dataLoaded = false;
     private int _totalCalls = 0;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender && !_dataLoaded)
-        {
-            _dataLoaded = true;
-            await RefreshData();
-            StateHasChanged();
-        }
+        await RefreshData();
     }
 
     private async Task RefreshData()

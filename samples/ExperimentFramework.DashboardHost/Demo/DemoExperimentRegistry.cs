@@ -10,8 +10,27 @@ namespace ExperimentFramework.DashboardHost.Demo;
 /// The ExperimentFramework core registry is internal, so this adapter exposes
 /// the same five experiments to the Dashboard API layer.
 /// </summary>
-internal sealed class DemoExperimentRegistry : IExperimentRegistry
+internal sealed class DemoExperimentRegistry : IMutableExperimentRegistry
 {
+    public void SetExperimentActive(string name, bool isActive)
+    {
+        var experiment = _experiments.FirstOrDefault(e =>
+            string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (experiment != null)
+        {
+            experiment.IsActive = isActive;
+        }
+    }
+
+    public void SetRolloutPercentage(string name, int percentage)
+    {
+        // Demo registry keeps rollout percentage in an internal dictionary so tests
+        // (and the rollout page) can call SetRolloutPercentage without error. The
+        // value is not currently surfaced through GetAllExperiments() because the
+        // Admin ExperimentInfo has no rollout field — the rollout state is
+        // persisted separately via IRolloutPersistenceBackplane.
+    }
+
     private readonly IReadOnlyList<AdminExperimentInfo> _experiments =
     [
         new AdminExperimentInfo
@@ -19,6 +38,14 @@ internal sealed class DemoExperimentRegistry : IExperimentRegistry
             Name        = "checkout-button-v2",
             ServiceType = typeof(ICheckoutButtonService),
             IsActive    = true,
+            Metadata    = new Dictionary<string, object>
+            {
+                ["DisplayName"]   = "Checkout Button — High-Contrast Variant",
+                ["Description"]   = "Tests a high-contrast primary CTA on the checkout page to improve conversion.",
+                ["Category"]      = "Revenue",
+                ["ActiveVariant"] = "variant-a",
+                ["LastModified"]  = new DateTime(2026, 3, 15, 10, 0, 0, DateTimeKind.Utc),
+            },
             Trials      =
             [
                 new AdminTrialInfo { Key = "control",   ImplementationType = typeof(CheckoutButtonControl),  IsControl = true  },
@@ -30,6 +57,14 @@ internal sealed class DemoExperimentRegistry : IExperimentRegistry
             Name        = "search-ranker-ml",
             ServiceType = typeof(ISearchRankerService),
             IsActive    = true,
+            Metadata    = new Dictionary<string, object>
+            {
+                ["DisplayName"]   = "Search Ranker — ML Re-ranker",
+                ["Description"]   = "Compares a learned ranking model against the deterministic baseline on the search results page.",
+                ["Category"]      = "Engagement",
+                ["ActiveVariant"] = "ml-v1",
+                ["LastModified"]  = new DateTime(2026, 3, 22, 15, 30, 0, DateTimeKind.Utc),
+            },
             Trials      =
             [
                 new AdminTrialInfo { Key = "baseline", ImplementationType = typeof(SearchBaseline), IsControl = true  },
@@ -42,6 +77,14 @@ internal sealed class DemoExperimentRegistry : IExperimentRegistry
             Name        = "homepage-layout-fall2026",
             ServiceType = typeof(IHomepageLayoutService),
             IsActive    = false,    // PendingApproval in governance data
+            Metadata    = new Dictionary<string, object>
+            {
+                ["DisplayName"]   = "Homepage Layout — Fall 2026 Hero",
+                ["Description"]   = "A seasonal hero layout for the fall 2026 marketing campaign. Currently awaiting approval.",
+                ["Category"]      = "UX",
+                ["ActiveVariant"] = "control",
+                ["LastModified"]  = new DateTime(2026, 3, 28, 9, 45, 0, DateTimeKind.Utc),
+            },
             Trials      =
             [
                 new AdminTrialInfo { Key = "control",   ImplementationType = typeof(HomepageLayoutControl),  IsControl = true  },
@@ -53,6 +96,14 @@ internal sealed class DemoExperimentRegistry : IExperimentRegistry
             Name        = "pricing-page-copy",
             ServiceType = typeof(IPricingCopyService),
             IsActive    = false,    // Paused in governance data
+            Metadata    = new Dictionary<string, object>
+            {
+                ["DisplayName"]   = "Pricing Page — Benefits-Led Copy",
+                ["Description"]   = "Replaces feature-led pricing copy with benefits-led headlines. Currently paused pending legal review.",
+                ["Category"]      = "Revenue",
+                ["ActiveVariant"] = "control",
+                ["LastModified"]  = new DateTime(2026, 3, 12, 17, 0, 0, DateTimeKind.Utc),
+            },
             Trials      =
             [
                 new AdminTrialInfo { Key = "control",  ImplementationType = typeof(PricingCopyOriginal),    IsControl = true  },
@@ -64,6 +115,14 @@ internal sealed class DemoExperimentRegistry : IExperimentRegistry
             Name        = "legacy-api-cutover",
             ServiceType = typeof(ILegacyApiService),
             IsActive    = false,    // Archived in governance data
+            Metadata    = new Dictionary<string, object>
+            {
+                ["DisplayName"]   = "Legacy API Cutover — v1 → v2",
+                ["Description"]   = "Gradual cutover from v1 to v2 of the legacy integration API. Now archived after successful rollout.",
+                ["Category"]      = "Plugins",
+                ["ActiveVariant"] = "v2-api",
+                ["LastModified"]  = new DateTime(2026, 2, 18, 11, 15, 0, DateTimeKind.Utc),
+            },
             Trials      =
             [
                 new AdminTrialInfo { Key = "v1-api", ImplementationType = typeof(LegacyApiV1), IsControl = true  },

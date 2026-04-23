@@ -38,6 +38,22 @@ public sealed class ExperimentInfo
     public required string Name { get; init; }
 
     /// <summary>
+    /// Gets or sets the human-readable display name for the experiment.
+    /// </summary>
+    public string? DisplayName { get; init; }
+
+    /// <summary>
+    /// Gets or sets the experiment description.
+    /// </summary>
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// Gets or sets the category used to group experiments in the UI
+    /// (e.g. "Revenue", "Engagement", "UX").
+    /// </summary>
+    public string? Category { get; init; }
+
+    /// <summary>
     /// Gets or sets the service type name.
     /// </summary>
     public string? ServiceType { get; init; }
@@ -46,6 +62,11 @@ public sealed class ExperimentInfo
     /// Gets or sets whether the experiment is active.
     /// </summary>
     public bool IsActive { get; init; }
+
+    /// <summary>
+    /// Gets or sets the currently active variant key, when applicable.
+    /// </summary>
+    public string? ActiveVariant { get; init; }
 
     /// <summary>
     /// Gets or sets the number of trials/variants.
@@ -66,6 +87,11 @@ public sealed class ExperimentInfo
     /// Gets or sets the rollout configuration for this experiment.
     /// </summary>
     public RolloutConfiguration? Rollout { get; init; }
+
+    /// <summary>
+    /// Gets or sets the UTC timestamp of the experiment's last modification.
+    /// </summary>
+    public DateTime LastModified { get; init; }
 }
 
 /// <summary>

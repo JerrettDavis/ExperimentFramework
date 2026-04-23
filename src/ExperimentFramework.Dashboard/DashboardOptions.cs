@@ -38,6 +38,11 @@ public sealed class DashboardOptions
     public string? AuthorizationPolicy { get; set; }
 
     /// <summary>
+    /// Gets or sets the login page path to redirect to when authorization fails (default: "/login").
+    /// </summary>
+    public string LoginPath { get; set; } = "/login";
+
+    /// <summary>
     /// Gets or sets the tenant resolver.
     /// </summary>
     public ITenantResolver TenantResolver { get; set; } = new NullTenantResolver();

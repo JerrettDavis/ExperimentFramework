@@ -1,5 +1,7 @@
 @page "/dashboard/experiments"
 @using ExperimentFramework.Dashboard.UI.Services
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @implements IDisposable
 @inject ExperimentApiClient ExperimentApi
 @inject ThemeService ThemeService
@@ -7,7 +9,7 @@
 
 <PageTitle>Experiments - Experiment Dashboard</PageTitle>
 
-<div class="experiments-console">
+<main class="experiments-console experiments-container" data-page="experiments" role="main">
     <!-- Header -->
     <header class="console-header">
         <div class="header-content">
@@ -66,12 +68,15 @@
     <!-- Filters & Search -->
     <div class="toolbar">
         <div class="filter-group">
-            <button class="filter-btn @(DashboardState.ExperimentFilterCategory == null ? "active" : "")" @onclick="() => DashboardState.ExperimentFilterCategory = null">
+            <button class="filter-btn category-btn @(DashboardState.ExperimentFilterCategory == null ? "active" : "")"
+                    data-category="All"
+                    @onclick="() => DashboardState.ExperimentFilterCategory = null">
                 All
             </button>
             @foreach (var category in new[] { "Revenue", "Engagement", "UX", "Blog", "Plugins" })
             {
-                <button class="filter-btn @(DashboardState.ExperimentFilterCategory == category ? "active" : "")"
+                <button class="filter-btn category-btn @(DashboardState.ExperimentFilterCategory == category ? "active" : "")"
+                        data-category="@category"
                         @onclick="() => DashboardState.ExperimentFilterCategory = category">
                     @category
                 </button>
@@ -90,9 +95,10 @@
     <div class="experiments-list">
         @if (_loading)
         {
+            <div class="loading spinner" data-loading="true" role="status" aria-live="polite" aria-label="Loading experiments"></div>
             @for (int i = 0; i < 3; i++)
             {
-                <div class="experiment-row skeleton">
+                <div class="experiment-row skeleton loading-placeholder" data-skeleton>
                     <div class="exp-main">
                         <div class="skeleton-text" style="width: 200px; height: 20px;"></div>
                         <div class="skeleton-text" style="width: 300px; height: 14px; margin-top: 4px;"></div>
@@ -123,11 +129,15 @@
                 var isExpanded = DashboardState.IsExpanded("experiments", experiment.Name);
                 var isPlugin = experiment.Source == "Plugin";
 
-                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "") @(isPlugin ? "plugin-source" : "")">
-                    <div class="exp-main" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
+                <div class="experiment-row @(isKilled ? "killed" : "") @(isExpanded ? "expanded" : "") @(isPlugin ? "plugin-source" : "")" data-experiment="@experiment.Name">
+                    <div class="exp-main expand-toggle" role="button" tabindex="0" aria-expanded="@(isExpanded ? "true" : "false")" @onclick="() => ToggleExperimentExpanded(experiment.Name)">
                         <div class="exp-info">
                             <div class="exp-header">
-                                <span class="exp-name">@experiment.DisplayName</span>
+                                <span class="exp-name experiment-name" data-experiment-name="@experiment.Name">@experiment.DisplayName</span>
+                                @if (!string.Equals(experiment.DisplayName, experiment.Name, StringComparison.Ordinal))
+                                {
+                                    <span class="exp-key" title="Experiment key">@experiment.Name</span>
+                                }
                                 @if (isPlugin)
                                 {
                                     <span class="source-badge plugin">
@@ -154,11 +164,11 @@
                         <div class="exp-status">
                             @if (isKilled)
                             {
-                                <span class="status-pill killed">Killed</span>
+                                <span class="status-pill status badge experiment-status killed" data-status="killed">Killed</span>
                             }
                             else
                             {
-                                <span class="status-pill @experiment.Status.ToLower()">@experiment.Status</span>
+                                <span class="status-pill status badge experiment-status @experiment.Status.ToLower()" data-status="@experiment.Status.ToLower()">@experiment.Status</span>
                             }
                         </div>
                         <div class="exp-expand">
@@ -171,7 +181,7 @@
 
                     @if (isExpanded)
                     {
-                        <div class="exp-details">
+                        <div class="exp-details experiment-details details-panel experiment-expanded" data-experiment-details>
                             <div class="details-grid">
                                 <!-- Controls Panel -->
                                 <div class="control-panel">
@@ -181,8 +191,8 @@
                                             <span class="control-label">Killswitch</span>
                                             <span class="control-hint">@(isKilled ? "Disabled - using default variant" : "Enabled - experiment is active")</span>
                                         </div>
-                                        <label class="toggle">
-                                            <input type="checkbox" checked="@isKilled" @onchange="() => ToggleKillSwitchWithApi(experiment.Name)" />
+                                        <label class="toggle kill-switch">
+                                            <input type="checkbox" name="kill-switch" checked="@isKilled" @onchange="() => ToggleKillSwitchWithApi(experiment.Name)" />
                                             <span class="toggle-track"></span>
                                         </label>
                                     </div>
@@ -205,7 +215,10 @@
                                         @foreach (var variant in experiment.Variants)
                                         {
                                             var isActive = variant.Name == experiment.ActiveVariant;
-                                            <button class="variant-card @(isActive ? "active" : "")"
+                                            <button class="variant-card variant-item @(isActive ? "active" : "")"
+                                                    data-variant="@variant.Name"
+                                                    data-active="@(isActive ? "true" : "false")"
+                                                    aria-pressed="@(isActive ? "true" : "false")"
                                                     @onclick="() => ActivateVariant(experiment.Name, variant.Name)"
                                                     disabled="@(_activating || isKilled)">
                                                 <div class="variant-radio">
@@ -240,7 +253,7 @@
             }
         }
     </div>
-</div>
+</main>
 
 <style>
     .experiments-console {
@@ -523,6 +536,13 @@
         font-size: 0.95rem;
         font-weight: 600;
         color: var(--color-text-primary, #0f172a);
+    }
+
+    .exp-key {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+        font-size: 0.75rem;
+        color: var(--color-text-secondary, #64748b);
+        margin-left: 0.4rem;
     }
 
     .source-badge {
@@ -949,7 +969,6 @@
     private List<ExperimentInfo> _experiments = [];
     private bool _loading = true;
     private bool _activating = false;
-    private bool _dataLoaded = false;
     private string? _error;
     private System.Timers.Timer? _refreshTimer;
 
@@ -986,18 +1005,6 @@
         _refreshTimer.AutoReset = true;
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        // Load data during SSR prerender so experiments are visible in the initial HTML.
-        // This makes the page useful for screenshots and fast for end-users.
-        // The _dataLoaded guard prevents a redundant reload once Blazor hydrates.
-        if (!_dataLoaded)
-        {
-            _dataLoaded = true;
-            await LoadExperiments();
-        }
-    }
-
     private void HandleStateChanged()
     {
         InvokeAsync(StateHasChanged);
@@ -1014,18 +1021,15 @@
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender && !_dataLoaded)
+        // Only load data when running interactively.
+        // During SSR prerender we keep _loading = true so the skeleton HTML is
+        // sent to the browser, then the interactive render loads real data.
+        // This preserves e2e scenarios that verify the skeleton-loading state.
+        if (RendererInfo.IsInteractive)
         {
-            _dataLoaded = true;
             await LoadExperiments();
-            StateHasChanged();
-        }
-
-        if (firstRender)
-        {
-            // Start polling after initial load
             _refreshTimer?.Start();
         }
     }

@@ -1,10 +1,12 @@
 @page "/dashboard/governance/audit"
 @using ExperimentFramework.Dashboard.UI.Services
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 
 <PageTitle>Audit Trail - Experiment Dashboard</PageTitle>
 
-<div class="governance-page">
+<main class="governance-page governance-audit" data-page="audit" role="main">
     <div class="page-header">
         <h1>Audit Trail</h1>
         <p class="subtitle">Complete audit log of all experiment changes and transitions</p>
@@ -27,7 +29,7 @@
         <div class="audit-controls">
             <div class="experiment-selector">
                 <label for="experiment-select">Select Experiment:</label>
-                <select id="experiment-select" @onchange="OnExperimentSelected">
+                <select id="experiment-select" name="experiment" class="experiment-select" data-select="experiment" @onchange="OnExperimentSelected">
                     <option value="">-- Select an experiment --</option>
                     @foreach (var exp in _experiments)
                     {
@@ -40,10 +42,10 @@
             {
                 <div class="filter-controls">
                     <label for="type-filter">Filter by Type:</label>
-                    <select id="type-filter" @bind="_typeFilter" @oninput="ApplyFilters">
+                    <select id="type-filter" name="type" class="type-filter" data-filter="type" @bind="_typeFilter" @bind:after="ApplyFilters">
                         <option value="">All Types</option>
-                        <option value="StateTransition">State Transitions</option>
-                        <option value="Approval">Approvals</option>
+                        <option value="StateTransition">StateTransition</option>
+                        <option value="Approval">Approval</option>
                     </select>
 
                     <input type="search"
@@ -65,7 +67,7 @@
             }
             else if (_auditLog.Count == 0)
             {
-                <div class="info-message">
+                <div class="info-message not-configured" data-not-configured>
                     <div class="info-icon">ℹ️</div>
                     <div class="info-content">
                         <h3>Governance Not Configured</h3>
@@ -114,7 +116,7 @@
                 <div class="audit-timeline">
                     @foreach (var entry in _filteredAuditLog)
                     {
-                        <div class="audit-entry @entry.Type.ToLower()">
+                        <div class="audit-entry @entry.Type.ToLower()" data-audit-entry data-audit-type="@entry.Type">
                             <div class="entry-icon">
                                 @if (entry.Type == "StateTransition")
                                 {
@@ -158,7 +160,7 @@
             }
         }
     }
-</div>
+</main>
 
 <style>
     .governance-page {

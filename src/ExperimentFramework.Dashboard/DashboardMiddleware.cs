@@ -78,10 +78,20 @@ public sealed class DashboardMiddleware
         context.Items["TenantContext"] = tenantContext;
         TenantContextAccessor.Current = tenantContext;
 
+        // Internal API endpoints under {PathBase}/api/... are called by the dashboard
+        // UI from within an already-authenticated Blazor Server circuit. The circuit's
+        // HttpClient cannot forward the browser's auth cookie reliably on every call
+        // (IHttpContextAccessor.HttpContext is null during SignalR callbacks), so
+        // redirecting these calls to /login would break all server-component fetches.
+        // Treat the API subpath as auth-exempt — the page routes that host the UI
+        // still enforce authentication below.
+        var apiPrefix = _options.PathBase.TrimEnd('/') + "/api";
+        var isInternalApiRequest = context.Request.Path.StartsWithSegments(apiPrefix);
+
         try
         {
             // Validate authorization if required
-            if (_options.RequireAuthorization)
+            if (_options.RequireAuthorization && !isInternalApiRequest)
             {
                 var isAuthenticated = context.User.Identity?.IsAuthenticated ?? false;
                 _logger.LogInformation("User authenticated: {IsAuthenticated}, User: {UserName}",
@@ -92,9 +102,10 @@ public sealed class DashboardMiddleware
                 {
                     _logger.LogWarning("Unauthenticated access attempt to dashboard. Redirecting to login.");
 
-                    // Redirect to login page
+                    // Redirect to login page; honour a configured login path or fall back to /login.
+                    var loginPath = _options.LoginPath ?? "/login";
                     var returnUrl = context.Request.Path + context.Request.QueryString;
-                    context.Response.Redirect($"/Account/Login?returnUrl={Uri.EscapeDataString(returnUrl)}");
+                    context.Response.Redirect($"{loginPath}?returnUrl={Uri.EscapeDataString(returnUrl)}");
                     return;
                 }
 

@@ -6,6 +6,7 @@ using Reqnroll;
 namespace ExperimentFramework.E2E.Tests.StepDefinitions.Targeting;
 
 [Binding]
+[Scope(Feature = "Targeting Rules")]
 public class TargetingStepDefinitions
 {
     private readonly BrowserDriver _browser;
@@ -37,6 +38,7 @@ public class TargetingStepDefinitions
     // -------------------------------------------------------------------------
 
     [When(@"I click the refresh button")]
+    [Scope(Feature = "Targeting Rules")]
     public async Task WhenIClickTheRefreshButton()
     {
         await _page.ClickRefreshAsync();

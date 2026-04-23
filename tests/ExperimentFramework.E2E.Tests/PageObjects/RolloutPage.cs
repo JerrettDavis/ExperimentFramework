@@ -57,10 +57,20 @@ public class RolloutPage
     /// <summary>Fills the new-stage form and adds it to the rollout plan.</summary>
     public async Task AddStageAsync(string name, int percentage, int durationHours)
     {
+        var countBefore = await StageList.CountAsync();
         await StageNameInput.FillAsync(name);
         await StagePercentInput.FillAsync(percentage.ToString());
+        // Use SelectTextAsync + TypeAsync for number inputs to ensure the value is
+        // set correctly even when the previous value is still present.
         await StageDurationInput.FillAsync(durationHours.ToString());
         await AddStageButton.ClickAsync();
+        // Wait for Blazor's SignalR round-trip to complete and the new stage to
+        // appear in the DOM — CountAsync() immediately after ClickAsync() can see
+        // the pre-render count because Blazor updates via WebSocket, not HTTP.
+        await _page.WaitForFunctionAsync(
+            $"() => document.querySelectorAll('.stage-item, [data-stage], .rollout-stage').length > {countBefore}",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 10_000 });
     }
 
     /// <summary>Removes the stage at zero-based <paramref name="index"/>.</summary>
@@ -134,11 +144,29 @@ public class RolloutPage
     /// <summary>Removes the last stage in the list.</summary>
     public async Task RemoveLastStageAsync()
     {
-        var count = await StageList.CountAsync();
-        if (count == 0) return;
-        var removeBtn = StageList.Nth(count - 1)
+        var countBefore = await StageList.CountAsync();
+        if (countBefore == 0) return;
+        var removeBtn = StageList.Nth(countBefore - 1)
             .Locator("button:has-text('Remove'), button[data-action='remove-stage']");
         await removeBtn.ClickAsync();
+        // Wait for Blazor's SignalR round-trip to update the DOM —
+        // GetStageCountAsync immediately after ClickAsync can still see
+        // the pre-render count because Blazor updates via WebSocket.
+        if (countBefore > 1)
+        {
+            await _page.WaitForFunctionAsync(
+                $"() => document.querySelectorAll('.stage-item, [data-stage], .rollout-stage').length < {countBefore}",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 10_000 });
+        }
+        else
+        {
+            // When removing the last stage, wait for all stage items to be gone
+            await _page.WaitForFunctionAsync(
+                "() => document.querySelectorAll('.stage-item, [data-stage], .rollout-stage').length === 0",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 10_000 });
+        }
     }
 
     /// <summary>Selects the first non-placeholder option from the variant dropdown.</summary>

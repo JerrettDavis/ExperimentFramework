@@ -26,7 +26,13 @@ namespace ExperimentFramework.DashboardHost.Demo;
 /// </remarks>
 public static class GovernanceDemoSeeder
 {
-    private const string DefaultEnvironment = "demo";
+    // Environment is left unset here (empty/null) so the InMemoryGovernance
+    // persistence backplane stores records under the same composite key that
+    // the dashboard API queries with (TenantId=null, Environment=null).
+    // Previously Environment="demo" caused the seeded rows to live under
+    // "checkout-button-v2::demo" while the endpoint looked up
+    // "checkout-button-v2" — returning empty version history in every UI call.
+    private const string DefaultEnvironment = "";
     private const string DefaultActor       = "admin@experimentdemo.com";
 
     public static async Task SeedAsync(

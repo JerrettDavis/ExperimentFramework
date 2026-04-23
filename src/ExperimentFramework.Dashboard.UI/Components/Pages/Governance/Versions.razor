@@ -1,11 +1,13 @@
 @page "/dashboard/governance/versions"
 @using ExperimentFramework.Dashboard.UI.Services
 @using System.Text.Json
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
 @inject ExperimentApiClient ExperimentApi
 
 <PageTitle>Version History - Experiment Dashboard</PageTitle>
 
-<div class="governance-page">
+<main class="governance-page governance-versions" data-page="versions" role="main">
     <div class="page-header">
         <h1>Version History</h1>
         <p class="subtitle">Version tracking with diff viewer and rollback capabilities</p>
@@ -27,7 +29,7 @@
     {
         <div class="experiment-selector">
             <label for="experiment-select">Select Experiment:</label>
-            <select id="experiment-select" @onchange="OnExperimentSelected">
+            <select id="experiment-select" name="experiment" class="experiment-select" data-select="experiment" @onchange="OnExperimentSelected">
                 <option value="">-- Select an experiment --</option>
                 @foreach (var exp in _experiments)
                 {
@@ -68,7 +70,7 @@
                     @foreach (var version in _versions.OrderByDescending(v => v.VersionNumber))
                     {
                         var isLatest = version.VersionNumber == _versions.Max(v => v.VersionNumber);
-                        <div class="version-card @(isLatest ? "latest" : "") @(version.IsRollback ? "rollback" : "")">
+                        <div class="version-card version-item @(isLatest ? "latest" : "") @(version.IsRollback ? "rollback" : "")" data-version-item>
                             <div class="version-header">
                                 <div class="version-number-section">
                                     <span class="version-number">v@version.VersionNumber</span>
@@ -128,11 +130,11 @@
             }
         }
     }
-</div>
+</main>
 
 @if (_showVersionViewer && _viewingVersion != null)
 {
-    <div class="modal-overlay" @onclick="CloseVersionViewer">
+    <div class="modal-overlay version-viewer version-detail" data-version-viewer @onclick="CloseVersionViewer">
         <div class="modal-content large" @onclick:stopPropagation="true">
             <div class="modal-header">
                 <h3>Version @_viewingVersion.VersionNumber Configuration</h3>

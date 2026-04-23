@@ -4,7 +4,7 @@
 
 <PageTitle>Hypothesis Testing - Experiment Dashboard</PageTitle>
 
-<div class="hypothesis-console">
+<main class="hypothesis-console hypothesis-container" data-page="hypothesis" role="main">
     <!-- Header -->
     <header class="console-header">
         <div class="header-content">
@@ -58,11 +58,11 @@
                     var hypothesis = experiment.Hypothesis!;
                     var results = hypothesis.Results;
 
-                    <div class="hypothesis-card">
+                    <div class="hypothesis-card" data-hypothesis-card>
                         <div class="hypothesis-header">
                             <div>
                                 <h3>@experiment.DisplayName</h3>
-                                <div class="hypothesis-status-badge @hypothesis.Status.ToString().ToLower()">
+                                <div class="hypothesis-status-badge status-badge @hypothesis.Status.ToString().ToLower()">
                                     @hypothesis.Status
                                 </div>
                             </div>
@@ -85,11 +85,11 @@
                             <div class="design-grid">
                                 <div class="design-item">
                                     <span class="design-label">Test Type</span>
-                                    <span class="design-value">@hypothesis.TestType</span>
+                                    <span class="design-value test-type" data-test-type>@hypothesis.TestType</span>
                                 </div>
                                 <div class="design-item">
                                     <span class="design-label">Primary Metric</span>
-                                    <span class="design-value">@hypothesis.PrimaryMetric</span>
+                                    <span class="design-value primary-metric" data-primary-metric>@hypothesis.PrimaryMetric</span>
                                 </div>
                                 <div class="design-item">
                                     <span class="design-label">Alpha Level</span>
@@ -127,7 +127,7 @@
                         <!-- Results (if available) -->
                         @if (results != null)
                         {
-                            <div class="results-section">
+                            <div class="results-section result-section" data-result>
                                 <div class="results-header">
                                     <h4>Statistical Results</h4>
                                     @if (results.IsSignificant)
@@ -151,12 +151,12 @@
                                 <div class="samples-grid">
                                     <div class="sample-card">
                                         <span class="sample-label">Control Samples</span>
-                                        <span class="sample-value">@results.ControlSamples.ToString("N0")</span>
+                                        <span class="sample-value sample-size control-size" data-sample-size data-control-size>@results.ControlSamples.ToString("N0")</span>
                                         <span class="sample-mean">Mean: @results.ControlMean.ToString("P2")</span>
                                     </div>
                                     <div class="sample-card treatment">
                                         <span class="sample-label">Treatment Samples</span>
-                                        <span class="sample-value">@results.TreatmentSamples.ToString("N0")</span>
+                                        <span class="sample-value sample-size treatment-size" data-sample-size data-treatment-size>@results.TreatmentSamples.ToString("N0")</span>
                                         <span class="sample-mean">Mean: @results.TreatmentMean.ToString("P2")</span>
                                     </div>
                                 </div>
@@ -165,17 +165,17 @@
                                 <div class="stats-grid">
                                     <div class="stat-item">
                                         <span class="stat-label">Effect Size</span>
-                                        <span class="stat-value highlight">@results.EffectSize.ToString("P1")</span>
+                                        <span class="stat-value effect-size highlight" data-effect-size>@results.EffectSize.ToString("P1")</span>
                                     </div>
                                     <div class="stat-item">
                                         <span class="stat-label">P-Value</span>
-                                        <span class="stat-value @(results.PValue < hypothesis.AlphaLevel ? "significant" : "")">
+                                        <span class="stat-value p-value @(results.PValue < hypothesis.AlphaLevel ? "significant" : "")" data-p-value>
                                             @results.PValue.ToString("0.####")
                                         </span>
                                     </div>
                                     <div class="stat-item">
                                         <span class="stat-label">95% CI Lower</span>
-                                        <span class="stat-value">@results.ConfidenceIntervalLower.ToString("P2")</span>
+                                        <span class="stat-value confidence-interval" data-confidence-interval>@results.ConfidenceIntervalLower.ToString("P2")</span>
                                     </div>
                                     <div class="stat-item">
                                         <span class="stat-label">95% CI Upper</span>
@@ -213,7 +213,7 @@
             </div>
         }
     }
-</div>
+</main>
 
 <style>
     .hypothesis-console {
@@ -605,26 +605,84 @@
     private IEnumerable<ExperimentInfo> _experimentsWithHypothesis =>
         _experiments.Where(e => e.Hypothesis != null);
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            await SeedDemoData();
-            await LoadExperiments();
-            await LoadRealTimeResults();
-            StateHasChanged();
-        }
+        await LoadExperiments();
+        SeedDemoHypotheses();
+        await LoadRealTimeResults();
     }
 
-    private async Task SeedDemoData()
+    /// <summary>
+    /// Seeds demo hypothesis data directly on the loaded experiments when the API
+    /// does not return hypothesis information (e.g. DefaultDashboardDataProvider).
+    /// This ensures the page is always useful in demo/docs mode.
+    /// </summary>
+    private void SeedDemoHypotheses()
     {
-        try
+        if (_experiments.Count == 0 || _experiments.Any(e => e.Hypothesis != null))
+            return;
+
+        // Assign realistic hypothesis definitions to the first three experiments.
+        var demoHypotheses = new[]
         {
-            await ExperimentApi.HttpClient.PostAsync("/api/metrics/seed-demo-data", null);
-        }
-        catch (Exception ex)
+            new HypothesisInfo
+            {
+                Statement        = "The new checkout button variant will increase conversion rate by ≥5% compared to the control.",
+                TestType         = "t-test",
+                PrimaryMetric    = "conversion_rate",
+                SecondaryMetrics = ["average_order_value", "cart_abandonment_rate"],
+                ExpectedEffectSize = 0.05,
+                AlphaLevel       = 0.05,
+                PowerLevel       = 0.80,
+                MinimumSampleSize = 2000,
+                StartDate        = new DateTime(2026, 3, 1),
+                EndDate          = new DateTime(2026, 4, 1),
+                Status           = HypothesisStatus.Completed,
+                Results          = new HypothesisResults
+                {
+                    ControlSamples          = 2_450,
+                    TreatmentSamples        = 2_389,
+                    ControlMean             = 0.127,
+                    TreatmentMean           = 0.143,
+                    EffectSize              = 0.062,
+                    PValue                  = 0.021,
+                    ConfidenceIntervalLower = 0.003,
+                    ConfidenceIntervalUpper = 0.029,
+                    IsSignificant           = true,
+                    Conclusion              = "Statistically significant improvement in conversion rate.",
+                    AnalyzedAt              = new DateTime(2026, 4, 1)
+                }
+            },
+            new HypothesisInfo
+            {
+                Statement        = "The ML-based search ranker will improve click-through rate by ≥3% over the baseline.",
+                TestType         = "Mann-Whitney",
+                PrimaryMetric    = "click_through_rate",
+                SecondaryMetrics = ["session_duration", "search_refinement_rate"],
+                ExpectedEffectSize = 0.03,
+                AlphaLevel       = 0.05,
+                PowerLevel       = 0.80,
+                MinimumSampleSize = 5000,
+                StartDate        = new DateTime(2026, 2, 1),
+                Status           = HypothesisStatus.Running,
+            },
+            new HypothesisInfo
+            {
+                Statement        = "The fall homepage layout will increase engagement (time-on-page) by ≥10%.",
+                TestType         = "t-test",
+                PrimaryMetric    = "time_on_page",
+                SecondaryMetrics = ["bounce_rate", "pages_per_session"],
+                ExpectedEffectSize = 0.10,
+                AlphaLevel       = 0.05,
+                PowerLevel       = 0.80,
+                MinimumSampleSize = 3000,
+                Status           = HypothesisStatus.Draft,
+            }
+        };
+
+        for (var i = 0; i < Math.Min(_experiments.Count, demoHypotheses.Length); i++)
         {
-            Console.WriteLine($"Failed to seed demo data: {ex.Message}");
+            _experiments[i].Hypothesis = demoHypotheses[i];
         }
     }
 
@@ -652,7 +710,7 @@
         {
             try
             {
-                var response = await ExperimentApi.HttpClient.GetAsync($"/api/hypothesis/{experiment.Name}/results");
+                var response = await ExperimentApi.HttpClient.GetAsync($"api/hypothesis/{experiment.Name}/results");
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
