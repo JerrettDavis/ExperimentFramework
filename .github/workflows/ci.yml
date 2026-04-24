@@ -17,7 +17,7 @@ env:
 
 jobs:
   pr-checks:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -78,6 +78,7 @@ jobs:
           retention-days: 14
 
       - name: Add coverage summary to PR
+        if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           recreate: true
@@ -129,7 +130,7 @@ jobs:
   # report is flushed. The resulting cobertura file is uploaded to Codecov with the
   # "e2e" flag (separate from the "unittests" flag).
   e2e-tests:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: pr-checks
