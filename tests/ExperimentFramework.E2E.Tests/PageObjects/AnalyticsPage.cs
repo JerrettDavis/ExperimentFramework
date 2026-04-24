@@ -54,6 +54,24 @@ public class AnalyticsPage
     /// <summary>Returns the text content of each row in the audit log table.</summary>
     public async Task<IReadOnlyList<string>> GetAuditLogEntriesAsync()
     {
+        // In InteractiveServer mode (inherited from the Routes component), Blazor
+        // re-runs OnInitializedAsync after the SignalR circuit connects, briefly
+        // showing a loading/skeleton state before the real rows render.
+        // Wait for at least one row to appear so we don't count during the
+        // transient loading phase.
+        try
+        {
+            await AuditLogRows.First.WaitForAsync(new LocatorWaitForOptions
+            {
+                State   = WaitForSelectorState.Visible,
+                Timeout = 15_000,
+            });
+        }
+        catch (TimeoutException)
+        {
+            // No rows appeared within the timeout — fall through and return empty.
+        }
+
         var count = await AuditLogRows.CountAsync();
         var entries = new List<string>(count);
 

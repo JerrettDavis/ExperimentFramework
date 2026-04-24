@@ -94,7 +94,17 @@ public class GovernanceVersionsPage : IGovernanceSelectable
     /// <summary>Selects the first available experiment in the dropdown (IGovernanceSelectable).</summary>
     public async Task SelectFirstExperimentAsync()
     {
+        // In InteractiveServer mode the dropdown is absent during the Blazor circuit
+        // reconnect phase (_loading=true).  Wait for the first real option (index 1 —
+        // index 0 is the placeholder) before selecting so we don't accidentally pick
+        // an empty value and leave the experiment unselected.
         var options = ExperimentSelect.Locator("option");
+        await options.Nth(1).WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
+
         var count = await options.CountAsync();
         var idx = count > 1 ? 1 : 0;
         var value = await options.Nth(idx).GetAttributeAsync("value");
@@ -105,6 +115,12 @@ public class GovernanceVersionsPage : IGovernanceSelectable
     /// <summary>Clicks the View button on the first version in the list.</summary>
     public async Task ClickViewFirstVersionAsync()
     {
+        // Wait for the version list to populate after the experiment is selected.
+        await VersionList.First.WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Visible,
+            Timeout = 15_000,
+        });
         var viewBtn = VersionList.First.Locator("button:has-text('View'), button[data-action='view']");
         await viewBtn.ClickAsync();
         await VersionViewer.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
