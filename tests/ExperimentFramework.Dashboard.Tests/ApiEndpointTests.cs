@@ -124,8 +124,8 @@ public class ApiEndpointTests : IClassFixture<DashboardWebApplicationFactory>
     [Fact]
     public async Task GetRolloutStages_ReturnsOk()
     {
-        // Act
-        var response = await _client.GetAsync("/dashboard/api/rollout/test-experiment/stages");
+        // Act — the rollout endpoint exposes configuration (including stages) at /config
+        var response = await _client.GetAsync("/dashboard/api/rollout/test-experiment/config");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

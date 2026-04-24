@@ -26,6 +26,13 @@ public class DashboardWebApplicationFactory : WebApplicationFactory<TestProgram>
         {
             // Add a simple in-memory experiment registry for testing
             services.AddSingleton<IExperimentRegistry>(sp => new TestExperimentRegistry());
+
+            // Register stub implementations for optional services so endpoints return 200
+            // instead of 501 NotImplemented when the optional service isn't wired up.
+            services.AddSingleton<IPluginManagementService>(new StubPluginManagementService());
+            services.AddSingleton<ITargetingManagementService>(new StubTargetingManagementService());
+            services.AddSingleton<IAnalyticsProvider>(new StubAnalyticsProvider());
+            services.AddSingleton<IRolloutPersistenceBackplane>(new StubRolloutPersistenceBackplane());
         });
     }
 }
@@ -70,3 +77,127 @@ public class TestControlService : ITestService { }
 /// Test variant implementation.
 /// </summary>
 public class TestVariantService : ITestService { }
+
+/// <summary>
+/// No-op plugin management service for integration tests.
+/// Ensures plugin endpoints return 200 with an empty list rather than 501.
+/// </summary>
+internal sealed class StubPluginManagementService : IPluginManagementService
+{
+    public Task<IReadOnlyList<PluginDescriptor>> GetLoadedPluginsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<PluginDescriptor>>([]);
+
+    public Task<IReadOnlyList<PluginDescriptor>> DiscoverPluginsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<PluginDescriptor>>([]);
+
+    public Task<IReadOnlyList<PluginDescriptor>> ReloadAllPluginsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<PluginDescriptor>>([]);
+}
+
+/// <summary>
+/// No-op targeting management service for integration tests.
+/// Ensures targeting endpoints return 200 with empty rules rather than 501.
+/// </summary>
+internal sealed class StubTargetingManagementService : ITargetingManagementService
+{
+    public Task<IReadOnlyList<TargetingRuleDto>?> GetRulesAsync(
+        string experimentName,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<TargetingRuleDto>?>([]);
+
+    public Task SetRulesAsync(
+        string experimentName,
+        IReadOnlyList<TargetingRuleDto> rules,
+        CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    public Task<TargetingEvaluationResult> EvaluateAsync(
+        string experimentName,
+        IReadOnlyDictionary<string, object> context,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(new TargetingEvaluationResult { Matched = false });
+}
+
+/// <summary>
+/// No-op analytics provider for integration tests.
+/// Ensures analytics endpoints return 200 with empty data rather than 501.
+/// </summary>
+internal sealed class StubAnalyticsProvider : IAnalyticsProvider
+{
+    public Task<IEnumerable<AssignmentEvent>> GetAssignmentsAsync(
+        string experimentName,
+        string? tenantId = null,
+        DateTimeOffset? start = null,
+        DateTimeOffset? end = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(Enumerable.Empty<AssignmentEvent>());
+
+    public Task<IEnumerable<ExposureEvent>> GetExposuresAsync(
+        string experimentName,
+        string? tenantId = null,
+        DateTimeOffset? start = null,
+        DateTimeOffset? end = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(Enumerable.Empty<ExposureEvent>());
+
+    public Task<IEnumerable<AnalysisSignalEvent>> GetAnalysisSignalsAsync(
+        string experimentName,
+        string? tenantId = null,
+        DateTimeOffset? start = null,
+        DateTimeOffset? end = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(Enumerable.Empty<AnalysisSignalEvent>());
+}
+
+/// <summary>
+/// In-memory rollout persistence backplane for integration tests.
+/// Ensures rollout endpoints return 200 with a pre-seeded config for
+/// "test-experiment" rather than 503/404.
+/// </summary>
+internal sealed class StubRolloutPersistenceBackplane : IRolloutPersistenceBackplane
+{
+    private readonly Dictionary<string, RolloutConfiguration> _configs = new()
+    {
+        ["test-experiment"] = new RolloutConfiguration
+        {
+            ExperimentName = "test-experiment",
+            Enabled = true,
+            TargetVariant = "variant-a",
+            Percentage = 10,
+            Status = RolloutStatus.NotStarted,
+            Stages =
+            [
+                new RolloutStageDto { Name = "Stage 1", Percentage = 10, Status = RolloutStageStatus.Pending }
+            ]
+        }
+    };
+
+    public Task<RolloutConfiguration?> GetRolloutConfigAsync(
+        string experimentName,
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(_configs.TryGetValue(experimentName, out var cfg) ? cfg : null);
+
+    public Task SaveRolloutConfigAsync(
+        RolloutConfiguration config,
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
+    {
+        _configs[config.ExperimentName] = config;
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteRolloutConfigAsync(
+        string experimentName,
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
+    {
+        _configs.Remove(experimentName);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<RolloutConfiguration>> GetActiveRolloutsAsync(
+        string? tenantId = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<RolloutConfiguration>>([.. _configs.Values]);
+}
