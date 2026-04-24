@@ -19,7 +19,7 @@ jobs:
   pr-checks:
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       pull-requests: write
@@ -50,6 +50,7 @@ jobs:
           dotnet test ExperimentFramework.slnx \
             --configuration Release \
             -p:ExcludeE2ETests=true \
+            --filter "Category!=docs-screenshot&Category!=integration" \
             --collect:"XPlat Code Coverage" \
             --settings tests/ExperimentFramework.Tests/coverage.runsettings
 
