@@ -115,9 +115,15 @@ public class GovernanceLifecyclePage : IGovernanceSelectable
     public async Task SelectFirstExperimentAsync()
     {
         // Option index 0 is the "-- Select an experiment --" placeholder (value="").
-        // Always target index 1 directly so Playwright waits until the first real
-        // experiment option is present before attempting to select it.
+        // In InteractiveServer mode the dropdown is absent during the Blazor circuit
+        // reconnect phase (_loading=true). Wait for the first real option (index 1) to
+        // be attached before selecting so we don't accidentally pick an empty value.
         var options = ExperimentSelect.Locator("option");
+        await options.Nth(1).WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
         var value = await options.Nth(1).GetAttributeAsync("value");
         if (value is not null)
             await ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
@@ -166,11 +172,40 @@ public class GovernanceLifecyclePage : IGovernanceSelectable
         // After a transition, LoadLifecycleData() briefly hides the current-state element
         // while it reloads data over Blazor SignalR. WaitForLoadStateAsync(NetworkIdle) is
         // not useful here because the Blazor server-side HTTP calls are invisible to
-        // Playwright's browser-side network monitor. Wait for the element to reappear.
-        await CurrentStateDisplay.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        var newState = await GetCurrentStateAsync();
-        if (newState == previousState)
-            throw new Exception(
-                $"Expected the governance state to change from '{previousState}' but it is still '{newState}'.");
+        // Playwright's browser-side network monitor.
+        //
+        // The element may already be visible with the OLD state when this method is called
+        // (the Blazor circuit processes the confirm-click asynchronously). Poll until the
+        // state text is different from previousState, or the element disappears and
+        // reappears with a new value.
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (DateTime.UtcNow < deadline)
+        {
+            // If the element is hidden (loading phase) wait for it to come back.
+            try
+            {
+                await CurrentStateDisplay.WaitForAsync(new LocatorWaitForOptions
+                {
+                    State   = WaitForSelectorState.Visible,
+                    Timeout = 5_000,
+                });
+            }
+            catch (TimeoutException)
+            {
+                // Still loading — keep polling.
+                continue;
+            }
+
+            var newState = await GetCurrentStateAsync();
+            if (newState != previousState)
+                return;  // state changed — success
+
+            // State not yet updated; give the server a moment and retry.
+            await Task.Delay(200);
+        }
+
+        var finalState = await GetCurrentStateAsync();
+        throw new Exception(
+            $"Expected the governance state to change from '{previousState}' but it is still '{finalState}'.");
     }
 }

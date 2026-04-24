@@ -1,5 +1,7 @@
 # ExperimentFramework - Sample Applications
 
+> **How do I run these?** See [docs/user-guide/developer-setup/running-the-samples.md](../docs/user-guide/developer-setup/running-the-samples.md) for a full map: what each sample does, which to open first, launch commands, and Rider tips.
+
 This directory contains runnable sample applications demonstrating all features of the ExperimentFramework library.
 
 ## Quick Start

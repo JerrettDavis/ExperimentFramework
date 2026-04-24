@@ -144,6 +144,8 @@ All of these are functionally equivalent—use whichever reads most naturally fo
 
 ## Quick Start
 
+> **Trying the samples?** See [docs/user-guide/developer-setup/running-the-samples.md](docs/user-guide/developer-setup/running-the-samples.md) for a full map of all 17+ runnable projects, launch commands, and Rider setup tips.
+
 ### 1. Install Packages
 
 ```bash
