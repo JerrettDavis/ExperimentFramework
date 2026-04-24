@@ -32,7 +32,6 @@ flags:
   e2e:
     paths:
       - src/
-      - samples/ExperimentFramework.DashboardHost/
     carryforward: true
 
 ignore:
