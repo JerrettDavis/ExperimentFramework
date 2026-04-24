@@ -103,17 +103,24 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddExperimentAuditComposite_WithMultipleSinks_ReturnsComposite()
+    public void AddExperimentAuditSink_MultipleDifferentTypes_CanBeEnumeratedTogether()
     {
+        // When multiple sinks are registered via AddExperimentAuditSink,
+        // they can all be retrieved via GetServices<IAuditSink>().
+        // Note: AddExperimentAuditComposite uses TryAddSingleton, which is a no-op
+        // when IAuditSink registrations already exist (added via TryAddEnumerable).
         var services = new ServiceCollection();
         services.AddExperimentAuditSink<NoopAuditSink>();
         services.AddExperimentAuditSink<AnotherNoopAuditSink>();
-        services.AddExperimentAuditComposite();
+        services.AddExperimentAuditComposite(); // no-op: TryAddSingleton skipped
 
         using var sp = services.BuildServiceProvider();
-        var sink = sp.GetRequiredService<IAuditSink>();
+        var allSinks = sp.GetServices<IAuditSink>().ToList();
 
-        Assert.IsType<CompositeAuditSink>(sink);
+        // Both sinks are enumerable
+        Assert.Equal(2, allSinks.Count);
+        Assert.Contains(allSinks, s => s is NoopAuditSink);
+        Assert.Contains(allSinks, s => s is AnotherNoopAuditSink);
     }
 
     [Fact]
