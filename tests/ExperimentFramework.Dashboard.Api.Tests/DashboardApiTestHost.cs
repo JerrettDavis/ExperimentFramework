@@ -27,7 +27,11 @@ public sealed class DashboardApiTestHost : IAsyncDisposable
         IExperimentRegistry? registry = null,
         IDashboardDataProvider? dataProvider = null,
         ExperimentFramework.Governance.ILifecycleManager? lifecycleManager = null,
-        IGovernancePersistenceBackplane? persistenceBackplane = null)
+        IGovernancePersistenceBackplane? persistenceBackplane = null,
+        IAnalyticsProvider? analyticsProvider = null,
+        IRolloutPersistenceBackplane? rolloutPersistence = null,
+        ITargetingManagementService? targetingManagement = null,
+        IPluginManagementService? pluginManagement = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -41,6 +45,14 @@ public sealed class DashboardApiTestHost : IAsyncDisposable
             builder.Services.AddSingleton<ExperimentFramework.Governance.ILifecycleManager>(lifecycleManager);
         if (persistenceBackplane != null)
             builder.Services.AddSingleton(persistenceBackplane);
+        if (analyticsProvider != null)
+            builder.Services.AddSingleton(analyticsProvider);
+        if (rolloutPersistence != null)
+            builder.Services.AddSingleton(rolloutPersistence);
+        if (targetingManagement != null)
+            builder.Services.AddSingleton(targetingManagement);
+        if (pluginManagement != null)
+            builder.Services.AddSingleton(pluginManagement);
 
         _app = builder.Build();
         _app.UseRouting();
