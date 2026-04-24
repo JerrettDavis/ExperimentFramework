@@ -1,3 +1,6 @@
+- name: Running the Samples
+  href: running-the-samples.md
+
 - name: Embed the Dashboard
   href: embed.md
 
