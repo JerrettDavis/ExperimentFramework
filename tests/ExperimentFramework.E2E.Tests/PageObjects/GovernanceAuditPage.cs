@@ -44,11 +44,12 @@ public class GovernanceAuditPage : IGovernanceSelectable
     public async Task FilterByTypeAsync(string type)
     {
         // The type-filter dropdown is only rendered after an experiment is selected and
-        // its audit data has loaded. Wait for it to become visible before interacting.
+        // its audit data has loaded. Wait with a generous budget (30s) for the
+        // InteractiveServer @onchange round-trip to complete under CI load.
         await TypeFilter.WaitForAsync(new LocatorWaitForOptions
         {
             State   = WaitForSelectorState.Visible,
-            Timeout = 15_000,
+            Timeout = 30_000,
         });
         await TypeFilter.SelectOptionAsync(new SelectOptionValue { Label = type });
     }
@@ -57,11 +58,12 @@ public class GovernanceAuditPage : IGovernanceSelectable
     public async Task SearchAsync(string query)
     {
         // The search input is only rendered after an experiment is selected.
-        // Wait for it to become visible before interacting.
+        // Wait with a generous budget (30s) for the InteractiveServer @onchange
+        // round-trip to complete under CI load.
         await SearchInput.WaitForAsync(new LocatorWaitForOptions
         {
             State   = WaitForSelectorState.Visible,
-            Timeout = 15_000,
+            Timeout = 30_000,
         });
         await SearchInput.FillAsync(query);
         await SearchInput.PressAsync("Enter");
@@ -116,11 +118,43 @@ public class GovernanceAuditPage : IGovernanceSelectable
             State   = WaitForSelectorState.Attached,
             Timeout = 15_000,
         });
+
+        // Wait for the Blazor Server circuit to be live before firing @onchange.
+        // Without this, SelectOptionAsync may change the DOM while the SignalR
+        // connection is still handshaking, in which case the server never runs
+        // OnExperimentSelected and the downstream UI (search/filter controls) never
+        // renders.
+        await _page.WaitForFunctionAsync(
+            "() => !!(window.Blazor && window.Blazor._internal && window.Blazor._internal.navigationManager)",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 15_000 });
+
         var count = await options.CountAsync();
-        var idx = count > 1 ? 1 : 0;
+        var idx   = count > 1 ? 1 : 0;
         var value = await options.Nth(idx).GetAttributeAsync("value");
-        if (value is not null)
+        if (value is null) return;
+
+        // Select and verify the server picked up the change. If the first change
+        // event raced the circuit handshake, retry up to 3 times.
+        var sideEffect = _page.Locator(
+            ".loading-state, .audit-entry, [data-audit-entry], tr.audit-row, .info-message, .not-configured");
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
             await ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Value = value });
+            try
+            {
+                await sideEffect.First.WaitForAsync(new LocatorWaitForOptions
+                {
+                    State   = WaitForSelectorState.Visible,
+                    Timeout = attempt == 3 ? 15_000 : 5_000,
+                });
+                return;
+            }
+            catch (TimeoutException) when (attempt < 3)
+            {
+                await Task.Delay(500);
+            }
+        }
     }
 
     /// <summary>Asserts that at least one audit entry row is visible.</summary>

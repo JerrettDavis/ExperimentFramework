@@ -50,9 +50,11 @@
   <Folder Name="/tests/">
     <Project Path="tests/ExperimentFramework.E2E.Tests/ExperimentFramework.E2E.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Generators.Tests/ExperimentFramework.Generators.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Metrics.Exporters.Tests/ExperimentFramework.Metrics.Exporters.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Plugins.Generators.Tests/ExperimentFramework.Plugins.Generators.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Plugins.Tests/ExperimentFramework.Plugins.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Simulation.Tests/ExperimentFramework.Simulation.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.StickyRouting.Tests/ExperimentFramework.StickyRouting.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Tests/ExperimentFramework.Tests.csproj" />
   </Folder>
 </Solution>

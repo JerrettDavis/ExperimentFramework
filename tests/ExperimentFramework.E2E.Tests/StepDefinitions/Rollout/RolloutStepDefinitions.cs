@@ -130,10 +130,55 @@ public class RolloutStepDefinitions
         var select = _browser.Page.Locator(
             "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
         var options = select.Locator("option");
-        var count   = await options.CountAsync();
-        var idx     = count > 1 ? 1 : 0;
-        var value   = await options.Nth(idx).GetAttributeAsync("value");
-        if (value is not null)
+
+        // In InteractiveServer mode the dropdown is absent during the Blazor circuit
+        // reconnect phase (_loading=true). Wait for the first real option (index 1 —
+        // index 0 is the placeholder) before selecting so we don't accidentally pick
+        // an empty value and leave the experiment unselected — which would prevent
+        // the rollout configuration panel (and its stage-name input) from rendering.
+        await options.Nth(1).WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
+
+        // Wait for the Blazor Server circuit to be live before firing @onchange.
+        // Without this, SelectOptionAsync may change the DOM while the SignalR
+        // connection is still handshaking, in which case the server never runs
+        // OnExperimentSelected and the downstream UI never renders.
+        await _browser.Page.WaitForFunctionAsync(
+            "() => !!(window.Blazor && window.Blazor._internal && window.Blazor._internal.navigationManager)",
+            null,
+            new PageWaitForFunctionOptions { Timeout = 15_000 });
+
+        var count = await options.CountAsync();
+        var idx   = count > 1 ? 1 : 0;
+        var value = await options.Nth(idx).GetAttributeAsync("value");
+        if (value is null) return;
+
+        // Select and verify the side-effect (rollout-manager panel) appears on the
+        // server side. If the first SelectOptionAsync raced the circuit handshake
+        // and was ignored, retry up to 3 times with a short visibility probe between
+        // attempts so we don't fail the whole scenario on a single lost change event.
+        var panel = _browser.Page.Locator(
+            ".rollout-manager, .experiment-info-panel, input[name*='stage' i][name*='name' i]");
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
             await select.SelectOptionAsync(new SelectOptionValue { Value = value });
+            try
+            {
+                await panel.First.WaitForAsync(new LocatorWaitForOptions
+                {
+                    State   = WaitForSelectorState.Visible,
+                    Timeout = attempt == 3 ? 15_000 : 5_000,
+                });
+                return;
+            }
+            catch (TimeoutException) when (attempt < 3)
+            {
+                // Circuit handshake likely still in flight — back off and retry.
+                await Task.Delay(500);
+            }
+        }
     }
 }
