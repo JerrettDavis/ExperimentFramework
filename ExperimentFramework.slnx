@@ -56,5 +56,8 @@
     <Project Path="tests/ExperimentFramework.Simulation.Tests/ExperimentFramework.Simulation.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.StickyRouting.Tests/ExperimentFramework.StickyRouting.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Tests/ExperimentFramework.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Governance.Persistence.Sql.Tests/ExperimentFramework.Governance.Persistence.Sql.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Governance.Persistence.Redis.Tests/ExperimentFramework.Governance.Persistence.Redis.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Dashboard.Tests/ExperimentFramework.Dashboard.Tests.csproj" />
   </Folder>
 </Solution>
