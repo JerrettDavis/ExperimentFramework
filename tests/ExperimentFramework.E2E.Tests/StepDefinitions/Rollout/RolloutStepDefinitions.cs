@@ -130,6 +130,16 @@ public class RolloutStepDefinitions
         var select = _browser.Page.Locator(
             "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
         var options = select.Locator("option");
+        // In InteractiveServer mode the dropdown is absent during the Blazor circuit
+        // reconnect phase (_loading=true). Wait for the first real option (index 1 —
+        // index 0 is the placeholder) before selecting so we don't accidentally pick
+        // an empty value and leave the experiment unselected — which would prevent
+        // the rollout configuration panel (and its stage-name input) from rendering.
+        await options.Nth(1).WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
         var count   = await options.CountAsync();
         var idx     = count > 1 ? 1 : 0;
         var value   = await options.Nth(idx).GetAttributeAsync("value");

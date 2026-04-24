@@ -130,8 +130,27 @@ public class GovernanceVersionsPage : IGovernanceSelectable
     public Task CloseVersionViewerAsync() => CloseViewerAsync();
 
     /// <summary>Asserts the version history list has at least one entry.</summary>
-    public async Task AssertVersionHistoryVisibleAsync() =>
-        await VersionList.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+    /// <remarks>
+    /// After an experiment is selected the page enters the <c>_loadingVersions</c> phase,
+    /// during which only a &quot;Loading version history…&quot; paragraph is rendered — no
+    /// <c>.version-item</c> exists yet. Under Blazor InteractiveServer the @onchange
+    /// round-trip can take noticeably longer than the SSR path, so we wait for the
+    /// first version item to be attached (up to 15 s) before asserting visibility.
+    /// The attach-then-visible split gives the Blazor circuit a full budget to complete
+    /// its LoadVersions call before the visibility check kicks in.
+    /// </remarks>
+    public async Task AssertVersionHistoryVisibleAsync()
+    {
+        await VersionList.First.WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
+        await VersionList.First.WaitForAsync(new LocatorWaitForOptions
+        {
+            State = WaitForSelectorState.Visible,
+        });
+    }
 
     /// <summary>Asserts the version detail modal / panel is visible and contains JSON-like content.</summary>
     public async Task AssertVersionDetailModalVisibleAsync()
