@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Dashboard.UI-specific coverage settings.
+  Drops CompilerGeneratedAttribute from ExcludeByAttribute so that async state machines
+  generated from user-written @code blocks in Razor components are instrumented.
+  The Razor source generator itself uses GeneratedCodeAttribute (kept in exclusion list),
+  so purely generated render boilerplate remains excluded; only user async code is included.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>
+            [ExperimentFramework.SampleConsole]*,
+            [ExperimentFramework.ComprehensiveSample]*,
+            [ExperimentFramework.SampleWebApp]*,
+            [ExperimentFramework.Benchmarks]*
+          </Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/Program.cs</ExcludeByFile>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>true</UseSourceLink>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+          <DeterministicReport>true</DeterministicReport>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
