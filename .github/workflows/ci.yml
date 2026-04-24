@@ -124,12 +124,14 @@ jobs:
 
   # E2E tests run the Playwright + Reqnroll suite against a live DashboardHost
   # seeded with demo data (5 experiments, governance records, 4 test users). The
-  # host is launched in the background, probed for readiness, and torn down
-  # after the suite completes.
+  # host is launched under dotnet-coverage so that server-side code is instrumented,
+  # probed for readiness, and torn down after the suite completes so the coverage
+  # report is flushed. The resulting cobertura file is uploaded to Codecov with the
+  # "e2e" flag (separate from the "unittests" flag).
   e2e-tests:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     needs: pr-checks
     permissions:
       contents: read
@@ -168,20 +170,23 @@ jobs:
           fi
           pwsh "$PLAYWRIGHT_PS1" install --with-deps chromium
 
-      - name: Launch DashboardHost (background, seeded)
-        # Intentionally NOT using --no-build: `dotnet build ExperimentFramework.slnx`
-        # does not always materialise the host's Release-mode runtime artifacts
-        # (apphost binary + deps.json) at the path `dotnet run --no-build` expects,
-        # and the resulting "No such file or directory" error is silent until the
-        # readiness poll times out. Letting `dotnet run` perform an incremental
-        # build is fast (everything is already restored + compiled) and reliable.
+      - name: Install dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage
+
+      - name: Launch DashboardHost under dotnet-coverage (background, seeded)
+        # dotnet-coverage collect wraps the host process so that server-side code
+        # is instrumented. Coverage is written to e2e-dashboard-coverage.xml when
+        # the process exits (SIGTERM flushes the report automatically).
+        # Intentionally NOT using --no-build for the same reason as before:
+        # the release-mode runtime artifacts are already present from the build
+        # step, but dotnet run --no-build resolves the apphost differently.
         run: |
-          dotnet run --project samples/ExperimentFramework.DashboardHost \
-            --configuration Release -- \
-            --seed=docs --freeze-date 2026-04-01T12:00:00Z \
-            --Urls=http://localhost:5195 \
+          dotnet-coverage collect \
+            -f cobertura \
+            -o e2e-dashboard-coverage.xml \
+            "dotnet run --project samples/ExperimentFramework.DashboardHost --configuration Release -- --seed=docs --freeze-date 2026-04-01T12:00:00Z --Urls=http://localhost:5195" \
             > dashboard-host.log 2>&1 &
-          echo "DASHBOARD_PID=$!" >> $GITHUB_ENV
+          echo "COVERAGE_PID=$!" >> $GITHUB_ENV
 
       - name: Wait for DashboardHost readiness
         run: |
@@ -210,12 +215,27 @@ jobs:
             --logger "trx;LogFileName=e2e.trx" \
             --logger "console;verbosity=normal"
 
-      - name: Stop DashboardHost
+      - name: Stop DashboardHost (flush coverage)
         if: always()
         run: |
-          if [ -n "${DASHBOARD_PID:-}" ]; then
-            kill "$DASHBOARD_PID" 2>/dev/null || true
+          # Send SIGTERM to the dotnet-coverage wrapper process so it flushes
+          # the cobertura report before we upload. Allow a few seconds for
+          # the flush to complete.
+          if [ -n "${COVERAGE_PID:-}" ]; then
+            kill -TERM "$COVERAGE_PID" 2>/dev/null || true
+            sleep 5
           fi
+
+      - name: Upload E2E coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v6
+        with:
+          files: e2e-dashboard-coverage.xml
+          flags: e2e
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload DashboardHost log on failure
         if: failure()
@@ -232,6 +252,15 @@ jobs:
           name: e2e-failure-screenshots
           path: tests/ExperimentFramework.E2E.Tests/bin/Release/net10.0/TestResults/Screenshots/
           retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload E2E coverage report as artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-coverage-report
+          path: e2e-dashboard-coverage.xml
+          retention-days: 14
           if-no-files-found: ignore
 
   release:
