@@ -41,12 +41,28 @@ public class GovernanceAuditPage : IGovernanceSelectable
         ExperimentSelect.SelectOptionAsync(new SelectOptionValue { Label = name });
 
     /// <summary>Selects an audit event type from the type filter dropdown.</summary>
-    public Task FilterByTypeAsync(string type) =>
-        TypeFilter.SelectOptionAsync(new SelectOptionValue { Label = type });
+    public async Task FilterByTypeAsync(string type)
+    {
+        // The type-filter dropdown is only rendered after an experiment is selected and
+        // its audit data has loaded. Wait for it to become visible before interacting.
+        await TypeFilter.WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Visible,
+            Timeout = 15_000,
+        });
+        await TypeFilter.SelectOptionAsync(new SelectOptionValue { Label = type });
+    }
 
     /// <summary>Fills the search input to filter audit entries.</summary>
     public async Task SearchAsync(string query)
     {
+        // The search input is only rendered after an experiment is selected.
+        // Wait for it to become visible before interacting.
+        await SearchInput.WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Visible,
+            Timeout = 15_000,
+        });
         await SearchInput.FillAsync(query);
         await SearchInput.PressAsync("Enter");
     }
@@ -90,7 +106,16 @@ public class GovernanceAuditPage : IGovernanceSelectable
     /// <summary>Selects the first available experiment in the dropdown (IGovernanceSelectable).</summary>
     public async Task SelectFirstExperimentAsync()
     {
+        // In InteractiveServer mode the dropdown is absent during the Blazor circuit
+        // reconnect phase (_loading=true). Wait for the first real option (index 1 —
+        // index 0 is the placeholder) before selecting so we don't accidentally pick
+        // an empty value and leave the experiment unselected.
         var options = ExperimentSelect.Locator("option");
+        await options.Nth(1).WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
         var count = await options.CountAsync();
         var idx = count > 1 ? 1 : 0;
         var value = await options.Nth(idx).GetAttributeAsync("value");

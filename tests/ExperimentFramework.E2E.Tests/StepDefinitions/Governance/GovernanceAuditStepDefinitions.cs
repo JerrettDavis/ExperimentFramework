@@ -101,6 +101,13 @@ public class GovernanceAuditStepDefinitions
         var select = Page.Locator(
             "select[name*='experiment' i], [data-select='experiment'], .experiment-select");
         var options = select.Locator("option");
+        // Wait for the first real option (index 1; index 0 is the placeholder) before
+        // selecting, in case the Blazor circuit is still reconnecting.
+        await options.Nth(1).WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Attached,
+            Timeout = 15_000,
+        });
         var count   = await options.CountAsync();
         var idx     = count > 1 ? 1 : 0;
         var value   = await options.Nth(idx).GetAttributeAsync("value");
