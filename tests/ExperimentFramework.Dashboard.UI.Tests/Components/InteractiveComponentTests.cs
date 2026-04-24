@@ -85,7 +85,7 @@ public sealed class InteractiveComponentTests : BunitContext
 
         // The analytics page calls OnInitializedAsync which calls GetUsageStatsAsync synchronously
         // in bUnit's test renderer — we poll with small delay for async operations
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetUsageStatsAsync should be called during OnInitializedAsync");
     }
@@ -104,7 +104,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Analytics>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='analytics']"));
@@ -120,7 +120,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Analytics>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.NotNull(cut.Find("main[data-page='analytics']"));
     }
@@ -135,7 +135,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Analytics>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='analytics']"));
@@ -159,7 +159,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Analytics>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='analytics']"));
@@ -183,7 +183,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         Render<Targeting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during OnInitializedAsync");
     }
@@ -197,7 +197,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Targeting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='targeting']"));
@@ -212,7 +212,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Targeting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.NotNull(cut.Find("main[data-page='targeting']"));
     }
@@ -241,7 +241,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Targeting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='targeting']"));
@@ -269,7 +269,7 @@ public sealed class InteractiveComponentTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         Render<Experiments>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "LoadExperiments should be called when isInteractive=true");
     }
@@ -293,7 +293,7 @@ public sealed class InteractiveComponentTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Experiments>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='experiments']"));
@@ -312,7 +312,7 @@ public sealed class InteractiveComponentTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Experiments>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // Page structure must exist even on error
@@ -333,7 +333,7 @@ public sealed class InteractiveComponentTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Experiments>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // Click a category filter button
@@ -358,7 +358,7 @@ public sealed class InteractiveComponentTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Experiments>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         var allBtn = cut.Find(".category-btn[data-category='All']");
@@ -385,7 +385,7 @@ public sealed class InteractiveComponentTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Experiments>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // Stats row should be present
@@ -411,7 +411,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         Render<HypothesisTesting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during OnInitializedAsync");
     }
@@ -426,7 +426,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<HypothesisTesting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='hypothesis']"));
@@ -442,7 +442,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<HypothesisTesting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.NotNull(cut.Find("main[data-page='hypothesis']"));
     }
@@ -463,7 +463,7 @@ public sealed class InteractiveComponentTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<HypothesisTesting>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // After init, experiments are loaded and hypotheses are seeded

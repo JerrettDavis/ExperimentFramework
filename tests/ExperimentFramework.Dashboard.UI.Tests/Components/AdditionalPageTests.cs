@@ -85,7 +85,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         Render<Configuration>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetConfigInfoAsync should be called during OnInitializedAsync");
     }
@@ -103,7 +103,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Configuration>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='configuration']"));
@@ -119,7 +119,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Configuration>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.NotNull(cut.Find("main[data-page='configuration']"));
     }
@@ -137,7 +137,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Configuration>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // Should render the framework info panel
@@ -163,7 +163,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         Render<Rollout>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during OnInitializedAsync when interactive");
     }
@@ -179,7 +179,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Rollout>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='rollout']"));
@@ -195,7 +195,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Rollout>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.NotNull(cut.Find("main[data-page='rollout']"));
     }
@@ -211,7 +211,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Rollout>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // Experiment selector should be rendered when loading is complete
@@ -237,7 +237,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         Render<DslEditor>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetCurrentDslAsync should be called during OnInitializedAsync when interactive");
     }
@@ -253,7 +253,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<DslEditor>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='dsl']"));
@@ -269,7 +269,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<DslEditor>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         // Should still render even when API fails (falls back to default YAML)
@@ -321,7 +321,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         Render<Audit>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during GovernanceAudit OnInitializedAsync");
     }
@@ -336,7 +336,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Audit>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='audit']"));
@@ -352,7 +352,7 @@ public sealed class AdditionalPageTests : BunitContext
         Services.AddSingleton(BuildApiClient(handler));
 
         var cut = Render<Audit>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='audit']"));
@@ -377,7 +377,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         Render<Lifecycle>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during Lifecycle OnInitializedAsync");
     }
@@ -393,7 +393,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Lifecycle>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='lifecycle']"));
@@ -410,7 +410,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Lifecycle>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='lifecycle']"));
@@ -435,7 +435,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         Render<Policies>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during Policies OnInitializedAsync");
     }
@@ -451,7 +451,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Policies>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='policies']"));
@@ -468,7 +468,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Policies>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='policies']"));
@@ -493,7 +493,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         Render<Versions>();
-        await Task.Delay(200);
+        await Task.Delay(50);
 
         Assert.True(called, "GetExperimentsAsync should be called during Versions OnInitializedAsync");
     }
@@ -509,7 +509,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Versions>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='versions']"));
@@ -526,7 +526,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Versions>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='versions']"));
@@ -563,7 +563,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Plugins>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='plugins']"));
@@ -581,7 +581,7 @@ public sealed class AdditionalPageTests : BunitContext
         SetRendererInfo(new Microsoft.AspNetCore.Components.RendererInfo("Server", isInteractive: true));
 
         var cut = Render<Plugins>();
-        await Task.Delay(200);
+        await Task.Delay(50);
         cut.Render();
 
         Assert.NotNull(cut.Find("main[data-page='plugins']"));
