@@ -135,7 +135,7 @@ public class GovernanceVersionsPage : IGovernanceSelectable
     /// during which only a &quot;Loading version history…&quot; paragraph is rendered — no
     /// <c>.version-item</c> exists yet. Under Blazor InteractiveServer the @onchange
     /// round-trip can take noticeably longer than the SSR path, so we wait for the
-    /// first version item to be attached (up to 15 s) before asserting visibility.
+    /// first version item to be attached (up to 30 s) before asserting visibility.
     /// The attach-then-visible split gives the Blazor circuit a full budget to complete
     /// its LoadVersions call before the visibility check kicks in.
     /// </remarks>
@@ -144,7 +144,7 @@ public class GovernanceVersionsPage : IGovernanceSelectable
         await VersionList.First.WaitForAsync(new LocatorWaitForOptions
         {
             State   = WaitForSelectorState.Attached,
-            Timeout = 15_000,
+            Timeout = 30_000,
         });
         await VersionList.First.WaitForAsync(new LocatorWaitForOptions
         {

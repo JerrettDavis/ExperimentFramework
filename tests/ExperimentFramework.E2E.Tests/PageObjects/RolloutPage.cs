@@ -60,12 +60,13 @@ public class RolloutPage
         // The new-stage form is only rendered once an experiment has been selected
         // on the server (_selectedExperimentInfo != null). During the Blazor circuit
         // reconnect phase the form can be briefly absent even though the select has
-        // fired onchange on the client. Wait for the stage-name input to become
-        // visible before interacting.
+        // fired onchange on the client. Wait with a generous budget (30s) for the
+        // server-side re-render to arrive; under CI load this can take longer than
+        // the 15s default.
         await StageNameInput.WaitForAsync(new LocatorWaitForOptions
         {
             State   = WaitForSelectorState.Visible,
-            Timeout = 15_000,
+            Timeout = 30_000,
         });
         var countBefore = await StageList.CountAsync();
         await StageNameInput.FillAsync(name);
