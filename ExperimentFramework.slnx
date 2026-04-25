@@ -78,5 +78,6 @@
     <Project Path="tests/ExperimentFramework.Dashboard.Tests/ExperimentFramework.Dashboard.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Dashboard.Api.Tests/ExperimentFramework.Dashboard.Api.Tests.csproj" />
     <Project Path="tests/ExperimentFramework.Dashboard.UI.Tests/ExperimentFramework.Dashboard.UI.Tests.csproj" />
+    <Project Path="tests/ExperimentFramework.Configuration.Tests/ExperimentFramework.Configuration.Tests.csproj" />
   </Folder>
 </Solution>
