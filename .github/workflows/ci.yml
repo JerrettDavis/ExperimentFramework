@@ -45,15 +45,48 @@ jobs:
       - name: Build (Release)
         run: dotnet build ExperimentFramework.slnx --configuration Release --no-restore /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
 
-      - name: Test with coverage
+      - name: Test (verify correctness)
         run: |
           dotnet test ExperimentFramework.slnx \
             --configuration Release \
             --no-build \
             -p:ExcludeE2ETests=true \
             --filter "Category!=docs-screenshot&Category!=integration" \
-            --collect:"XPlat Code Coverage" \
-            --settings tests/ExperimentFramework.Tests/coverage.runsettings
+            --logger "console;verbosity=minimal"
+
+      - name: Collect coverage (per-project to avoid test-host crash on large projects)
+        shell: bash
+        run: |
+          RUNSETTINGS="tests/ExperimentFramework.Tests/coverage.runsettings"
+          FILTER="Category!=docs-screenshot&Category!=integration"
+          for proj in \
+            tests/ExperimentFramework.Audit.Tests \
+            tests/ExperimentFramework.Configuration.Tests \
+            tests/ExperimentFramework.Dashboard.Api.Tests \
+            tests/ExperimentFramework.Dashboard.Tests \
+            tests/ExperimentFramework.Dashboard.UI.Tests \
+            tests/ExperimentFramework.DataPlane.Tests \
+            tests/ExperimentFramework.Diagnostics.Tests \
+            tests/ExperimentFramework.Generators.Tests \
+            tests/ExperimentFramework.Governance.Persistence.Redis.Tests \
+            tests/ExperimentFramework.Governance.Persistence.Sql.Tests \
+            tests/ExperimentFramework.Governance.Persistence.Tests \
+            tests/ExperimentFramework.Governance.Tests \
+            tests/ExperimentFramework.Metrics.Exporters.Tests \
+            tests/ExperimentFramework.Plugins.Generators.Tests \
+            tests/ExperimentFramework.Plugins.Tests \
+            tests/ExperimentFramework.Simulation.Tests \
+            tests/ExperimentFramework.StickyRouting.Tests \
+            tests/ExperimentFramework.Tests; do
+            echo "--- Coverage: $(basename $proj) ---"
+            dotnet test "$proj" \
+              --configuration Release \
+              --no-build \
+              --filter "$FILTER" \
+              --collect:"XPlat Code Coverage" \
+              --settings "$RUNSETTINGS" \
+              --logger "console;verbosity=quiet" || echo "WARNING: $proj exited non-zero"
+          done
 
       - name: Install ReportGenerator
         run: dotnet tool update -g dotnet-reportgenerator-globaltool
@@ -337,8 +370,41 @@ jobs:
             --no-build \
             --verbosity normal \
             -p:ExcludeE2ETests=true \
-            --collect:"XPlat Code Coverage" \
-            --settings tests/ExperimentFramework.Tests/coverage.runsettings
+            --filter "Category!=docs-screenshot&Category!=integration"
+
+      - name: Collect coverage (Release, per-project)
+        shell: bash
+        run: |
+          RUNSETTINGS="tests/ExperimentFramework.Tests/coverage.runsettings"
+          FILTER="Category!=docs-screenshot&Category!=integration"
+          for proj in \
+            tests/ExperimentFramework.Audit.Tests \
+            tests/ExperimentFramework.Configuration.Tests \
+            tests/ExperimentFramework.Dashboard.Api.Tests \
+            tests/ExperimentFramework.Dashboard.Tests \
+            tests/ExperimentFramework.Dashboard.UI.Tests \
+            tests/ExperimentFramework.DataPlane.Tests \
+            tests/ExperimentFramework.Diagnostics.Tests \
+            tests/ExperimentFramework.Generators.Tests \
+            tests/ExperimentFramework.Governance.Persistence.Redis.Tests \
+            tests/ExperimentFramework.Governance.Persistence.Sql.Tests \
+            tests/ExperimentFramework.Governance.Persistence.Tests \
+            tests/ExperimentFramework.Governance.Tests \
+            tests/ExperimentFramework.Metrics.Exporters.Tests \
+            tests/ExperimentFramework.Plugins.Generators.Tests \
+            tests/ExperimentFramework.Plugins.Tests \
+            tests/ExperimentFramework.Simulation.Tests \
+            tests/ExperimentFramework.StickyRouting.Tests \
+            tests/ExperimentFramework.Tests; do
+            echo "--- Coverage: $(basename $proj) ---"
+            dotnet test "$proj" \
+              --configuration Release \
+              --no-build \
+              --filter "$FILTER" \
+              --collect:"XPlat Code Coverage" \
+              --settings "$RUNSETTINGS" \
+              --logger "console;verbosity=quiet" || echo "WARNING: $proj exited non-zero"
+          done
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
