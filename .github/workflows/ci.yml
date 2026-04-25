@@ -49,6 +49,7 @@ jobs:
         run: |
           dotnet test ExperimentFramework.slnx \
             --configuration Release \
+            --no-build \
             -p:ExcludeE2ETests=true \
             --filter "Category!=docs-screenshot&Category!=integration" \
             --collect:"XPlat Code Coverage" \
