@@ -8,6 +8,7 @@ using Xunit.Abstractions;
 namespace ExperimentFramework.Tests.Distributed.Redis;
 
 [Feature("RedisDistributedLockProvider provides Redis-backed distributed locking")]
+[Trait("Category", "integration")]
 public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsyncLifetime
 {
     private readonly RedisContainer _redis;
