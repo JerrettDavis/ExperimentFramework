@@ -94,7 +94,7 @@ jobs:
 
       - name: Open drift PR
         if: steps.drift.outputs.has_drift == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "docs: regenerate screenshots (${{ github.run_started_at }})"
           title: "docs: regenerate screenshots (${{ github.run_started_at }})"
