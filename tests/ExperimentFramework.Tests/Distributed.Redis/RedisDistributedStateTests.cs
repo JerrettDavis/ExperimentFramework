@@ -9,6 +9,7 @@ using Xunit.Abstractions;
 namespace ExperimentFramework.Tests.Distributed.Redis;
 
 [Feature("RedisDistributedState provides Redis-backed state storage")]
+[Trait("Category", "integration")]
 public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetime
 {
     private readonly RedisContainer _redis;

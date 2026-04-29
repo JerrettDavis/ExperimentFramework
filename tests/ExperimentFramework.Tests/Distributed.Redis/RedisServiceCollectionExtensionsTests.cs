@@ -10,6 +10,7 @@ using Xunit.Abstractions;
 namespace ExperimentFramework.Tests.Distributed.Redis;
 
 [Feature("ServiceCollectionExtensions register Redis distributed services")]
+[Trait("Category", "integration")]
 public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IAsyncLifetime
 {
     private readonly RedisContainer _redis;
