@@ -73,13 +73,13 @@ public sealed class ConfigurationFileDiscovery
 
     private static IEnumerable<string> DiscoverFilesInDirectory(string directoryPath)
     {
+        var allFiles = new List<string>();
         foreach (var extension in SupportedExtensions)
         {
-            foreach (var file in Directory.GetFiles(directoryPath, $"*{extension}", SearchOption.AllDirectories))
-            {
-                yield return file;
-            }
+            allFiles.AddRange(
+                Directory.GetFiles(directoryPath, $"*{extension}", SearchOption.AllDirectories));
         }
+        return allFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
     }
 
     private static string ResolvePath(string basePath, string path)
