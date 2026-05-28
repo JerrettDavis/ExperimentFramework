@@ -47,13 +47,29 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddExperimentAuditComposite(this IServiceCollection services)
     {
+        var sinkDescriptors = services
+            .Where(d => d.ServiceType == typeof(IAuditSink))
+            .ToList();
+
         services.TryAddSingleton<IAuditSink>(sp =>
         {
-            var sinks = sp.GetServices<IAuditSink>()
-                .Where(s => s is not CompositeAuditSink)
-                .ToList();
-
-            return sinks.Count == 1 ? sinks[0] : new CompositeAuditSink(sinks);
+            var sinks = new List<IAuditSink>();
+            foreach (var d in sinkDescriptors)
+            {
+                if (d.ImplementationType is not null)
+                {
+                    sinks.Add((IAuditSink)sp.GetRequiredService(d.ImplementationType));
+                }
+                else if (d.ImplementationInstance is IAuditSink inst)
+                {
+                    sinks.Add(inst);
+                }
+                else if (d.ImplementationFactory is not null)
+                {
+                    sinks.Add((IAuditSink)d.ImplementationFactory(sp));
+                }
+            }
+            return new CompositeAuditSink(sinks);
         });
 
         return services;
