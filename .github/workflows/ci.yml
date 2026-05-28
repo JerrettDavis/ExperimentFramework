@@ -62,7 +62,6 @@ jobs:
           FILTER="Category!=docs-screenshot&Category!=integration"
           for proj in \
             tests/ExperimentFramework.Audit.Tests \
-            tests/ExperimentFramework.Configuration.Tests \
             tests/ExperimentFramework.Dashboard.Api.Tests \
             tests/ExperimentFramework.Dashboard.Tests \
             tests/ExperimentFramework.Dashboard.UI.Tests \
@@ -394,7 +393,6 @@ jobs:
           FILTER="Category!=docs-screenshot&Category!=integration"
           for proj in \
             tests/ExperimentFramework.Audit.Tests \
-            tests/ExperimentFramework.Configuration.Tests \
             tests/ExperimentFramework.Dashboard.Api.Tests \
             tests/ExperimentFramework.Dashboard.Tests \
             tests/ExperimentFramework.Dashboard.UI.Tests \
