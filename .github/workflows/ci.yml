@@ -68,7 +68,6 @@ jobs:
             tests/ExperimentFramework.DataPlane.Tests \
             tests/ExperimentFramework.Diagnostics.Tests \
             tests/ExperimentFramework.Generators.Tests \
-            tests/ExperimentFramework.Governance.Persistence.Redis.Tests \
             tests/ExperimentFramework.Governance.Persistence.Sql.Tests \
             tests/ExperimentFramework.Governance.Persistence.Tests \
             tests/ExperimentFramework.Governance.Tests \
@@ -78,14 +77,28 @@ jobs:
             tests/ExperimentFramework.Simulation.Tests \
             tests/ExperimentFramework.StickyRouting.Tests \
             tests/ExperimentFramework.Tests; do
+            # Skip Redis project: Testcontainers initializes the container in
+            # IAsyncLifetime.InitializeAsync before test filtering applies, causing
+            # a silent hang in CI even when --filter excludes all integration tests.
+            if [[ "$proj" == *"Redis.Tests"* ]]; then
+              echo "Skipping $proj (integration-only, Testcontainers would hang CI)"
+              continue
+            fi
             echo "--- Coverage: $(basename $proj) ---"
-            dotnet test "$proj" \
+            timeout 300 dotnet test "$proj" \
               --configuration Release \
               --no-build \
               --filter "$FILTER" \
               --collect:"XPlat Code Coverage" \
               --settings "$RUNSETTINGS" \
-              --logger "console;verbosity=quiet" || echo "WARNING: $proj exited non-zero"
+              --logger "console;verbosity=quiet" || {
+              rc=$?
+              if [[ $rc -eq 124 ]]; then
+                echo "::warning::Coverage timeout for $proj (exceeded 300s)"
+              else
+                exit $rc
+              fi
+            }
           done
 
       - name: Install ReportGenerator
@@ -386,7 +399,6 @@ jobs:
             tests/ExperimentFramework.DataPlane.Tests \
             tests/ExperimentFramework.Diagnostics.Tests \
             tests/ExperimentFramework.Generators.Tests \
-            tests/ExperimentFramework.Governance.Persistence.Redis.Tests \
             tests/ExperimentFramework.Governance.Persistence.Sql.Tests \
             tests/ExperimentFramework.Governance.Persistence.Tests \
             tests/ExperimentFramework.Governance.Tests \
@@ -396,14 +408,28 @@ jobs:
             tests/ExperimentFramework.Simulation.Tests \
             tests/ExperimentFramework.StickyRouting.Tests \
             tests/ExperimentFramework.Tests; do
+            # Skip Redis project: Testcontainers initializes the container in
+            # IAsyncLifetime.InitializeAsync before test filtering applies, causing
+            # a silent hang in CI even when --filter excludes all integration tests.
+            if [[ "$proj" == *"Redis.Tests"* ]]; then
+              echo "Skipping $proj (integration-only, Testcontainers would hang CI)"
+              continue
+            fi
             echo "--- Coverage: $(basename $proj) ---"
-            dotnet test "$proj" \
+            timeout 300 dotnet test "$proj" \
               --configuration Release \
               --no-build \
               --filter "$FILTER" \
               --collect:"XPlat Code Coverage" \
               --settings "$RUNSETTINGS" \
-              --logger "console;verbosity=quiet" || echo "WARNING: $proj exited non-zero"
+              --logger "console;verbosity=quiet" || {
+              rc=$?
+              if [[ $rc -eq 124 ]]; then
+                echo "::warning::Coverage timeout for $proj (exceeded 300s)"
+              else
+                exit $rc
+              fi
+            }
           done
 
       - name: Upload coverage to Codecov
