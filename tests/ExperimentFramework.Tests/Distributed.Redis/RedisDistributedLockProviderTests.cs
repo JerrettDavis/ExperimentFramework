@@ -1,46 +1,27 @@
 using ExperimentFramework.Distributed.Redis;
-using StackExchange.Redis;
-using Testcontainers.Redis;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
 
 namespace ExperimentFramework.Tests.Distributed.Redis;
 
+[Collection("Redis")]
 [Feature("RedisDistributedLockProvider provides Redis-backed distributed locking")]
 [Trait("Category", "integration")]
-public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsyncLifetime
+public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase
 {
-    private readonly RedisContainer _redis;
-    private IConnectionMultiplexer? _connection;
+    private readonly RedisFixture _fixture;
 
-    public RedisDistributedLockProviderTests(ITestOutputHelper output) : base(output)
+    public RedisDistributedLockProviderTests(RedisFixture fixture, ITestOutputHelper output) : base(output)
     {
-        _redis = new RedisBuilder("redis:7-alpine")
-            .Build();
-    }
-
-    public override async Task InitializeAsync()
-    {
-        await _redis.StartAsync();
-        _connection = await ConnectionMultiplexer.ConnectAsync(_redis.GetConnectionString());
-    }
-
-    public override async Task DisposeAsync()
-    {
-        if (_connection != null)
-        {
-            await _connection.CloseAsync();
-            _connection.Dispose();
-        }
-        await _redis.DisposeAsync();
+        _fixture = fixture;
     }
 
     [Scenario("TryAcquire succeeds when lock is available")]
     [Fact]
     public async Task TryAcquire_succeeds_when_available()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         await using var handle = await provider.TryAcquireAsync("test-lock", TimeSpan.FromSeconds(10));
 
@@ -52,7 +33,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task TryAcquire_fails_when_held()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         await using var handle1 = await provider.TryAcquireAsync("contested-lock", TimeSpan.FromSeconds(10));
         var handle2 = await provider.TryAcquireAsync("contested-lock", TimeSpan.FromSeconds(10));
@@ -65,7 +46,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Lock_is_released_after_dispose()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle1 = await provider.TryAcquireAsync("release-test", TimeSpan.FromSeconds(10));
         Assert.NotNull(handle1);
@@ -79,7 +60,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Acquire_waits_for_availability()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle1 = await provider.TryAcquireAsync("wait-lock", TimeSpan.FromMilliseconds(200));
         Assert.NotNull(handle1);
@@ -103,7 +84,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Acquire_times_out()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         await using var handle1 = await provider.TryAcquireAsync("timeout-lock", TimeSpan.FromSeconds(30));
         Assert.NotNull(handle1);
@@ -120,7 +101,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Lock_expires()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle1 = await provider.TryAcquireAsync("expiring-lock", TimeSpan.FromMilliseconds(100));
         Assert.NotNull(handle1);
@@ -135,7 +116,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Extend_prolongs_expiration()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         await using var handle = await provider.TryAcquireAsync("extend-lock", TimeSpan.FromMilliseconds(200));
         Assert.NotNull(handle);
@@ -159,7 +140,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Extend_fails_after_release()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle = await provider.TryAcquireAsync("extend-release", TimeSpan.FromSeconds(10));
         Assert.NotNull(handle);
@@ -174,12 +155,12 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Uses_custom_key_prefix()
     {
-        var provider = new RedisDistributedLockProvider(_connection!, "custom:lock:");
+        var provider = new RedisDistributedLockProvider(_fixture.Connection, "custom:lock:");
 
         await using var handle = await provider.TryAcquireAsync("prefixed", TimeSpan.FromSeconds(10));
         Assert.NotNull(handle);
 
-        var db = _connection!.GetDatabase();
+        var db = _fixture.Connection.GetDatabase();
         var exists = await db.KeyExistsAsync("custom:lock:prefixed");
         Assert.True(exists);
     }
@@ -188,7 +169,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Multiple_dispose_is_safe()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle = await provider.TryAcquireAsync("multi-dispose", TimeSpan.FromSeconds(10));
         Assert.NotNull(handle);
@@ -202,7 +183,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task LockId_is_unique()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         await using var handle1 = await provider.TryAcquireAsync("unique-1", TimeSpan.FromSeconds(10));
         await using var handle2 = await provider.TryAcquireAsync("unique-2", TimeSpan.FromSeconds(10));
@@ -216,7 +197,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task Extend_fails_for_stolen_lock()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle = await provider.TryAcquireAsync("stolen-lock", TimeSpan.FromMilliseconds(100));
         Assert.NotNull(handle);
@@ -237,7 +218,7 @@ public sealed class RedisDistributedLockProviderTests : TinyBddXunitBase, IAsync
     [Fact]
     public async Task IsAcquired_false_after_dispose()
     {
-        var provider = new RedisDistributedLockProvider(_connection!);
+        var provider = new RedisDistributedLockProvider(_fixture.Connection);
 
         var handle = await provider.TryAcquireAsync("acquired-check", TimeSpan.FromSeconds(10));
         Assert.NotNull(handle);

@@ -2,33 +2,22 @@ using ExperimentFramework.Distributed;
 using ExperimentFramework.Distributed.Redis;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
-using Testcontainers.Redis;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
 
 namespace ExperimentFramework.Tests.Distributed.Redis;
 
+[Collection("Redis")]
 [Feature("ServiceCollectionExtensions register Redis distributed services")]
 [Trait("Category", "integration")]
-public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IAsyncLifetime
+public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase
 {
-    private readonly RedisContainer _redis;
+    private readonly RedisFixture _fixture;
 
-    public RedisServiceCollectionExtensionsTests(ITestOutputHelper output) : base(output)
+    public RedisServiceCollectionExtensionsTests(RedisFixture fixture, ITestOutputHelper output) : base(output)
     {
-        _redis = new RedisBuilder("redis:7-alpine")
-            .Build();
-    }
-
-    public override async Task InitializeAsync()
-    {
-        await _redis.StartAsync();
-    }
-
-    public override async Task DisposeAsync()
-    {
-        await _redis.DisposeAsync();
+        _fixture = fixture;
     }
 
     [Scenario("AddExperimentDistributedRedis registers all services with connection string")]
@@ -36,7 +25,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     public async Task Registers_all_services_with_connection_string()
     {
         var services = new ServiceCollection();
-        services.AddExperimentDistributedRedis(_redis.GetConnectionString());
+        services.AddExperimentDistributedRedis(_fixture.ConnectionString);
         var sp = services.BuildServiceProvider();
 
         var connection = sp.GetService<IConnectionMultiplexer>();
@@ -57,7 +46,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     public async Task Applies_configuration()
     {
         var services = new ServiceCollection();
-        services.AddExperimentDistributedRedis(_redis.GetConnectionString(), opts =>
+        services.AddExperimentDistributedRedis(_fixture.ConnectionString, opts =>
         {
             opts.KeyPrefix = "custom:prefix:";
         });
@@ -75,7 +64,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     [Fact]
     public async Task Works_with_existing_connection()
     {
-        var connection = await ConnectionMultiplexer.ConnectAsync(_redis.GetConnectionString());
+        var connection = await ConnectionMultiplexer.ConnectAsync(_fixture.ConnectionString);
 
         var services = new ServiceCollection();
         services.AddSingleton<IConnectionMultiplexer>(connection);
@@ -100,7 +89,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     public Task Returns_service_collection()
         => Given("a service collection", () => new ServiceCollection())
             .When("adding redis distributed", services =>
-                services.AddExperimentDistributedRedis(_redis.GetConnectionString()))
+                services.AddExperimentDistributedRedis(_fixture.ConnectionString))
             .Then("returns the service collection", result => result != null)
             .AssertPassed();
 
@@ -109,7 +98,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     public async Task Services_are_singletons()
     {
         var services = new ServiceCollection();
-        services.AddExperimentDistributedRedis(_redis.GetConnectionString());
+        services.AddExperimentDistributedRedis(_fixture.ConnectionString);
         var sp = services.BuildServiceProvider();
 
         var state1 = sp.GetService<IDistributedExperimentState>();
@@ -128,7 +117,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     public async Task Without_configure_uses_defaults()
     {
         var services = new ServiceCollection();
-        services.AddExperimentDistributedRedis(_redis.GetConnectionString());
+        services.AddExperimentDistributedRedis(_fixture.ConnectionString);
         var sp = services.BuildServiceProvider();
 
         var options = sp.GetService<RedisDistributedStateOptions>();
@@ -143,7 +132,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     [Fact]
     public async Task Existing_connection_without_configure_uses_defaults()
     {
-        var connection = await ConnectionMultiplexer.ConnectAsync(_redis.GetConnectionString());
+        var connection = await ConnectionMultiplexer.ConnectAsync(_fixture.ConnectionString);
 
         var services = new ServiceCollection();
         services.AddSingleton<IConnectionMultiplexer>(connection);
@@ -163,7 +152,7 @@ public sealed class RedisServiceCollectionExtensionsTests : TinyBddXunitBase, IA
     [Fact]
     public async Task Prevents_duplicate_registrations()
     {
-        var connection = await ConnectionMultiplexer.ConnectAsync(_redis.GetConnectionString());
+        var connection = await ConnectionMultiplexer.ConnectAsync(_fixture.ConnectionString);
 
         var services = new ServiceCollection();
         services.AddSingleton<IConnectionMultiplexer>(connection);

@@ -52,7 +52,8 @@ jobs:
             --no-build \
             -p:ExcludeE2ETests=true \
             --filter "Category!=docs-screenshot&Category!=integration" \
-            --logger "console;verbosity=minimal"
+            --logger "console;verbosity=minimal" \
+            --blame-hang-timeout 60s
 
       - name: Collect coverage (per-project to avoid test-host crash on large projects)
         shell: bash
@@ -383,7 +384,8 @@ jobs:
             --no-build \
             --verbosity normal \
             -p:ExcludeE2ETests=true \
-            --filter "Category!=docs-screenshot&Category!=integration"
+            --filter "Category!=docs-screenshot&Category!=integration" \
+            --blame-hang-timeout 60s
 
       - name: Collect coverage (Release, per-project)
         shell: bash

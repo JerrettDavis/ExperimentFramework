@@ -1,47 +1,28 @@
 using System.Text.Json;
 using ExperimentFramework.Distributed.Redis;
-using StackExchange.Redis;
-using Testcontainers.Redis;
 using TinyBDD;
 using TinyBDD.Xunit;
 using Xunit.Abstractions;
 
 namespace ExperimentFramework.Tests.Distributed.Redis;
 
+[Collection("Redis")]
 [Feature("RedisDistributedState provides Redis-backed state storage")]
 [Trait("Category", "integration")]
-public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetime
+public sealed class RedisDistributedStateTests : TinyBddXunitBase
 {
-    private readonly RedisContainer _redis;
-    private IConnectionMultiplexer? _connection;
+    private readonly RedisFixture _fixture;
 
-    public RedisDistributedStateTests(ITestOutputHelper output) : base(output)
+    public RedisDistributedStateTests(RedisFixture fixture, ITestOutputHelper output) : base(output)
     {
-        _redis = new RedisBuilder("redis:7-alpine")
-            .Build();
-    }
-
-    public override async Task InitializeAsync()
-    {
-        await _redis.StartAsync();
-        _connection = await ConnectionMultiplexer.ConnectAsync(_redis.GetConnectionString());
-    }
-
-    public override async Task DisposeAsync()
-    {
-        if (_connection != null)
-        {
-            await _connection.CloseAsync();
-            _connection.Dispose();
-        }
-        await _redis.DisposeAsync();
+        _fixture = fixture;
     }
 
     [Scenario("State stores and retrieves simple values")]
     [Fact]
     public async Task Stores_and_retrieves_simple_values()
     {
-        var state = new RedisDistributedState(_connection!);
+        var state = new RedisDistributedState(_fixture.Connection);
 
         await state.SetAsync("test-key", "test-value");
         var result = await state.GetAsync<string>("test-key");
@@ -53,7 +34,7 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     [Fact]
     public async Task Stores_and_retrieves_complex_objects()
     {
-        var state = new RedisDistributedState(_connection!);
+        var state = new RedisDistributedState(_fixture.Connection);
         var testObject = new TestData { Id = 42, Name = "Test", Active = true };
 
         await state.SetAsync("complex-key", testObject);
@@ -69,7 +50,7 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     [Fact]
     public async Task Returns_default_for_missing_keys()
     {
-        var state = new RedisDistributedState(_connection!);
+        var state = new RedisDistributedState(_fixture.Connection);
 
         var result = await state.GetAsync<string>("non-existent-key");
 
@@ -80,7 +61,7 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     [Fact]
     public async Task Removes_values()
     {
-        var state = new RedisDistributedState(_connection!);
+        var state = new RedisDistributedState(_fixture.Connection);
         await state.SetAsync("to-remove", "value");
 
         await state.RemoveAsync("to-remove");
@@ -93,7 +74,7 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     [Fact]
     public async Task Increments_counters()
     {
-        var state = new RedisDistributedState(_connection!);
+        var state = new RedisDistributedState(_fixture.Connection);
 
         var result1 = await state.IncrementAsync("counter");
         var result2 = await state.IncrementAsync("counter");
@@ -108,7 +89,7 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     [Fact]
     public async Task Respects_expiration()
     {
-        var state = new RedisDistributedState(_connection!);
+        var state = new RedisDistributedState(_fixture.Connection);
 
         await state.SetAsync("expiring-key", "value", TimeSpan.FromMilliseconds(100));
         var immediate = await state.GetAsync<string>("expiring-key");
@@ -126,12 +107,12 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     public async Task Uses_custom_key_prefix()
     {
         var options = new RedisDistributedStateOptions { KeyPrefix = "custom:" };
-        var state = new RedisDistributedState(_connection!, options);
+        var state = new RedisDistributedState(_fixture.Connection, options);
 
         await state.SetAsync("prefixed", "value");
 
         // Verify the key was stored with the custom prefix
-        var db = _connection!.GetDatabase();
+        var db = _fixture.Connection.GetDatabase();
         var exists = await db.KeyExistsAsync("custom:prefixed");
         Assert.True(exists);
 
@@ -150,13 +131,13 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
                 PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
             }
         };
-        var state = new RedisDistributedState(_connection!, options);
+        var state = new RedisDistributedState(_fixture.Connection, options);
         var testObject = new TestDataWithLongName { UserId = 1, UserName = "snake", IsActive = false };
 
         await state.SetAsync("json-test", testObject);
 
         // Verify the JSON used snake_case
-        var db = _connection!.GetDatabase();
+        var db = _fixture.Connection.GetDatabase();
         var json = await db.StringGetAsync("experiment:state:json-test");
         Assert.Contains("user_id", json.ToString()); // snake_case
         Assert.Contains("user_name", json.ToString());
@@ -171,7 +152,7 @@ public sealed class RedisDistributedStateTests : TinyBddXunitBase, IAsyncLifetim
     [Fact]
     public async Task Handles_null_options()
     {
-        var state = new RedisDistributedState(_connection!, null);
+        var state = new RedisDistributedState(_fixture.Connection, null);
 
         await state.SetAsync("null-opts", "value");
         var result = await state.GetAsync<string>("null-opts");
