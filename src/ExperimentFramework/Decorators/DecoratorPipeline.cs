@@ -1,3 +1,5 @@
+using PatternKit.Behavioral.Chain;
+
 namespace ExperimentFramework.Decorators;
 
 /// <summary>
@@ -14,7 +16,7 @@ namespace ExperimentFramework.Decorators;
 /// </remarks>
 public sealed class DecoratorPipeline
 {
-    private readonly IExperimentDecorator[] _decorators;
+    private readonly AsyncActionChain<DecoratorInvocationState> _chain;
 
     /// <summary>
     /// Initializes a new decorator pipeline by creating decorators from the provided factories.
@@ -26,7 +28,10 @@ public sealed class DecoratorPipeline
     /// This ensures each decorator is created once for the pipeline instance.
     /// </remarks>
     public DecoratorPipeline(IEnumerable<IExperimentDecoratorFactory> factories, IServiceProvider sp)
-        => _decorators = factories.Select(f => f.Create(sp)).ToArray();
+    {
+        var decorators = factories.Select(f => f.Create(sp)).ToArray();
+        _chain = BuildChain(decorators);
+    }
 
     /// <summary>
     /// Executes the pipeline for a given invocation context synchronously.
@@ -42,19 +47,10 @@ public sealed class DecoratorPipeline
     /// </remarks>
     public object? Invoke(InvocationContext ctx, Func<object?> terminal)
     {
-        var next = (Func<ValueTask<object?>>)AsyncTerminal;
-
-        // Outer-to-inner in registration order.
-        for (var i = _decorators.Length - 1; i >= 0; i--)
-        {
-            var d = _decorators[i];
-            var capturedNext = next;
-            next = () => d.InvokeAsync(ctx, capturedNext);
-        }
-
-        return next().AsTask().GetAwaiter().GetResult();
-
-        ValueTask<object?> AsyncTerminal() => new(terminal());
+        return InvokeAsync(ctx, () => new ValueTask<object?>(terminal()))
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
     }
 
     /// <summary>
@@ -74,18 +70,47 @@ public sealed class DecoratorPipeline
     /// The returned task represents the entire decorated execution.
     /// </para>
     /// </remarks>
-    public ValueTask<object?> InvokeAsync(InvocationContext ctx, Func<ValueTask<object?>> terminal)
+    public async ValueTask<object?> InvokeAsync(InvocationContext ctx, Func<ValueTask<object?>> terminal)
     {
-        var next = terminal;
+        var state = new DecoratorInvocationState(ctx, terminal);
 
-        // Outer-to-inner in registration order.
-        for (var i = _decorators.Length - 1; i >= 0; i--)
+        await _chain.ExecuteAsync(state).ConfigureAwait(false);
+
+        return state.Result;
+    }
+
+    private static AsyncActionChain<DecoratorInvocationState> BuildChain(IReadOnlyList<IExperimentDecorator> decorators)
+    {
+        var builder = AsyncActionChain<DecoratorInvocationState>.Create();
+
+        foreach (var decorator in decorators)
         {
-            var d = _decorators[i];
-            var capturedNext = next;
-            next = () => d.InvokeAsync(ctx, capturedNext);
+            builder.Use(async (state, ct, next) =>
+            {
+                state.Result = await decorator.InvokeAsync(
+                    state.Context,
+                    async () =>
+                    {
+                        await next(state, ct).ConfigureAwait(false);
+                        return state.Result;
+                    }).ConfigureAwait(false);
+            });
         }
 
-        return next();
+        builder.Finally(async (state, _) =>
+        {
+            state.Result = await state.Terminal().ConfigureAwait(false);
+        });
+
+        return builder.Build();
+    }
+
+    private sealed class DecoratorInvocationState(
+        InvocationContext context,
+        Func<ValueTask<object?>> terminal)
+    {
+        public InvocationContext Context { get; } = context;
+        public Func<ValueTask<object?>> Terminal { get; } = terminal;
+        public object? Result { get; set; }
     }
 }

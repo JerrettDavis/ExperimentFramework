@@ -267,6 +267,8 @@ The proxy is created once per scope (for scoped services), but trials are resolv
 ## Decorator Pipeline
 
 Decorators wrap the execution of trials to provide cross-cutting concerns without modifying trial implementations.
+The runtime pipeline is composed with PatternKit's async chain primitive, but the public
+`IExperimentDecorator` and `IExperimentDecoratorFactory` contracts remain the integration surface for applications.
 
 ### How Decorators Work
 

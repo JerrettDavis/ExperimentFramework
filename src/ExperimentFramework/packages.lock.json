@@ -58,6 +58,12 @@
           "Microsoft.Extensions.Logging": "8.0.1"
         }
       },
+      "PatternKit.Core": {
+        "type": "Direct",
+        "requested": "[0.147.1, )",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "Microsoft.Bcl.TimeProvider": {
         "type": "Transitive",
         "resolved": "8.0.1",
@@ -173,6 +179,12 @@
           "Microsoft.Extensions.Configuration.Binder": "8.0.2",
           "Microsoft.Extensions.Logging": "8.0.1"
         }
+      },
+      "PatternKit.Core": {
+        "type": "Direct",
+        "requested": "[0.147.1, )",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
       },
       "Microsoft.Bcl.TimeProvider": {
         "type": "Transitive",
@@ -294,6 +306,12 @@
           "Microsoft.Extensions.Configuration.Binder": "8.0.2",
           "Microsoft.Extensions.Logging": "8.0.1"
         }
+      },
+      "PatternKit.Core": {
+        "type": "Direct",
+        "requested": "[0.147.1, )",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
       },
       "Microsoft.Bcl.TimeProvider": {
         "type": "Transitive",
