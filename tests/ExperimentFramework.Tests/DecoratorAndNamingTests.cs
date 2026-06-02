@@ -183,6 +183,69 @@ public sealed class DecoratorAndNamingTests(ITestOutputHelper output) : TinyBddX
         await sp.DisposeAsync();
     }
 
+    [Scenario("Decorator pipeline invokes sync terminal through PatternKit chain")]
+    [Fact]
+    public Task DecoratorPipeline_invokes_sync_terminal_through_patternkit_chain()
+        => Given("pipeline with a decorator", () =>
+        {
+            var executionOrder = new List<string>();
+            var decorator = new TestDecorator("D1", executionOrder);
+            var factory = new TestDecoratorFactory(decorator);
+            var sp = new ServiceCollection().BuildServiceProvider();
+            var pipeline = new DecoratorPipeline([factory], sp);
+            var context = new InvocationContext(typeof(ITestService), "Execute", "test-trial", []);
+
+            return new SyncPipelineScenario(sp, pipeline, context, executionOrder);
+        })
+        .When("invoke synchronous terminal", s =>
+        {
+            var result = s.Pipeline.Invoke(s.Context, () =>
+            {
+                s.ExecutionOrder.Add("terminal");
+                return "sync-result";
+            });
+
+            return s with { Result = result };
+        })
+        .Then("returns terminal result", s => Equals("sync-result", s.Result))
+        .And("preserves decorator order", s => s.ExecutionOrder.SequenceEqual(["D1-before", "terminal", "D1-after"]))
+        .Finally(s => s.ServiceProvider.Dispose())
+        .AssertPassed();
+
+    [Scenario("Decorator pipeline allows short circuiting decorators")]
+    [Fact]
+    public Task DecoratorPipeline_allows_short_circuiting_decorators()
+        => Given("pipeline with short circuiting decorator", () =>
+        {
+            var executionOrder = new List<string>();
+            var shortCircuit = new ShortCircuitDecorator("cached", executionOrder);
+            var laterDecorator = new TestDecorator("D2", executionOrder);
+            var sp = new ServiceCollection().BuildServiceProvider();
+            var pipeline = new DecoratorPipeline(
+                [
+                    new TestDecoratorFactory(shortCircuit),
+                    new TestDecoratorFactory(laterDecorator)
+                ],
+                sp);
+            var context = new InvocationContext(typeof(ITestService), "Execute", "test-trial", []);
+
+            return new SyncPipelineScenario(sp, pipeline, context, executionOrder);
+        })
+        .When("invoke pipeline", s =>
+        {
+            var result = s.Pipeline.Invoke(s.Context, () =>
+            {
+                s.ExecutionOrder.Add("terminal");
+                return "terminal-result";
+            });
+
+            return s with { Result = result };
+        })
+        .Then("returns short circuit result", s => Equals("cached", s.Result))
+        .And("does not invoke downstream decorators or terminal", s => s.ExecutionOrder.SequenceEqual(["short-circuit"]))
+        .Finally(s => s.ServiceProvider.Dispose())
+        .AssertPassed();
+
     [Scenario("Default naming convention generates feature flag names")]
     [Fact]
     public void DefaultNamingConvention_generates_feature_flag_names()
@@ -340,6 +403,24 @@ internal class TestDecorator(string name, List<string> log) : IExperimentDecorat
 internal class TestDecoratorFactory(IExperimentDecorator decorator) : IExperimentDecoratorFactory
 {
     public IExperimentDecorator Create(IServiceProvider serviceProvider) => decorator;
+}
+
+internal sealed class ShortCircuitDecorator(string result, List<string> log) : IExperimentDecorator
+{
+    public ValueTask<object?> InvokeAsync(InvocationContext context, Func<ValueTask<object?>> next)
+    {
+        log.Add("short-circuit");
+        return ValueTask.FromResult<object?>(result);
+    }
+}
+
+internal sealed record SyncPipelineScenario(
+    ServiceProvider ServiceProvider,
+    DecoratorPipeline Pipeline,
+    InvocationContext Context,
+    List<string> ExecutionOrder)
+{
+    public object? Result { get; init; }
 }
 
 internal class CustomTestNamingConvention : IExperimentNamingConvention
