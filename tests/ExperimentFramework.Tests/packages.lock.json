@@ -533,6 +533,11 @@
           "OpenTelemetry": "1.14.0"
         }
       },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "Pipelines.Sockets.Unofficial": {
         "type": "Transitive",
         "resolved": "2.2.8",
@@ -659,7 +664,8 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Microsoft.FeatureManagement": "[4.4.0, )"
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
         }
       },
       "experimentframework.admin": {
