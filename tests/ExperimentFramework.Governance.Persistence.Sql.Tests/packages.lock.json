@@ -379,6 +379,11 @@
         "resolved": "13.0.3",
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "System.ClientModel": {
         "type": "Transitive",
         "resolved": "1.5.1",
@@ -479,7 +484,8 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Microsoft.FeatureManagement": "[4.4.0, )"
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
         }
       },
       "experimentframework.audit": {
