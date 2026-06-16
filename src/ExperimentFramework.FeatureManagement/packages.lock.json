@@ -111,6 +111,11 @@
         "resolved": "10.0.1",
         "contentHash": "DO8XrJkp5x4PddDuc/CH37yDBCs9BYN6ijlKyR3vMb55BP1Vwh90vOX8bNfnKxr5B2qEI3D8bvbY1fFbDveDHQ=="
       },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "experimentframework": {
         "type": "Project",
         "dependencies": {
@@ -119,7 +124,8 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Microsoft.FeatureManagement": "[4.4.0, )"
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
         }
       }
     },
@@ -234,6 +240,11 @@
         "resolved": "10.0.1",
         "contentHash": "DO8XrJkp5x4PddDuc/CH37yDBCs9BYN6ijlKyR3vMb55BP1Vwh90vOX8bNfnKxr5B2qEI3D8bvbY1fFbDveDHQ=="
       },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "System.Diagnostics.DiagnosticSource": {
         "type": "Transitive",
         "resolved": "10.0.1",
@@ -247,7 +258,8 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Microsoft.FeatureManagement": "[4.4.0, )"
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
         }
       }
     },
@@ -362,6 +374,11 @@
         "resolved": "10.0.1",
         "contentHash": "DO8XrJkp5x4PddDuc/CH37yDBCs9BYN6ijlKyR3vMb55BP1Vwh90vOX8bNfnKxr5B2qEI3D8bvbY1fFbDveDHQ=="
       },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "System.Diagnostics.DiagnosticSource": {
         "type": "Transitive",
         "resolved": "10.0.1",
@@ -375,7 +392,8 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Microsoft.FeatureManagement": "[4.4.0, )"
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
         }
       }
     }

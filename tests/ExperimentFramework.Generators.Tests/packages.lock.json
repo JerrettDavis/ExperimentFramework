@@ -402,6 +402,11 @@
         "resolved": "6.3.4",
         "contentHash": "mQW9bwsWJq30lacl33MMVLBlrit5ClNEpGzKryIuLfP1UTL6feQK1yzA/5IQXdtjXvUEoI5bo1Axjen5lOm7Bg=="
       },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
       "System.ComponentModel.Composition": {
         "type": "Transitive",
         "resolved": "4.5.0",
@@ -521,7 +526,8 @@
           "Microsoft.Extensions.DependencyInjection": "[10.0.1, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Microsoft.FeatureManagement": "[4.4.0, )"
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
         }
       },
       "experimentframework.generators": {
