@@ -17,7 +17,7 @@ public class GovernanceLifecyclePage : IGovernanceSelectable
     private ILocator TransitionHistorySection => _page.Locator(".history-card");
     private ILocator ActorInput              => _page.Locator("input[name*='actor' i], input[placeholder*='actor' i]");
     private ILocator ReasonInput             => _page.Locator("textarea[name*='reason' i], input[name*='reason' i], textarea[placeholder*='reason' i]");
-    private ILocator NotConfiguredMessage    => _page.Locator(".not-configured, [data-not-configured], .empty-state");
+    private ILocator NotConfiguredMessage    => _page.Locator(".not-configured, [data-not-configured], .empty-state, .info-message");
 
     public GovernanceLifecyclePage(IPage page)
     {
