@@ -67,6 +67,14 @@ public class ExperimentsPage
     {
         var button = CategoryButtons.Filter(new LocatorFilterOptions { HasText = category });
         await button.First.ClickAsync();
+
+        // The click only dispatches the Blazor Server event over SignalR; the
+        // filtered list is not updated until the server round-trip completes and
+        // patches the DOM. Wait for the clicked button to show the "active" class
+        // (set once DashboardState.ExperimentFilterCategory reflects the new value)
+        // so callers don't read the experiment list before the filter is applied.
+        var activeButton = _page.Locator($".category-btn.active[data-category=\"{category}\" i]");
+        await activeButton.First.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
     }
 
     /// <summary>Expands (opens) the experiment row with the given <paramref name="name"/>.</summary>
