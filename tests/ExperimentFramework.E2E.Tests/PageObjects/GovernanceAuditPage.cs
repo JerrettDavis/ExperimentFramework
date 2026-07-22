@@ -166,6 +166,21 @@ public class GovernanceAuditPage : IGovernanceSelectable
         await NotConfiguredMessage.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
     /// <summary>
+    /// Waits until the audit page has settled into one of its two valid end states:
+    /// at least one audit entry is visible, OR the not-configured / empty-state message
+    /// is visible. Using a single combined wait (rather than branching on an instantaneous
+    /// visibility probe) avoids a race where the empty-state has not yet rendered on the
+    /// InteractiveServer circuit and the check wrongly concludes "configured", then hangs
+    /// waiting for audit entries that will never appear.
+    /// </summary>
+    public async Task AssertAuditEntriesOrNotConfiguredAsync() =>
+        await AuditEntries.Or(NotConfiguredMessage).First.WaitForAsync(new LocatorWaitForOptions
+        {
+            State   = WaitForSelectorState.Visible,
+            Timeout = 30_000,
+        });
+
+    /// <summary>
     /// Asserts that each visible audit entry matches the given <paramref name="expectedType"/>.
     /// </summary>
     public async Task AssertFilteredByTypeAsync(string expectedType)
