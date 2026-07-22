@@ -64,15 +64,10 @@ public class GovernanceAuditStepDefinitions
     {
         // Governance persistence may not be registered in the AspireDemo.
         // Accept either real audit entries OR the not-configured info message.
-        var isConfigured = await _page.IsConfiguredAsync();
-        if (isConfigured)
-        {
-            await _page.AssertAuditEntriesVisibleAsync();
-        }
-        else
-        {
-            await _page.AssertNotConfiguredMessageVisibleAsync();
-        }
+        // Wait for whichever end state settles first instead of branching on an
+        // instantaneous visibility probe, which can race the InteractiveServer
+        // render and hang waiting for entries that never arrive.
+        await _page.AssertAuditEntriesOrNotConfiguredAsync();
     }
 
     [Then(@"only state transition entries should be shown")]
