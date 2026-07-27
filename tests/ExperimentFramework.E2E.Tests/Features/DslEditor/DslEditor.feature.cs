@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.DslEditor
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/DslEditor", "DSL Editor", "  As an experiment administrator\r\n  I want to write and validate experiment defin" +
-                "itions in YAML\r\n  So that I can configure experiments using the DSL", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/DslEditor", "DSL Editor", "  As an experiment administrator\n  I want to write and validate experiment defini" +
+                "tions in YAML\n  So that I can configure experiments using the DSL", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

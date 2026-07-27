@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Configuration
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Configuration", "Configuration View", "  As a dashboard user\r\n  I want to view the framework configuration\r\n  So that I " +
-                "can understand the current setup", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Configuration", "Configuration View", "  As a dashboard user\n  I want to view the framework configuration\n  So that I ca" +
+                "n understand the current setup", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

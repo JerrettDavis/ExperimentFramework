@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Targeting
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Targeting", "Targeting Rules", "  As a dashboard user\r\n  I want to view targeting rules for experiments\r\n  So tha" +
-                "t I can understand how users are segmented", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Targeting", "Targeting Rules", "  As a dashboard user\n  I want to view targeting rules for experiments\n  So that " +
+                "I can understand how users are segmented", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

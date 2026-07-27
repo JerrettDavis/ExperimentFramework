@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Authentication
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Authentication", "Authentication", "  As a user of the ExperimentFramework Dashboard\r\n  I need to authenticate before" +
-                " accessing the dashboard\r\n  So that experiment data is protected", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Authentication", "Authentication", "  As a user of the ExperimentFramework Dashboard\n  I need to authenticate before " +
+                "accessing the dashboard\n  So that experiment data is protected", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

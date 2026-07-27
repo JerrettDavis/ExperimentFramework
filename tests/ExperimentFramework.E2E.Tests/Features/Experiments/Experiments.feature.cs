@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Experiments
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Experiments", "Experiments Management", "  As an experiment administrator\r\n  I want to view and manage experiments\r\n  So t" +
-                "hat I can control A/B test configurations", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Experiments", "Experiments Management", "  As an experiment administrator\n  I want to view and manage experiments\n  So tha" +
+                "t I can control A/B test configurations", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
