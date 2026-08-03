@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Governance
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Governance", "Governance Lifecycle Management", "  As an experiment administrator\r\n  I want to manage experiment lifecycle states\r" +
-                "\n  So that experiments follow proper governance workflows", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Governance", "Governance Lifecycle Management", "  As an experiment administrator\n  I want to manage experiment lifecycle states\n " +
+                " So that experiments follow proper governance workflows", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

@@ -28,8 +28,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Experiments
                 "docs-screenshot",
                 "screenshot-area:experiments"};
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Experiments", "Docs Tutorial 1 — Your First Experiment", "  Captures all screenshots for the \"Your first experiment\" tutorial page.\r\n  Uses" +
-                " the checkout-button-v2 seeded experiment as the worked example.", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Experiments", "Docs Tutorial 1 — Your First Experiment", "  Captures all screenshots for the \"Your first experiment\" tutorial page.\n  Uses " +
+                "the checkout-button-v2 seeded experiment as the worked example.", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

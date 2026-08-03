@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Analytics
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Analytics", "Analytics Dashboard", "  As an experiment analyst\r\n  I want to view experiment analytics\r\n  So that I ca" +
-                "n understand experiment performance", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Analytics", "Analytics Dashboard", "  As an experiment analyst\n  I want to view experiment analytics\n  So that I can " +
+                "understand experiment performance", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
