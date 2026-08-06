@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.Governance
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Governance", "Governance Audit Trail", "  As an experiment administrator\r\n  I want to view the governance audit trail\r\n  " +
-                "So that I can track all governance actions", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/Governance", "Governance Audit Trail", "  As an experiment administrator\n  I want to view the governance audit trail\n  So" +
+                " that I can track all governance actions", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         

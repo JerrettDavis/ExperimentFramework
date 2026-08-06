@@ -24,8 +24,8 @@ namespace ExperimentFramework.E2E.Tests.Features.HypothesisTesting
         
         private static string[] featureTags = ((string[])(null));
         
-        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/HypothesisTesting", "Hypothesis Testing Dashboard", "  As an experiment analyst\r\n  I want to view hypothesis test results\r\n  So that I" +
-                " can make data-driven decisions", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
+        private static global::Reqnroll.FeatureInfo featureInfo = new global::Reqnroll.FeatureInfo(new global::System.Globalization.CultureInfo("en"), "Features/HypothesisTesting", "Hypothesis Testing Dashboard", "  As an experiment analyst\n  I want to view hypothesis test results\n  So that I c" +
+                "an make data-driven decisions", global::Reqnroll.ProgrammingLanguage.CSharp, featureTags, InitializeCucumberMessages());
         
         private global::Xunit.Abstractions.ITestOutputHelper _testOutputHelper;
         
