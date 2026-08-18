@@ -462,8 +462,8 @@
       },
       "Microsoft.OpenApi": {
         "type": "Transitive",
-        "resolved": "2.0.0",
-        "contentHash": "GGYLfzV/G/ct80OZ45JxnWP7NvMX1BCugn/lX7TH5o0lcVaviavsLMTxmFV2AybXWjbi3h6FF1vgZiTK6PXndw=="
+        "resolved": "2.7.5",
+        "contentHash": "0FA67RSnRM4tcBKqiqVu/HPdZ9+QOKbmeRjxRUGTCjPU4C0bmUhd97Dso7Yild5P7nOV6GxJ2xrK0Kv/O9xp0w=="
       },
       "Microsoft.TestPlatform.ObjectModel": {
         "type": "Transitive",
@@ -504,8 +504,8 @@
       },
       "OpenTelemetry.Api": {
         "type": "Transitive",
-        "resolved": "1.14.0",
-        "contentHash": "foHci6viUw1f3gUB8qzz3Rk02xZIWMo299X0rxK0MoOWok/3dUVru+KKdY7WIoSHwRGpxGKkmAz9jIk2RFNbsQ=="
+        "resolved": "1.15.3",
+        "contentHash": "fX+fkCysfPut+qCcT3bKqyX4QN9Saf4CgX8HLOHywEVD+Xr7sULtfuypITpoDysjx8R59dn/3mWhgimMH8cm/g=="
       },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
@@ -708,6 +708,7 @@
           "Microsoft.FeatureManagement": "[4.4.0, )",
           "Microsoft.FeatureManagement.AspNetCore": "[4.4.0, )",
           "OpenTelemetry": "[1.14.0, )",
+          "OpenTelemetry.Api": "[1.15.3, )",
           "OpenTelemetry.Exporter.Console": "[1.14.0, )",
           "OpenTelemetry.Extensions.Hosting": "[1.14.0, )"
         }
@@ -813,7 +814,8 @@
           "ExperimentFramework": "[1.0.0, )",
           "ExperimentFramework.StickyRouting": "[1.0.0, )",
           "Microsoft.AspNetCore.OpenApi": "[10.0.1, )",
-          "Microsoft.FeatureManagement.AspNetCore": "[4.4.0, )"
+          "Microsoft.FeatureManagement.AspNetCore": "[4.4.0, )",
+          "Microsoft.OpenApi": "[2.7.5, )"
         }
       },
       "experimentframework.science": {
