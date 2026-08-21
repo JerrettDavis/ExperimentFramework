@@ -4,7 +4,7 @@ namespace ExperimentFramework.E2E.Tests.PageObjects;
 
 /// <summary>
 /// Page Object Model for the DSL editor page at <c>/dashboard/dsl</c>.
-/// Uses a Monaco editor loaded from CDN — requires waiting for editor initialization.
+/// Uses a Monaco editor bundled locally — requires waiting for editor initialization.
 /// </summary>
 public class DslEditorPage
 {
@@ -41,7 +41,7 @@ public class DslEditorPage
     }
 
     /// <summary>
-    /// Waits for the Monaco editor to finish loading from CDN.
+    /// Waits for the Monaco editor to finish loading.
     /// Monaco signals readiness by adding the <c>.monaco-editor</c> class to the container
     /// and exposing <c>window.monaco</c>.
     /// </summary>

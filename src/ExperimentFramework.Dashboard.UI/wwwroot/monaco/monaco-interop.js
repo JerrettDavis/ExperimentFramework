@@ -103,7 +103,7 @@ window.monacoEditor = {
         }
     },
 
-    // Load Monaco from CDN (called immediately on script load)
+    // Load Monaco from local bundled files (called immediately on script load)
     loadMonaco: function() {
         if (window.monacoLoading) {
             return window.monacoLoading;
@@ -111,10 +111,16 @@ window.monacoEditor = {
 
         window.monacoLoading = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.min.js';
+            script.src = '/_content/ExperimentFramework.Dashboard.UI/monaco/vs/loader.js';
             script.onload = () => {
+                const vsBase = '/_content/ExperimentFramework.Dashboard.UI/monaco/vs';
+                window.MonacoEnvironment = {
+                    getWorkerUrl: function(moduleId, label) {
+                        return vsBase + '/base/worker/workerMain.js';
+                    }
+                };
                 require.config({
-                    paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }
+                    paths: { 'vs': vsBase }
                 });
                 require(['vs/editor/editor.main'], () => {
                     // Configure YAML language
