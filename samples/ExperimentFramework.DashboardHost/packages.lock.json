@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.AspNetCore.App.Internal.Assets": {
+        "type": "Direct",
+        "requested": "[10.0.10, )",
+        "resolved": "10.0.10",
+        "contentHash": "8k0KoYKvNrSqP8E3oDJMBVKavlTEE6BacdLGtEDcxv9Hz0XxWFkD6JdLJsxXUlGeAfZ6YfvWmxKenl73qeCTSA=="
+      },
+      "Microsoft.FeatureManagement.AspNetCore": {
+        "type": "Direct",
+        "requested": "[4.0.0, )",
+        "resolved": "4.0.0",
+        "contentHash": "BI4zVyKPrLrCGeIbBAgc9wC/ctm+MY2biJY1ZTxaUjMWwyZlwWrPAKsiuSUCu7aJtW/4z6kbpLNOhXTM2GwhvA==",
+        "dependencies": {
+          "Microsoft.FeatureManagement": "4.0.0"
+        }
+      },
+      "Microsoft.Bcl.TimeProvider": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "C7kWHJnMRY7EvJev2S8+yJHZ1y7A4ZlLbA4NE+O23BDIAN5mHeqND1m+SKv1ChRS5YlCDW7yAMUe7lttRsJaAA=="
+      },
+      "Microsoft.FeatureManagement": {
+        "type": "Transitive",
+        "resolved": "4.4.0",
+        "contentHash": "qxvGAv9WJHYfOpixWywJTa1WNTPy5MbQiv+O+UlE6E/LVofiM1+YRR6m41zsHIbAGm1S0PQ0QFuAsOw9DkoKsg==",
+        "dependencies": {
+          "Microsoft.Bcl.TimeProvider": "8.0.1"
+        }
+      },
+      "PatternKit.Core": {
+        "type": "Transitive",
+        "resolved": "0.147.1",
+        "contentHash": "fe5pVffLgFiMn0YLHymv7syjpMO88LbgoLAgi++LQOKHP7xpHbAIKlBHLI4g4m7ZX8BvW52z/C1dirY/ypL0EQ=="
+      },
+      "experimentframework": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.FeatureManagement": "[4.4.0, )",
+          "PatternKit.Core": "[0.147.1, )"
+        }
+      },
+      "experimentframework.admin": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Governance": "[1.0.0, )"
+        }
+      },
+      "experimentframework.audit": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )"
+        }
+      },
+      "experimentframework.dashboard": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Admin": "[1.0.0, )",
+          "ExperimentFramework.Dashboard.Abstractions": "[1.0.0, )",
+          "ExperimentFramework.Dashboard.Api": "[1.0.0, )",
+          "ExperimentFramework.Dashboard.UI": "[1.0.0, )"
+        }
+      },
+      "experimentframework.dashboard.abstractions": {
+        "type": "Project"
+      },
+      "experimentframework.dashboard.api": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Admin": "[1.0.0, )",
+          "ExperimentFramework.Dashboard.Abstractions": "[1.0.0, )",
+          "ExperimentFramework.Governance": "[1.0.0, )",
+          "ExperimentFramework.Governance.Persistence": "[1.0.0, )"
+        }
+      },
+      "experimentframework.dashboard.ui": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Dashboard.Abstractions": "[1.0.0, )"
+        }
+      },
+      "experimentframework.governance": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework": "[1.0.0, )",
+          "ExperimentFramework.Audit": "[1.0.0, )"
+        }
+      },
+      "experimentframework.governance.persistence": {
+        "type": "Project",
+        "dependencies": {
+          "ExperimentFramework.Governance": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
