@@ -25,15 +25,42 @@ public class DashboardDriver
     // -------------------------------------------------------------------------
 
     /// <summary>Navigates to <c>{BaseUrl}{path}</c> and waits until DOM content is loaded.</summary>
-    public async Task NavigateToAsync(string path)
+    public async Task NavigateToAsync(string path, bool waitForBlazorConnection = true)
     {
         var url = $"{_config.BaseUrl.TrimEnd('/')}{path}";
-        await Page.GotoAsync(url, new PageGotoOptions
+        var blazorConnected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        IWebSocket? blazorSocket = null;
+        EventHandler<IWebSocketFrame>? frameHandler = null;
+        EventHandler<IWebSocket> socketHandler = (_, socket) =>
         {
-            // Use Load (not NetworkIdle) so Blazor's persistent SignalR connection
-            // doesn't block navigation from completing.
-            WaitUntil = WaitUntilState.Load
-        });
+            if (!socket.Url.Contains("/_blazor", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            blazorSocket = socket;
+            frameHandler = (_, _) => blazorConnected.TrySetResult();
+            socket.FrameReceived += frameHandler;
+        };
+
+        Page.WebSocket += socketHandler;
+        try
+        {
+            await Page.GotoAsync(url, new PageGotoOptions
+            {
+                // Use Load (not NetworkIdle) so Blazor's persistent SignalR connection
+                // doesn't block navigation from completing.
+                WaitUntil = WaitUntilState.Load
+            });
+
+            if (waitForBlazorConnection
+                && new Uri(Page.Url).AbsolutePath.StartsWith("/dashboard", StringComparison.OrdinalIgnoreCase))
+                await blazorConnected.Task.WaitAsync(TimeSpan.FromMilliseconds(_config.DefaultTimeoutMs));
+        }
+        finally
+        {
+            Page.WebSocket -= socketHandler;
+            if (blazorSocket is not null && frameHandler is not null)
+                blazorSocket.FrameReceived -= frameHandler;
+        }
     }
 
     /// <summary>Returns true when the current URL ends with <paramref name="expectedPath"/>.</summary>
