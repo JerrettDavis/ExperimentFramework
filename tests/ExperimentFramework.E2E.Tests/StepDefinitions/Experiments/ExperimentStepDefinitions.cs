@@ -61,7 +61,7 @@ public class ExperimentStepDefinitions
     [When(@"I navigate to the experiments page")]
     public async Task WhenINavigateToTheExperimentsPage()
     {
-        await _dashboard.NavigateToAsync("/dashboard/experiments");
+        await _dashboard.NavigateToAsync("/dashboard/experiments", waitForBlazorConnection: false);
     }
 
     [When(@"I filter experiments by category {string}")]
