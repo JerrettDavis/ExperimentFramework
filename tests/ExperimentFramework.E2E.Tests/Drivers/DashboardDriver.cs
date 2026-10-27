@@ -37,7 +37,11 @@ public class DashboardDriver
                 return;
 
             blazorSocket = socket;
-            frameHandler = (_, _) => blazorConnected.TrySetResult();
+            frameHandler = (_, frame) =>
+            {
+                if (frame.Text?.Contains("JS.EndUpdateRootComponents", StringComparison.Ordinal) == true)
+                    blazorConnected.TrySetResult();
+            };
             socket.FrameReceived += frameHandler;
         };
 
