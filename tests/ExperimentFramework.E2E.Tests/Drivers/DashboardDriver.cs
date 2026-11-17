@@ -142,8 +142,18 @@ public class DashboardDriver
     // -------------------------------------------------------------------------
 
     /// <summary>Takes a screenshot and saves it to the <paramref name="filePath"/>.</summary>
-    public async Task TakeScreenshotAsync(string filePath)
+    public async Task TakeScreenshotAsync(string filePath, bool settleRendering = false)
     {
+        if (settleRendering)
+        {
+            await Page.EvaluateAsync("""
+                async () => {
+                    await document.fonts.ready;
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                }
+                """);
+        }
+
         await Page.ScreenshotAsync(new PageScreenshotOptions
         {
             Path     = filePath,
