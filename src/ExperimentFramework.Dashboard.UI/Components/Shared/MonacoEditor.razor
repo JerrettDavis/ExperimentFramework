@@ -9,6 +9,7 @@
     private string _editorId = $"monaco-editor-{Guid.NewGuid():N}";
     private DotNetObjectReference<MonacoEditor>? _dotNetRef;
     private bool _initialized;
+    private bool _disposed;
     private string _currentValue = "";
 
     [Parameter] public string Value { get; set; } = "";
@@ -25,23 +26,36 @@
         if (firstRender)
         {
             _dotNetRef = DotNetObjectReference.Create(this);
-            _currentValue = Value;
-
-            var options = new
-            {
-                value = Value,
-                language = Language,
-                readOnly = ReadOnly,
-                minimap = Minimap,
-                fontSize = FontSize
-            };
-
             try
             {
                 // Ensure Monaco is loaded before initializing
                 await JS.InvokeVoidAsync("monacoEditor.loadMonaco");
+                if (_disposed) return;
+
+                // Parameters can change while Monaco's scripts are loading.
+                var initialValue = Value;
+                _currentValue = initialValue;
+                var options = new
+                {
+                    value = _currentValue,
+                    language = Language,
+                    readOnly = ReadOnly,
+                    minimap = Minimap,
+                    fontSize = FontSize
+                };
                 await JS.InvokeVoidAsync("monacoEditor.initialize", _editorId, options, _dotNetRef);
+                if (_disposed)
+                {
+                    await JS.InvokeVoidAsync("monacoEditor.dispose", _editorId);
+                    return;
+                }
                 _initialized = true;
+
+                // Initialization can also yield while a new external value arrives.
+                if (Value != initialValue && _currentValue == initialValue)
+                {
+                    await SetValueAsync(Value);
+                }
 
                 if (Markers != null && Markers.Count > 0)
                 {
@@ -151,6 +165,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         if (_initialized)
         {
             try

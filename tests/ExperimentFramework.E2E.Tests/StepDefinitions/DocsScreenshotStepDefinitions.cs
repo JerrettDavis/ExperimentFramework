@@ -36,6 +36,6 @@ public class DocsScreenshotStepDefinitions
 
         var filePath = Path.Combine(RepoRoot, "docs", "images", "screenshots", area, $"{name}.png");
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        await _dashboardDriver.TakeScreenshotAsync(filePath);
+        await _dashboardDriver.TakeScreenshotAsync(filePath, settleRendering: true);
     }
 }

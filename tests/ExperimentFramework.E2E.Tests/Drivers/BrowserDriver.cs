@@ -32,19 +32,23 @@ public sealed class BrowserDriver : IAsyncDisposable
     /// Creates a fresh Playwright instance, browser, and browser context.
     /// Called by <c>ScenarioHooks.BeforeScenario</c>.
     /// </summary>
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(bool deterministicRendering = false)
     {
         _playwright = await Playwright.CreateAsync();
 
         _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
             Headless = _config.Headless,
-            SlowMo   = _config.SlowMo
+            SlowMo   = _config.SlowMo,
+            // Chromium recommends this baseline Skia path for pixel-exact web tests.
+            // Hosted runners expose different SIMD capabilities across machines.
+            Args = deterministicRendering ? ["--disable-skia-runtime-opts", "--disable-gpu"] : null
         });
 
         _context = await _browser.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize             = new ViewportSize { Width = 1920, Height = 1080 },
+            DeviceScaleFactor        = deterministicRendering ? 1 : null,
             IgnoreHTTPSErrors        = true,
             RecordVideoDir           = null   // Enable per-scenario if you want video artifacts
         });

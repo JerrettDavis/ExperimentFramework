@@ -28,7 +28,8 @@ public class ScenarioHooks
     [BeforeScenario(Order = 0)]
     public async Task BeforeScenario()
     {
-        await _browserDriver.InitializeAsync();
+        var docsCapture = _scenarioContext.ScenarioInfo.CombinedTags.Contains("docs-screenshot");
+        await _browserDriver.InitializeAsync(deterministicRendering: docsCapture);
     }
 
     [AfterScenario(Order = int.MaxValue)]
