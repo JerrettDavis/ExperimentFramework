@@ -20,6 +20,7 @@ public sealed class MonacoEditorTests : BunitContext
             .Add(x => x.Value, "initial")
             .Add(x => x.Markers, [new EditorMarker()]));
 
+        editor.Render(p => p.Add(x => x.Value, "external update"));
         await editor.InvokeAsync(() => editor.Instance.OnContentChanged("user edit"));
         initialization.SetVoidResult();
 
